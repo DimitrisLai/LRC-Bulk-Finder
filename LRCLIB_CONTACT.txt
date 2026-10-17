@@ -1,0 +1,3 @@
+# LRCLIB requires a real project URL or contact email.
+# Public GitHub repository for this release:
+https://github.com/DimitrisLai/LRC-Bulk-Finder

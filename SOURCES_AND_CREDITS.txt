@@ -1,0 +1,16 @@
+Created by Dimitris L.
+
+LINKS AND ATTRIBUTIONS
+======================
+Greeklish G2G language model (AUEB): https://github.com/nlpaueb/gr-nlp-toolkit
+SyncedLyrics Python library: https://github.com/moehmeni/syncedlyrics
+Mutagen tag library: https://mutagen.readthedocs.io/
+Unidecode text library: https://pypi.org/project/Unidecode/
+LRCLIB: https://lrclib.net/
+MusicBrainz: https://musicbrainz.org/
+Other provider endpoints: see original Sources.txt and script sources.
+
+Check the third-party services' terms and project licenses before
+redistributing or using them at scale. LRC Bulk Finder is a downloader
+frontend, not a provider of audio or licensed lyrics. Results may be
+unavailable; provider APIs can change at any time.

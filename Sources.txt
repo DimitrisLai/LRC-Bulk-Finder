@@ -1,0 +1,46 @@
+SYNCHRONIZED LYRIC SOURCES — research October 2026
+====================================================
+
+NEW IN v2.0
+1. Unison: public community LRC/TTML storage and API.
+   https://lyrics-api-docs.boidu.dev/unison
+   https://github.com/better-lyrics/unison
+   GET /lyrics?song=...&artist=...
+   GET /lyrics/search?q=... ; GET /lyrics?v=videoId
+   Public 120 requests/min per IP according to the publisher.
+
+2. Better Lyrics KuGou (LRC) and Better Lyrics TTML (cache-first).
+   https://lyrics-api-docs.boidu.dev/docs/providers
+   https://lyrics-api-docs.boidu.dev/docs/authentication
+   https://api.betterlyrics.org/kugou/getLyrics
+   https://api.betterlyrics.org/ttml/getLyrics
+   TTML misses may return 401 without API key; public keys currently not
+   offered. KuGou and QQ routes do not require a key per publisher.
+
+3. YouLy+ / LyricsPlus: experimental hosted TTML endpoint.
+   https://github.com/ibratabian17/LyricsPlus
+   https://lyricsplus.prjktla.my.id/v1/ttml/get
+   Source availability and copyright restrictions can change. NOT verified
+   against Greek songs; use reports to determine if it works for your tracks.
+   Apple, Musixmatch, Spotify and QQ routes may overlap previous sources.
+
+EXISTING SOURCES RETAINED
+4. SyncLRC: https://synclrc.dev/
+5. LRCLIB: https://lrclib.net/docs
+6. LrcAPI: https://docs.lrc.cx/docs/QuickStart/
+7. LiriQo: https://github.com/AlFarrizi-Studio/Liriqo
+8. NetEase, 9. Musixmatch, 10. Megalobiz (syncedlyrics project):
+   https://github.com/moehmeni/syncedlyrics
+11. Tencent/QQ (optional syncedlyrics_aio):
+   https://github.com/xizeyoupan/syncedlyrics_aio
+
+METADATA ONLY (NOT LYRIC SERVER)
+MusicBrainz: https://musicbrainz.org/doc/MusicBrainz_API/Search
+
+PLAIN TEXT GREEK LYRIC SITES (NOT TIMED LRC)
+https://www.greeklyrics.gr/
+https://stixoi.info/
+
+There is no guarantee of additional coverage for Greek songs; some routes
+query the same underlying licensed catalogs. The program should not access
+restricted endpoints using unauthorized credentials or bypass rate limits.

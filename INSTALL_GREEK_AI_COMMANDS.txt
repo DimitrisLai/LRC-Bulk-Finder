@@ -1,0 +1,48 @@
+OPTIONAL GREEKLISH -> GREEK LOCAL AI (AUEB gr-nlp-toolkit)
+=========================================================
+Source: https://github.com/nlpaueb/gr-nlp-toolkit
+Required only when you choose Greek mode Y and local AI Y.
+Python 3.13 is supported by the user's tested installation; on other
+setups compatibility depends on the installed package and dependencies.
+
+OPTION A - AUTOMATIC INSTALLER
+1. Extract all files from the LRC Bulk Finder ZIP.
+2. Double-click SETUP_GREEK_AI.cmd.
+3. Answer Y when it asks whether to install/load the model.
+4. Wait for the large model download and first inference to finish.
+5. The installer prints the sample result and keeps the window open.
+
+OPTION B - EXACT POWERSHELL COMMANDS
+Open PowerShell and run:
+
+  py --version
+  py -m pip install gr-nlp-toolkit
+  py -c "from gr_nlp_toolkit import Pipeline; nlp = Pipeline('g2g'); print(nlp('O Volos kai h Larisa einai sth Thessalia').text)"
+
+A Greek-script sentence means the model successfully loaded. Expect the
+first Pipeline('g2g') call to fetch roughly 1.2 GB plus dependencies.
+Subsequent runs normally reuse the locally cached model; no separate
+model installer archive is included here.
+
+If multiple Python versions are installed, ensure the launcher uses the
+same interpreter as the AI installation. You can check:
+
+  py -c "import sys; print(sys.executable)"
+  py -m pip show gr-nlp-toolkit
+
+If the module cannot be imported, run pip using the interpreter that
+START_HERE.cmd detects, or disable local AI to continue normal searches.
+
+HOW TO USE WITH DOWNLOADER
+- Greeklish / Greek folder: Y
+- Use installed LOCAL G2G model: Y
+- MusicBrainz: N initially (optional)
+- 20 songs + search-after-preview N for preview-only quality review
+- Examine LRC_G2G_AI_Review_v2_1_4.csv in your MP3 folder
+- Re-run, choose 20 + search-after-preview Y to test actual downloads
+- When satisfied, choose A for all and Y for unattended search
+
+G2G is a language/spelling model, NOT a verified music catalogue.
+AI may misread names, remixes and titles. Review results before large runs.
+Manual corrections in Greek_Aliases.csv take priority over AI guesses.
+Never paste literal Python code into the title field or edit original MP3s.

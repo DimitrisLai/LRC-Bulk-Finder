@@ -1,0 +1,10 @@
+LRC Bulk Finder v2.1.4 - Public Command-Line Edition
+Created by Dimitris L.
+
+Creator/project credit applies to the LRC Bulk Finder application,
+its integration, workflows, reports and public manual. It does not
+claim ownership of third-party libraries, APIs, music or lyric content.
+
+Python dependencies, AUEB Greek NLP model and external lyrics services
+remain the work of their respective authors. See SOURCES_AND_CREDITS.txt.
+This project does not bundle third-party lyric text or music recordings.

@@ -1,0 +1,24 @@
+LRC BULK FINDER v2.1.4 - Reliability release (PUBLIC BETA)
+Created by Dimitris L.
+
+From v2.1.3:
+1. Fixed search-history classification: a provider that returns a
+   review candidate cannot be cached as a definitive NO_MATCH.
+   Only genuinely empty completed provider searches are cached.
+2. Provider outcomes now identify REVIEW_AVAILABLE explicitly, separate
+   from NO_MATCH and SAVED. Reviews never silently install an LRC.
+3. Added LRC_Review_Needed.txt for tracks with uncertain candidates.
+4. Added elapsed seconds and review counts to provider detail/statistics CSV.
+5. LRCLIB User-Agent now needs a real publisher contact in
+   LRCLIB_CONTACT.txt, per official API documentation. No made-up identity.
+   Without it, LRCLIB is skipped and other providers continue.
+6. HTTP 429 Retry-After cooldowns persist across future runs; no
+   repeated automatic requests during a service's active cooldown.
+7. Preserved 12 routes, optional offline G2G, Greek manual aliases,
+   FAST/FULL, version matching, original-file protection, and strict
+   affected-song/provider timeout-only retries.
+
+NOTE: Changes may yield MORE visible review candidates but not necessarily
+more automatic LRC saves, because the verified matching rules are strict.
+
+Offline tests do not guarantee all third-party services work live.
