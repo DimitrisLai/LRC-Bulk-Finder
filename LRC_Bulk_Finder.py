@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LRC Bulk Finder v2.1.15. See README for provider/API limitations.
+"""LRC Bulk Finder v2.1.16. See README for provider/API limitations.
 Reads audio ID3 metadata; writes ONLY sidecar .lrc and reports, never audio tags.
 Created by Dimitris L. (project credit; third-party services credited separately).
 """
@@ -36,8 +36,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.1.15'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.15',
+VERSION = '2.1.16'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.16',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -944,12 +944,69 @@ def export_review_candidates(track,rnd,review,review_folder=None):
     return output
 
 
-def promote_candidate_file(candidate):
-    """Safely copy then remove an explicitly chosen .candidate.lrc.
+def _numbered_promotion_candidates(candidate, stem):
+    """List canonical numbered alternatives only; never touch unrelated files."""
+    pattern=re.compile(re.escape(stem)+r'\.candidate\.([2-9]\d*)\.lrc$',re.I)
+    alternatives=[]
+    for path in candidate.parent.iterdir():
+        if not path.is_file():continue
+        match=pattern.fullmatch(path.name)
+        if match and str(int(match.group(1)))==match.group(1):
+            alternatives.append((int(match.group(1)),path))
+    return sorted(alternatives,key=lambda item:item[0])
 
-    Preconditions: same-named MP3 exists; candidate is valid timestamped LRC;
-    final .lrc does not exist. Destination is opened exclusively, NEVER replaced.
-    Returns (action, reason).
+
+def _write_exclusive_lrc(target, payload):
+    """Write a complete file without overwriting. Remove only our partial write."""
+    import os
+    created=False
+    try:
+        with target.open('xb') as output:
+            created=True
+            output.write(payload)
+            output.flush()
+            os.fsync(output.fileno())
+    except OSError:
+        if created:
+            try:target.unlink()
+            except OSError:pass
+        raise
+
+
+def _shift_promotion_alternatives(candidate, stem, alternatives):
+    """After first candidate is consumed, shift .candidate.N to N-1 safely.
+
+    Each destination is created exclusively (not rename/replace), then the
+    source is removed. Stop on error; never overwrite an existing sidecar.
+    """
+    shifted=0
+    for number, source in alternatives:
+        destination=candidate if number==2 else candidate.with_name(
+            stem+f'.candidate.{number-1}.lrc')
+        if destination.exists():
+            return shifted, f'{destination.name} already exists; remaining alternatives unchanged'
+        try:
+            raw=source.read_bytes()
+            _write_exclusive_lrc(destination,raw)
+            try:
+                source.unlink()
+            except OSError:
+                # Source still exists: attempt to undo our copy, not overwrite.
+                try:destination.unlink()
+                except OSError:pass
+                raise
+        except OSError as ex:
+            return shifted, f'could not shift {source.name} to {destination.name}: {ex}'
+        shifted+=1
+    return shifted,''
+
+
+def promote_candidate_file(candidate):
+    """Install an unverified candidate with a visible 00:00 marker.
+
+    Never modify audio/ID3 or overwrite an existing .lrc. Following success,
+    remove the consumed primary candidate and move numbered alternatives down
+    one position so the next can be tried after deleting the .lrc.
     """
     suffix='.candidate.lrc'
     if not candidate.name.lower().endswith(suffix):
@@ -958,46 +1015,60 @@ def promote_candidate_file(candidate):
     mp3=candidate.with_name(original_stem+'.mp3')
     target=candidate.with_name(original_stem+'.lrc')
     if not mp3.is_file():return 'SKIPPED','matching MP3 not found'
-    if target.exists():return 'SKIPPED','approved .lrc already exists (never overwrite)'
+    if target.exists():return 'SKIPPED','existing .lrc preserved (never overwrite)'
     try:
-        text=candidate.read_text(encoding='utf-8-sig')
+        raw=candidate.read_bytes()
+        lyrics=raw.decode('utf-8-sig')
     except (OSError,UnicodeError) as ex:
         return 'ERROR',f'cannot read candidate: {ex}'
-    if not plausible_lrc(text,0):return 'SKIPPED','candidate is not a valid timed LRC'
+    if not plausible_lrc(lyrics,0):
+        return 'SKIPPED','candidate is not a valid timed LRC'
     try:
-        # Exclusive mode prevents accidental overwriting and works on Windows.
-        raw=candidate.read_bytes()
-        with target.open('xb') as out:
-            out.write(raw)
-            out.flush()
-            import os
-            os.fsync(out.fileno())
-        candidate.unlink()
-    except FileExistsError:
-        return 'SKIPPED','approved .lrc appeared during promotion'
+        alternatives=_numbered_promotion_candidates(candidate,original_stem)
     except OSError as ex:
-        # If the copy was written but removal failed, leave both intact.
-        return 'ERROR',str(ex)
-    return 'PROMOTED',str(target)
+        return 'ERROR',f'cannot list numbered candidates: {ex}'
+    # Preserve the candidate's BOM and original bytes, including its line endings.
+    bom=b'\xef\xbb\xbf' if raw.startswith(b'\xef\xbb\xbf') else b''
+    body=raw[len(bom):]
+    already_marked=re.search(r'(?im)^\[00:00(?:\.\d{1,3})?\]\s*candidate\s*$',
+                             lyrics) is not None
+    ending=b'\r\n' if b'\r\n' in body else b'\n'
+    marked=raw if already_marked else bom+b'[00:00.00] candidate'+ending+body
+    try:
+        _write_exclusive_lrc(target,marked)
+    except FileExistsError:
+        return 'SKIPPED','an .lrc appeared during promotion (never overwrite)'
+    except OSError as ex:
+        return 'ERROR',f'could not write .lrc; primary candidate retained: {ex}'
+    try:
+        candidate.unlink()
+    except OSError as ex:
+        return 'ERROR',f'.lrc created, but original candidate could not be removed: {ex}'
+    shifted,problem=_shift_promotion_alternatives(candidate,original_stem,alternatives)
+    if problem:
+        return 'PARTIAL',f'created {target.name} with candidate marker; shifted {shifted}; {problem}'
+    return 'PROMOTED',f'{target.name} marked candidate at 00:00; shifted {shifted} alternatives'
 
 
 def promote_candidates(folder,recursive=True,confirm=True):
-    """Promote primary review sidecars, with preflight and one confirmation."""
+    """Bulk-install first candidate as marked .lrc, then advance alternatives."""
     if not folder.is_dir():
         print('Folder does not exist:',folder)
-        return {'PROMOTED':0,'SKIPPED':0,'ERROR':1}
+        return {'PROMOTED':0,'SKIPPED':0,'ERROR':1,'PARTIAL':0}
     candidates=sorted((p for p in (folder.rglob('*') if recursive else folder.iterdir())
                        if p.is_file() and p.name.lower().endswith('.candidate.lrc')),
                       key=lambda p:str(p).casefold())
     counts=Counter()
     print(f'\nFound {len(candidates)} primary .candidate.lrc files.',flush=True)
     if not candidates:return counts
-    print('Only exact .candidate.lrc files will be promoted. .candidate.2.lrc alternatives stay untouched.')
-    print('Original MP3 files will not be edited. Existing approved .lrc files are NEVER overwritten.')
+    print('Each eligible first candidate becomes .lrc with [00:00.00] candidate.')
+    print('Remaining numbered candidates shift down: .candidate.2 -> .candidate, etc.')
+    print('These lyrics are UNVERIFIED. Listen and remove the marker only after review.')
+    print('Existing .lrc and original MP3/ID3 files are NEVER overwritten.')
     for path in candidates[:5]:
-        print('  '+path.name+'  ->  '+path.name[:-len('.candidate.lrc')]+'.lrc')
+        print('  '+path.name+'  ->  '+path.name[:-len('.candidate.lrc')]+'.lrc (MARKED)')
     if len(candidates)>5:print(f'  ... and {len(candidates)-5} more')
-    if confirm and input('Promote all eligible candidates to approved .lrc? [y/N]: ').strip().lower() not in {'y','yes'}:
+    if confirm and input('Bulk-install marked candidates and advance alternatives? [y/N]: ').strip().lower() not in {'y','yes'}:
         print('Cancelled; no files changed.')
         return counts
     report=[]
@@ -1007,16 +1078,17 @@ def promote_candidates(folder,recursive=True,confirm=True):
         report.append([str(path),action,reason])
         if action!='PROMOTED' or index<=10 or index%100==0:
             print(f'  [{index}/{len(candidates)}] {action}: {path.name} — {reason}',flush=True)
-    report_path=folder/'LRC_Candidate_Promotion_Report_v2_1_8.csv'
+    report_path=folder/'LRC_Candidate_Promotion_Report_v2_1_16.csv'
     try:
         with report_path.open('w',encoding='utf-8-sig',newline='') as out:
             writer=csv.writer(out)
-            writer.writerow(['candidate path','result','reason / approved LRC path'])
+            writer.writerow(['primary candidate path','result','details / marked LRC path'])
             writer.writerows(report)
         print('Promotion report:',report_path)
     except OSError as ex:
         print('Warning: could not save promotion report:',ex)
-    print('PROMOTED:',counts['PROMOTED'],'| SKIPPED:',counts['SKIPPED'],'| ERRORS:',counts['ERROR'])
+    print('PROMOTED:',counts['PROMOTED'],'| SKIPPED:',counts['SKIPPED'],
+          '| PARTIAL:',counts['PARTIAL'],'| ERRORS:',counts['ERROR'])
     return counts
 
 
@@ -1974,7 +2046,7 @@ def main():
     print('New: Unison, Better Lyrics KuGou/TTML and experimental YouLy+ TTML.\n')
     print('\nChoose what you want to do:')
     print('  1 — SEARCH for synchronized lyrics')
-    print('  2 — PROMOTE .candidate.lrc files to .lrc (no network)')
+    print('  2 — INSTALL marked candidates to .lrc + advance alternatives (offline)')
     print('  3 — LRCLIB-only catch-up (only sources skipped or unavailable earlier)')
     print('  4 — OFFLINE LRCLIB ONLY (scan ANY folder; no internet)')
     action=input('Choose [1/2/3/4] (default 1): ').strip()
