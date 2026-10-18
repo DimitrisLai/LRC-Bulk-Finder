@@ -35,7 +35,11 @@ jobs:
           archive = Path("downloads/LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip")
           prefix = "LRC_Bulk_Finder_v2_1_15/"
           docs = ["LICENSE", "CREATOR_AND_ATTRIBUTION.txt",
-                  "PUBLICATION_AND_LICENSE_NOTES.txt", "README.md"]
+                  "PUBLICATION_AND_LICENSE_NOTES.txt", "README.md",
+                  "CONTRIBUTING.md", "SECURITY.md",
+                  "TEST_OFFLINE_FOLDER_V2_1_15.py",
+                  "TEST_CONNECT_EXISTING_DB_V2_1_15.py",
+                  ".github/workflows/tests.yml"]
           assert archive.is_file(), "Windows release ZIP missing"
           assert "MIT License" in Path("LICENSE").read_text(encoding="utf-8")
           for doc in docs:
