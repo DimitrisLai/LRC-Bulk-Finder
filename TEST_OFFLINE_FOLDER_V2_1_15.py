@@ -1,7 +1,7 @@
 """Offline-only arbitrary-folder scan regression tests. No external networking."""
 import csv,io,sqlite3,sys,tempfile,types,unittest
 from pathlib import Path
-from contextlib import redirect_stdout
+from contextlib import closing, redirect_stdout
 from unittest import mock
 sys.modules.setdefault('syncedlyrics', types.SimpleNamespace(search=lambda *a,**kw:None))
 import LRC_Bulk_Finder as app
@@ -11,7 +11,7 @@ LYR='[00:05.00] Hello world\n[00:25.00] How are you\n[02:59.00] Song ends\n'
 
 def fixture(folder):
     db=Path(folder)/'snapshot.sqlite3'
-    with sqlite3.connect(db) as con:
+    with closing(sqlite3.connect(db)) as con, con:
         con.executescript('CREATE TABLE tracks (id INTEGER PRIMARY KEY,name TEXT,name_lower TEXT,artist_name TEXT,artist_name_lower TEXT,duration REAL,last_lyrics_id INTEGER);CREATE TABLE lyrics (id INTEGER PRIMARY KEY,synced_lyrics TEXT);CREATE INDEX names ON tracks(name_lower);')
         con.execute('INSERT INTO tracks VALUES (1,?,?,?,?,?,1)',('Hello','hello','Tester','tester',180))
         con.execute('INSERT INTO lyrics VALUES (1,?)',(LYR,))
@@ -30,7 +30,7 @@ class OfflineFolderTests(unittest.TestCase):
             db=fixture(base)
             with mock.patch.object(app,'configure_local_lrclib') as configure, mock.patch.object(app,'LocalLRCLIB',return_value=LocalLRCLIB(db)),mock.patch('builtins.input',return_value=str(db)),redirect_stdout(io.StringIO()):
                 self.assertTrue(app.ensure_local_lrclib_config(program))
-            self.assertEqual((program/'LRCLIB_LOCAL_DB.txt').read_text().strip(),str(db))
+            self.assertEqual(Path((program/'LRCLIB_LOCAL_DB.txt').read_text().strip()).resolve(),db.resolve())
             self.assertIsNotNone(app.LOCAL_LRCLIB)
             self.assertEqual(db.stat().st_size,(base/'snapshot.sqlite3').stat().st_size)
 
