@@ -49,18 +49,18 @@ class CandidateTests(unittest.TestCase):
             self.assertEqual(len(list(Path(d).glob('*.candidate*.lrc'))),2)
             self.assertEqual((Path(d)/'TheProdigy.candidate.lrc').read_text(),GOOD)
 
-    def test_promotion_creates_lrc_and_removes_primary_not_alternative(self):
+    def test_promotion_marks_lrc_and_shifts_first_alternative(self):
         with tempfile.TemporaryDirectory() as d:
             folder=Path(d);mp3=folder/'TheProdigy.mp3';mp3.write_bytes(b'KEEP')
             (folder/'TheProdigy.candidate.lrc').write_text(GOOD)
             (folder/'TheProdigy.candidate.2.lrc').write_text(ALT)
             out=app.promote_candidates(folder,confirm=False)
             self.assertEqual(out['PROMOTED'],1)
-            self.assertEqual((folder/'TheProdigy.lrc').read_text(),GOOD)
-            self.assertFalse((folder/'TheProdigy.candidate.lrc').exists())
-            self.assertTrue((folder/'TheProdigy.candidate.2.lrc').exists())
+            self.assertEqual((folder/'TheProdigy.lrc').read_text(),'[00:00.00] candidate\n'+GOOD)
+            self.assertEqual((folder/'TheProdigy.candidate.lrc').read_text(),ALT)
+            self.assertFalse((folder/'TheProdigy.candidate.2.lrc').exists())
             self.assertEqual(mp3.read_bytes(),b'KEEP')
-            self.assertTrue((folder/'LRC_Candidate_Promotion_Report_v2_1_8.csv').is_file())
+            self.assertTrue((folder/'LRC_Candidate_Promotion_Report_v2_1_16.csv').is_file())
 
     def test_existing_approved_lrc_is_never_overwritten(self):
         with tempfile.TemporaryDirectory() as d:
