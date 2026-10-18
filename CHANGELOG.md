@@ -2,6 +2,11 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.1.16 — Marked bulk candidate promotion
+- Option 2 installs a timed primary candidate as playable `.lrc` with `[00:00.00] candidate` at the beginning, visibly UNVERIFIED.
+- Following promotion, numbered alternate candidates shift down one position.
+- Existing `.lrc`, MP3 audio and ID3 tags are not modified. Explicit confirmation, CSV reporting and offline operation remain.
+- Added offline Windows/Linux regression tests for the marker, shifting, repeat promotion and 110-song batch.
 ## v2.1.15 — Offline-only folder search
 - Added **4 — OFFLINE LRCLIB ONLY** to scan any music folder, no prior catch-up queue needed.
 - Added `CONNECT_EXISTING_LRCLIB_DATABASE.cmd`: link previously extracted SQLite without copying or redownloading hundreds of GiB.
