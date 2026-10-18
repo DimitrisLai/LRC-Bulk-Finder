@@ -1,0 +1,47 @@
+LRC BULK FINDER v2.1.10 — FIRST-ATTEMPT COVERAGE & TRANSIENT RECOVERY
+Created by Dimitris L. | Windows CLI | Public Beta
+
+What was observed in a real v2.1.9 run:
+- LiriQo timed out and returned a small number of HTTP 503 errors, then was
+  marked permanently unavailable for 1,068 later songs.
+- LRCLIB produced useful saved lyrics but returned HTTP 503 for many songs.
+- BetterKuGou and BetterTTML returned HTTP 401 Unauthorized. Resending the
+  same unauthenticated request thousands of times cannot fix authorization.
+
+Fixes:
+1. SEARCH now offers "Wait for temporary provider recovery before EACH first
+   attempt? [Y/n]" (Y default). This can SLOW DOWN a large run significantly.
+   A source under a temporary 503/network recovery timer waits before the
+   next song's FIRST request instead of skipping it. It does NOT retry an
+   HTTP 503 for the same song. Interrupted runs still produce reports.
+2. Transient LiriQo and other provider failures use temporary recovery rather
+   than permanently disabling the provider after two errors. If coverage wait
+   is disabled, recovery-period songs are clearly marked SKIPPED and remain
+   visibly incomplete. A stuck third-party worker remains blocked for safety.
+3. HTTP 401/403 access denials stop that provider for the run immediately;
+   HTTP 429 continues to honor provider-wide and persisted cooldowns.
+   These cases cannot be repaired by the downloader without server permission.
+4. LRC_First_Attempt_Coverage_v2_1_10.csv documents every selected song and
+   source: request sent, third-party request not observable, history cache,
+   unavailable source, or not reached because another provider already saved.
+5. LRCLIB option 3 imports the user's existing v2.1.9 catch-up queue if the
+   v2.1.10 queue does not yet exist. The v2.1.9 queue is preserved.
+6. LRCLIB catch-up now waits between songs during 503 recovery rather than
+   immediately stopping on the first 503. Each failed song stays queued. 429
+   and access restrictions still end the catch-up run safely.
+7. Window title, diagnostics banner, Python version and report filenames all
+   consistently show v2.1.10. No PDF was built for this interim code patch.
+
+Unchanged safety guarantees:
+- MP3 audio and original ID3 tags never modified.
+- Existing .lrc files skipped. LIVE excluded.
+- Verified artist/title, version, <=3s duration required for auto-save.
+- Uncertain .candidate.lrc files remain review-only.
+- Automated rounds 2/3 retry genuine network timeouts ONLY, for the exact
+  source and song. Not for NO_MATCH, 503, 401, 403, 429 or skipped sources.
+
+External limitations:
+A provider may return HTTP 503 again after waiting. 401/403 may indicate an
+unsupported/unauthorized endpoint. An HTTP request is an attempt, NOT proof
+that lyrics were searched successfully or that the song has no lyrics.
+The program does not bypass service restrictions or guarantee a response.

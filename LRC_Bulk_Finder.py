@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""LRC Bulk Finder v2.1.4. See README for provider/API limitations.
+"""LRC Bulk Finder v2.1.15. See README for provider/API limitations.
 Reads audio ID3 metadata; writes ONLY sidecar .lrc and reports, never audio tags.
 Created by Dimitris L. (project credit; third-party services credited separately).
 """
 from __future__ import annotations
 import csv
+from lrclib_local import LocalLRCLIB, load_local_config
 import hashlib
 import shutil
 from datetime import datetime, timezone
@@ -35,15 +36,15 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.1.4'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.4',
+VERSION = '2.1.15'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.15',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
 COOLDOWN_PATH = None
 COOLDOWN_UNTIL = {}
 # Older libraries use these identifiers exactly.
-PROVIDERS = ('SyncLRC', 'Unison', 'LRCLIB', 'BetterKuGou', 'BetterTTML', 'YouLyTTML', 'LrcAPI', 'LiriQo', 'NetEase', 'Musixmatch', 'Megalobiz', 'Tencent')
+PROVIDERS = ('LRCLIB', 'SyncLRC', 'Unison', 'BetterKuGou', 'BetterTTML', 'YouLyTTML', 'LrcAPI', 'LiriQo', 'NetEase', 'Musixmatch', 'Megalobiz', 'Tencent')
 BASE_GAP = {'LRCLIB': 2.4, 'SyncLRC': 2.2, 'Unison': 1.5, 'BetterKuGou': 1.8, 'BetterTTML': 1.8, 'YouLyTTML': 2.5, 'LrcAPI': 1.5, 'LiriQo': 1.5,
             'NetEase': 1.5, 'Musixmatch': 1.5, 'Megalobiz': 1.5, 'Tencent': 2.0, 'MusicBrainz': 1.2}
 NETWORK_TIMEOUT = 10
@@ -55,6 +56,22 @@ except ImportError:
     pass
 blocked = {}
 errors = Counter()
+# HTTP 503 is transient, not a permanent provider ban. For LRCLIB, use a
+# bounded provider-wide recovery period and probe again on a future song.
+# It never adds a song to the network-timeout retry rounds.
+LRCLIB_503_STREAK = 0
+LRCLIB_503_RETRY_AT = 0.0
+# Enabled by default in the Windows SEARCH workflow. Wait *before a first
+# provider attempt* when a temporary recovery timer is active, rather than
+# silently skipping hundreds of later songs. No HTTP 5xx is automatically retried.
+COMPLETE_FIRST_PASS = False  # activated by interactive [Y/n] prompt
+PROVIDER_RECOVERY_AT = {}
+PROVIDER_ERROR_STREAK = Counter()
+LOCAL_LRCLIB = None
+LRCLIB_ONLINE_FALLBACK = True
+LRCLIB_503_CIRCUIT_LIMIT = 3  # consecutive overload responses in one run
+LRCLIB_EXACT_FALLBACK = False  # Opt-in: existing searches stay unchanged by default.
+LRCLIB_LAST_FINISHED = 0.0  # minimum gap after completion (not just between start times)
 next_available = {}
 seen_rejections = {}
 ROUND = 1
@@ -62,6 +79,56 @@ HISTORY_ENABLED = False
 HISTORY_PATH = None
 HISTORY_CACHE = {}
 HISTORY_DAYS = 7
+
+# Request-level diagnostics; stored only in local reports. URL query strings
+# (which can contain song metadata or tokens) are deliberately not recorded.
+ACTIVE_HTTP_TRACE = None
+LIBRARY_MANAGED_SOURCES = {'NetEase','Musixmatch','Megalobiz','Tencent'}
+
+
+def add_http_event(provider,url,status,started,detail=''):
+    """Capture actual HTTP outcomes without claiming to see third-party internals."""
+    if ACTIVE_HTTP_TRACE is None:return
+    parts=urllib.parse.urlsplit(url)
+    target=parts.netloc+parts.path  # never include URL query params
+    ACTIVE_HTTP_TRACE.append({
+        'provider':provider, 'endpoint':target, 'status':str(status),
+        'detail':str(detail or '')[:180],
+        'elapsed_seconds':round(max(0.0,time.monotonic()-started),3),
+    })
+
+
+def http_summary(provider,events):
+    """Distinguish a successful HTTP lookup from an accepted lyric match."""
+    if not events:
+        if provider in LIBRARY_MANAGED_SOURCES:
+            return 'HTTP status UNKNOWN (third-party library does not expose it)'
+        return 'NO HTTP request recorded'
+    codes=[event['status'] for event in events]
+    labels=[]
+    for code in dict.fromkeys(codes):
+        count=codes.count(code)
+        labels.append(('HTTP ' if code.isdigit() else '')+code+(f' x{count}' if count>1 else ''))
+    return ', '.join(labels)
+
+
+def print_provider_state(source,status,elapsed=0,events=None,reason=''):
+    """Always print the source's outcome, even if no request was made."""
+    events=events if events is not None else []
+    explanation=reason or http_summary(source,events)
+    print(f'      {source}: {status} | {explanation} | {elapsed:.1f}s',flush=True)
+
+
+def show_provider_availability():
+    print('\nProvider availability at startup (a selected provider may be skipped):',flush=True)
+    for name in (ACTIVE_PROVIDERS if ACTIVE_PROVIDERS is not None else PROVIDERS):
+        if name in blocked:
+            print(f'  {name}: DISABLED — {blocked[name]}',flush=True)
+        elif name=='Tencent' and not OPTIONAL_TENCENT_AVAILABLE:
+            print(f'  {name}: UNAVAILABLE — optional syncedlyrics_aio package not installed',flush=True)
+        else:
+            print(f'  {name}: READY (not yet contacted)',flush=True)
+    print('HTTP codes will be reported when exposed; READY is not proof the service is reachable.\n',flush=True)
 
 
 def search_history_key(provider,title,artist,album,duration):
@@ -158,6 +225,69 @@ def retry_after_seconds(header,now=None):
         except (ValueError,TypeError,OverflowError):return 900
 
 
+def lrclib_503_delay(retry_after, streak):
+    """Prefer the explicit server hint, with a short safety floor for overload.
+
+    Without Retry-After, keep the proven bounded 60/120/240/... backoff.
+    429 is handled separately and retains its persisted cooldown.
+    """
+    if retry_after is not None:
+        return max(5.0, float(retry_after_seconds(retry_after)))
+    return min(600.0, 60.0 * (2 ** min(max(0, streak - 1), 4)))
+
+
+def wait_for_recovery(source, until, description):
+    """Wait until a temporary server recovery ends, with visible progress.
+
+    This is a *first attempt on a new song*, not a repeat of HTTP 503.
+    Persistent 401/403/429 blocks always take precedence over this wait.
+    Ctrl+C can interrupt normally; no busy loop or spurious traffic.
+    """
+    remaining=max(0.0,until-time.monotonic())
+    if remaining <= 0:return
+    print(f'    {source}: waiting ~{int(remaining + .999)}s for {description} '
+          '(first-attempt coverage; Ctrl+C stops safely)', flush=True)
+    while True:
+        remaining=until-time.monotonic()
+        if remaining<=0:break
+        time.sleep(min(30.0,remaining))
+
+
+def transient_recovery_delay(source, streak, hint=None):
+    """Conservative short provider backoff; never bypass Retry-After."""
+    if hint is not None:return max(5.0, float(retry_after_seconds(hint)))
+    return min(180.0, 30.0 * (2 ** min(max(0,streak-1),3)))
+
+
+def is_access_denied(ex):
+    return str(ex).startswith(('HTTP 401:', 'HTTP 403:'))
+
+
+def legacy_lrclib_queue_paths(folder):
+    return (Path(folder)/'LRC_LRCLIB_Catchup_Queue_v2_1_13.csv',
+            Path(folder)/'LRC_LRCLIB_Catchup_Queue_v2_1_12.csv',
+            Path(folder)/'LRC_LRCLIB_Catchup_Queue_v2_1_11.csv',
+            Path(folder)/'LRC_LRCLIB_Catchup_Queue_v2_1_10.csv',
+            Path(folder)/'LRC_LRCLIB_Catchup_Queue_v2_1_9.csv')
+
+
+def merge_previous_lrclib_queue(folder, current):
+    """Bring forward v2.1.9-v2.1.13 incomplete LRCLIB entries."""
+    gathered=[]
+    for path in (current, *legacy_lrclib_queue_paths(folder)):
+        if not path.is_file():continue
+        try:
+            with path.open(encoding='utf-8-sig',newline='') as f:
+                gathered.extend(csv.DictReader(f))
+        except (OSError,csv.Error) as ex:
+            print('Warning: unable to read LRCLIB queue:',path,ex)
+    unique={}
+    for row in gathered:
+        raw=row.get('MP3 path','')
+        if raw and raw not in unique:unique[raw]=row
+    return list(unique.values())
+
+
 def load_provider_cooldowns(path):
     global COOLDOWN_PATH,COOLDOWN_UNTIL
     COOLDOWN_PATH=Path(path)
@@ -187,7 +317,7 @@ def record_rate_limit(provider,header):
     except OSError as ex:print('    Warning: cannot persist provider cooldown:',ex)
 
 
-FAST_PROVIDERS = ('SyncLRC', 'NetEase', 'Unison', 'LrcAPI', 'LRCLIB')
+FAST_PROVIDERS = ('LRCLIB', 'SyncLRC', 'NetEase', 'Unison', 'LrcAPI')
 ACTIVE_PROVIDERS = None
 
 
@@ -288,8 +418,10 @@ def greeklish_to_greek(s):
     greek=''.join(result)
     return re.sub(r'σ(?=\s|$)', 'ς', greek)
 
-# MusicBrainz metadata: ONE request per unique song and <= one request/sec.
-# It is *not* a lyrics database. Used only to suggest real Greek spellings.
+# MusicBrainz metadata: ONE request per unique song, paced <=1 request/sec.
+# It is NOT a lyrics database; it can suggest alternative artist/title spellings
+# for Greek OR international files. Returned names are only search variants.
+# Strict provider metadata verification still controls automatic LRC saving.
 MB_ENABLED=False
 GREEK_MODE=True
 MB_CACHE={}
@@ -297,13 +429,18 @@ MB_CALLS=0
 MB_DISABLED_REASON=None
 
 def musicbrainz_variant(title,artist,duration):
+    """Optional one-query metadata lookup for Greek and international tracks.
+
+    International results must closely match identity, duration, and remix
+    version. Greek-script variants retain the older Greeklish search thresholds.
+    No result is accepted as proof that lyrics match a recording.
+    """
     global MB_CALLS,MB_DISABLED_REASON
     key=(normalize(title),normalize(artist))
     if key in MB_CACHE:return MB_CACHE[key]
     MB_CACHE[key]=None
-    # Queries are most useful for Greeklish, not for every international MP3.
     if not MB_ENABLED or MB_DISABLED_REASON or not title or not artist:return None
-    if any('\u0370'<=c<='\u03ff' for c in title):return None
+    if GREEK_MODE and any('\u0370'<=c<='\u03ff' for c in title):return None
     try:
         query='"'+title.replace('"','')+'" '+artist.replace('"','')
         data=direct_json('MusicBrainz','https://musicbrainz.org/ws/2/recording',
@@ -311,15 +448,28 @@ def musicbrainz_variant(title,artist,duration):
         MB_CALLS+=1
         rows=data.get('recordings',[]) if isinstance(data,dict) else []
         for r in rows:
-            rt=r.get('title',''); credits=r.get('artist-credit',[])
+            rt=r.get('title','')
+            credits=r.get('artist-credit',[])
             ra=''.join(c.get('name','') for c in credits if isinstance(c,dict)) or artist
-            gap=abs((r.get('length') or 0)/1000-duration) if r.get('length') and duration else 0
-            if rt and any('\u0370'<=ch<='\u03ff' for ch in rt) and \
-                    similarity(title,rt)>=.75 and similarity(artist,ra)>=.7 and gap<=12:
-                MB_CACHE[key]=(rt,ra)
-                break
+            length=r.get('length')
+            if not rt or not ra:continue
+            if GREEK_MODE:
+                # Only seek a Greek-script alternative for likely Greeklish input.
+                if not any('\u0370'<=ch<='\u03ff' for ch in rt):continue
+                gap=abs(length/1000-duration) if length and duration else 0
+                if similarity(title,rt)<.75 or similarity(artist,ra)<.7 or gap>12:continue
+            else:
+                # For international music, alternative spellings must be
+                # independently plausible; never switch to a different remix.
+                if not length or duration<=0:continue
+                gap=abs(length/1000-duration)
+                if gap>3 or not same_recording_version(title,rt):continue
+                if similarity(title,rt)<.88 or similarity(artist,ra)<.85:continue
+                if normalize(rt)==normalize(title) and normalize(ra)==normalize(artist):continue
+            MB_CACHE[key]=(rt,ra)
+            break
     except ProviderFailure as ex:
-        # Metadata enhancement is optional: an error must never stop lyrics lookup.
+        # Optional metadata lookup never stops a lyrics search.
         if any(code in str(ex) for code in ('HTTP 503','HTTP 429','HTTP 502','HTTP 500')):
             MB_DISABLED_REASON=str(ex)
             print(f'    MusicBrainz unavailable ({ex}); disabling optional lookups for this run.')
@@ -403,7 +553,13 @@ def query_variants(title,artist):
     title=str(title or '').strip();artist=str(artist or '').strip()
     if not title or not artist:return []
     out=[(title,artist)]
-    if not GREEK_MODE:return out
+    if not GREEK_MODE:
+        # MusicBrainz is optional but now useful outside Greek mode as well.
+        # The candidate is only a search spelling, NEVER trusted lyric identity.
+        mb=MB_CACHE.get((normalize(title),normalize(artist))) if MB_ENABLED else None
+        if mb and (normalize(mb[0]),normalize(mb[1])) != (normalize(title),normalize(artist)):
+            out.append((mb[0],mb[1]))
+        return out
     key=(normalize(title),normalize(artist))
     if key in G2G_SONG_PLANS:
         plan=list(G2G_SONG_PLANS[key])
@@ -535,36 +691,66 @@ class ProviderFailure(Exception):
 def wait_for(provider):
     gap=BASE_GAP.get(provider,1.0)*ROUND
     until=next_available.get(provider,0)
+    # LRCLIB documents a gap *between* sequential requests. The older
+    # start-to-start delay could send two long requests back-to-back.
+    if provider=='LRCLIB':until=max(until,LRCLIB_LAST_FINISHED+0.5)
     if until>time.monotonic():time.sleep(until-time.monotonic())
     next_available[provider]=time.monotonic()+gap
 
 
 def direct_get(provider,url,params):
-    """Single bounded HTTP request. No inner retries or long 429 sleep."""
+    """Single bounded HTTP request; record actual status or transport error.
+
+    Never expose the full URL with query parameters in diagnostic reports.
+    """
+    global LRCLIB_LAST_FINISHED
     wait_for(provider)
     full=url+'?'+urllib.parse.urlencode(params)
+    started=time.monotonic()
     try:
         request_headers=dict(HEADERS)
+        if provider=='MusicBrainz':
+            # MusicBrainz requires a project-identifying User-Agent.
+            request_headers['User-Agent']=f'LRCBulkFinder/{VERSION} (https://github.com/DimitrisLai/LRC-Bulk-Finder)'
         if provider=='LRCLIB' and LRCLIB_USER_AGENT:
             request_headers['User-Agent']=LRCLIB_USER_AGENT
             request_headers['Lrclib-Client']=LRCLIB_USER_AGENT
         req=urllib.request.Request(full,headers=request_headers)
         with urllib.request.urlopen(req,timeout=NETWORK_TIMEOUT) as response:
+            code=getattr(response,'status',None)
+            if code is None:
+                code=response.getcode() if hasattr(response,'getcode') else None
             payload=response.read(2_000_000)
+            add_http_event(provider,url,str(code) if code is not None else 'HTTP_2XX_UNSPECIFIED',started)
             return payload.decode('utf-8-sig','replace')
     except urllib.error.HTTPError as ex:
-        if ex.code==404:return None
-        # Better Lyrics TTML is cache-first; 401 often means this track is not cached.
-        # Do NOT disable the whole provider: the next song may be cached.
-        if ex.code==401 and provider=='BetterTTML':return None
         ra=ex.headers.get('Retry-After') if ex.headers else None
+        detail=''
+        if ex.code==401 and provider=='BetterTTML':
+            detail='uncached or unauthorized TTML response; no lyrics returned'
+        elif ex.code==404:
+            detail='resource not found'
+        elif ex.code==429:
+            detail=f'rate-limited; Retry-After={ra or "not supplied"}'
+        else:
+            detail=str(ex.reason or 'HTTP error')[:120]
+        add_http_event(provider,url,str(ex.code),started,detail)
+        if ex.code==404:return None
+        # HTTP 401 means the endpoint refused this request; it is NOT proof
+        # that synced lyrics do not exist. Do not poison NO_MATCH history.
+        # This public endpoint may require access credentials or an upstream
+        # cache; avoid thousands of repeated unauthorized attempts.
         if ex.code==429:
-            raise ProviderFailure(f'429 rate-limited (Retry-After={ra or "not supplied"})',rate_limit=True,retry_after=ra) from ex
-        raise ProviderFailure(f'HTTP {ex.code}') from ex
+            raise ProviderFailure(f'HTTP 429: {detail}',rate_limit=True,retry_after=ra) from ex
+        raise ProviderFailure(f'HTTP {ex.code}: {detail}',retry_after=ra if ex.code==503 else None) from ex
     except (TimeoutError,urllib.error.URLError,OSError) as ex:
         cause=ex.reason if isinstance(ex,urllib.error.URLError) else ex
         is_timeout=isinstance(cause,(TimeoutError,socket.timeout)) or 'timed out' in str(cause).lower()
+        code='NETWORK_TIMEOUT' if is_timeout else 'NETWORK_ERROR'
+        add_http_event(provider,url,code,started,f'{type(ex).__name__}: {str(cause)[:120]}')
         raise ProviderFailure(f'{type(ex).__name__}: {str(ex)[:150]}',timeout=is_timeout) from ex
+    finally:
+        if provider=='LRCLIB':LRCLIB_LAST_FINISHED=time.monotonic()
 
 
 def direct_json(provider,url,params):
@@ -682,7 +868,7 @@ class Hit:
 
 
 class CandidateReview:
-    """Store ambiguous candidate LRCs away from the actual MP3 sidecars."""
+    """Collect timed review candidates without treating them as verified lyrics."""
     def __init__(self):
         self.items=[]
         self.count=Counter()
@@ -692,24 +878,146 @@ class CandidateReview:
             body=sanitize_lrc(lyrics) if lyrics and plausible_lrc(lyrics,0) else ''
             # Bound memory and saved review content for large collections.
             if body and len(body)>100000:body=''
-            if body and sum(bool(entry[4]) for entry in self.items)>=4:body=''
+            # Keep each eligible candidate (up to the existing 15-item cap).
             self.items.append((provider,title,artist,note,body))
 
 
-def export_review_candidates(track,rnd,review,review_folder):
-    """Never put unverified lyrics beside MP3s or overwrite existing LRCs."""
+def candidate_path(track,position=1):
+    """Keep candidate(s) beside the MP3 without masquerading as approved LRC.
+
+    Multiple potential matches get .candidate.2.lrc, .candidate.3.lrc, etc.
+    Only the primary .candidate.lrc is eligible for bulk promotion.
+    """
+    suffix='.candidate.lrc' if position==1 else f'.candidate.{position}.lrc'
+    return track.with_name(track.stem+suffix)
+
+
+def export_review_candidates(track,rnd,review,review_folder=None):
+    """Store candidates beside MP3, never replacing existing lyrics or candidates.
+
+    review_folder is an unused compatibility parameter for older test callers.
+    Every nonempty candidate has a destination path in the review CSV.
+    """
     output=[]
-    for idx,(provider,title,artist,note,body) in enumerate(review.items,1):
-        candidate_path=''
+    # No reason to leave an unverified sidecar if verified lyrics were installed.
+    if track.with_suffix('.lrc').exists():
+        return [[str(track),rnd,p,t,a,n,''] for p,t,a,n,_ in review.items]
+    body_to_path={}
+    position=1
+    for provider,title,artist,note,body in review.items:
+        saved_path=''
         if body:
-            review_folder.mkdir(parents=True,exist_ok=True)
-            digest=hashlib.sha256((str(track.resolve())+'|'+str(rnd)+'|'+str(idx)).encode()).hexdigest()[:14]
-            path=review_folder/(digest+'.candidate.txt')
-            with path.open('w',encoding='utf-8',newline='\n') as review_stream:
-                review_stream.write(body)
-            candidate_path=str(path)
-        output.append([str(track),rnd,provider,title,artist,note,candidate_path])
+            # Reuse the first matching candidate path instead of writing duplicates.
+            if body in body_to_path:
+                saved_path=body_to_path[body]
+                output.append([str(track),rnd,provider,title,artist,note,saved_path])
+                continue
+            while position<=100:
+                target=candidate_path(track,position)
+                if target.exists():
+                    try:
+                        old=target.read_text(encoding='utf-8-sig')
+                        if old==body:
+                            saved_path=str(target)
+                            body_to_path[body]=saved_path
+                            break
+                    except (OSError,UnicodeError):
+                        pass
+                    position+=1
+                    continue
+                try:
+                    with target.open('x',encoding='utf-8',newline='\n') as out:
+                        out.write(body)
+                    saved_path=str(target)
+                    body_to_path[body]=saved_path
+                    print('      Review candidate saved:',target.name,flush=True)
+                    position+=1
+                    break
+                except FileExistsError:
+                    position+=1
+                except OSError as ex:
+                    print(f'      Warning: candidate not saved ({target.name}): {ex}',flush=True)
+                    break
+            else:
+                print('      Warning: 100 candidate sidecars already exist; no additional candidate saved.',flush=True)
+        output.append([str(track),rnd,provider,title,artist,note,saved_path])
     return output
+
+
+def promote_candidate_file(candidate):
+    """Safely copy then remove an explicitly chosen .candidate.lrc.
+
+    Preconditions: same-named MP3 exists; candidate is valid timestamped LRC;
+    final .lrc does not exist. Destination is opened exclusively, NEVER replaced.
+    Returns (action, reason).
+    """
+    suffix='.candidate.lrc'
+    if not candidate.name.lower().endswith(suffix):
+        return 'SKIPPED','not a primary .candidate.lrc file'
+    original_stem=candidate.name[:-len(suffix)]
+    mp3=candidate.with_name(original_stem+'.mp3')
+    target=candidate.with_name(original_stem+'.lrc')
+    if not mp3.is_file():return 'SKIPPED','matching MP3 not found'
+    if target.exists():return 'SKIPPED','approved .lrc already exists (never overwrite)'
+    try:
+        text=candidate.read_text(encoding='utf-8-sig')
+    except (OSError,UnicodeError) as ex:
+        return 'ERROR',f'cannot read candidate: {ex}'
+    if not plausible_lrc(text,0):return 'SKIPPED','candidate is not a valid timed LRC'
+    try:
+        # Exclusive mode prevents accidental overwriting and works on Windows.
+        raw=candidate.read_bytes()
+        with target.open('xb') as out:
+            out.write(raw)
+            out.flush()
+            import os
+            os.fsync(out.fileno())
+        candidate.unlink()
+    except FileExistsError:
+        return 'SKIPPED','approved .lrc appeared during promotion'
+    except OSError as ex:
+        # If the copy was written but removal failed, leave both intact.
+        return 'ERROR',str(ex)
+    return 'PROMOTED',str(target)
+
+
+def promote_candidates(folder,recursive=True,confirm=True):
+    """Promote primary review sidecars, with preflight and one confirmation."""
+    if not folder.is_dir():
+        print('Folder does not exist:',folder)
+        return {'PROMOTED':0,'SKIPPED':0,'ERROR':1}
+    candidates=sorted((p for p in (folder.rglob('*') if recursive else folder.iterdir())
+                       if p.is_file() and p.name.lower().endswith('.candidate.lrc')),
+                      key=lambda p:str(p).casefold())
+    counts=Counter()
+    print(f'\nFound {len(candidates)} primary .candidate.lrc files.',flush=True)
+    if not candidates:return counts
+    print('Only exact .candidate.lrc files will be promoted. .candidate.2.lrc alternatives stay untouched.')
+    print('Original MP3 files will not be edited. Existing approved .lrc files are NEVER overwritten.')
+    for path in candidates[:5]:
+        print('  '+path.name+'  ->  '+path.name[:-len('.candidate.lrc')]+'.lrc')
+    if len(candidates)>5:print(f'  ... and {len(candidates)-5} more')
+    if confirm and input('Promote all eligible candidates to approved .lrc? [y/N]: ').strip().lower() not in {'y','yes'}:
+        print('Cancelled; no files changed.')
+        return counts
+    report=[]
+    for index,path in enumerate(candidates,1):
+        action,reason=promote_candidate_file(path)
+        counts[action]+=1
+        report.append([str(path),action,reason])
+        if action!='PROMOTED' or index<=10 or index%100==0:
+            print(f'  [{index}/{len(candidates)}] {action}: {path.name} — {reason}',flush=True)
+    report_path=folder/'LRC_Candidate_Promotion_Report_v2_1_8.csv'
+    try:
+        with report_path.open('w',encoding='utf-8-sig',newline='') as out:
+            writer=csv.writer(out)
+            writer.writerow(['candidate path','result','reason / approved LRC path'])
+            writer.writerows(report)
+        print('Promotion report:',report_path)
+    except OSError as ex:
+        print('Warning: could not save promotion report:',ex)
+    print('PROMOTED:',counts['PROMOTED'],'| SKIPPED:',counts['SKIPPED'],'| ERRORS:',counts['ERROR'])
+    return counts
 
 
 # ---- Verified public sources added for v2.0 (2026-10) ----------------------
@@ -850,12 +1158,69 @@ def provider_youly(title,artist,album,duration,review):
         review.add('YouLyTTML',t,a,'TTML timing incompatible with audio duration')
     return None
 
+def configure_local_lrclib(script_dir):
+    """Load an optional independently downloaded SQLite snapshot, never network."""
+    global LOCAL_LRCLIB
+    LOCAL_LRCLIB = None
+    try:
+        local_path = load_local_config(Path(script_dir) / 'LRCLIB_LOCAL_DB.txt')
+        if local_path:
+            LOCAL_LRCLIB = LocalLRCLIB(local_path)
+            print('LOCAL LRCLIB: READY —', local_path, flush=True)
+            print('  Searches the snapshot first; original artist/version/duration safeguards remain.', flush=True)
+        else:
+            print('LOCAL LRCLIB: Not configured (optional). Run SETUP_LRCLIB_DATABASE.cmd.',flush=True)
+    except (OSError, ValueError, RuntimeError) as ex:
+        print('LOCAL LRCLIB: unavailable:',ex,flush=True)
+        print('  Check LRCLIB_LOCAL_DB.txt or rerun SETUP_LRCLIB_DATABASE.cmd.',flush=True)
+
+
+def local_lrclib_search(title, artist, duration, review):
+    """Look up locally and evaluate exactly like normal LRCLIB results."""
+    if LOCAL_LRCLIB is None:
+        return None
+    started=time.monotonic()
+    try:
+        candidates=LOCAL_LRCLIB.search(query_variants(title,artist)[:2],duration)
+        if ACTIVE_HTTP_TRACE is not None:
+            ACTIVE_HTTP_TRACE.append({'provider':'LRCLIB','endpoint':'local LRCLIB SQLite (no network)',
+                'status':'LOCAL_DB_LOOKUP','detail':f'{len(candidates)} candidates (no HTTP request)',
+                'elapsed_seconds':round(time.monotonic()-started,3)})
+    except (OSError,RuntimeError,ValueError) as ex:
+        if ACTIVE_HTTP_TRACE is not None:
+            ACTIVE_HTTP_TRACE.append({'provider':'LRCLIB','endpoint':'local LRCLIB SQLite (no network)',
+                'status':'LOCAL_DB_ERROR','detail':str(ex)[:170],
+                'elapsed_seconds':round(time.monotonic()-started,3)})
+        print('      Local LRCLIB lookup failed:',ex,flush=True)
+        return None
+    best=[]
+    for row in candidates:
+        lyr=row.get('syncedLyrics')
+        if not lyr:continue
+        ot=row.get('trackName','');oa=row.get('artistName','')
+        ok,note=acceptable(title,artist,duration,ot,oa,row.get('duration'),lyr)
+        if ok:best.append((similarity(title,ot)+similarity(artist,oa),lyr,note))
+        else:review.add('LRCLIB local',ot,oa,note,lyrics=lyr)
+    if best:
+        _,lyrics,note=max(best,key=lambda item:item[0])
+        return Hit(lyrics,'LRCLIB',note,'LOCAL_SQLITE',True)
+    return None
+
+
 def provider_lrclib(title,artist,album,duration,review):
     """Manual-style full-text search, maximum two requests per track.
 
     Old implementation could issue 4+ calls/song and trigger 429 immediately.
     A Greek spelling alternative counts as search inside the FIRST round.
     """
+    if LOCAL_LRCLIB is not None:
+        local_hit=local_lrclib_search(title,artist,duration,review)
+        if local_hit:
+            print('      LRCLIB: verified OFFLINE SQLite match (no HTTP request)',flush=True)
+            return local_hit
+        if not LRCLIB_ONLINE_FALLBACK:
+            print('      LRCLIB: offline snapshot checked; online fallback disabled for this catch-up run.',flush=True)
+            return None
     candidates=[]
     seen=set()
     for qt,qa in query_variants(title,artist)[:2]:
@@ -876,6 +1241,21 @@ def provider_lrclib(title,artist,album,duration,review):
         if ranked:
             _,lyr,note,variation=max(ranked,key=lambda v:v[0])
             return Hit(lyr,'LRCLIB',note,variation,True)
+    # Optional, strictly guarded fallback: keep the two original keyword
+    # searches UNCHANGED. Only after they produce no verified lyrics can
+    # /api/get receive a single original title+artist+duration signature.
+    # Disabled by default to avoid extra LRCLIB load during bulk searches.
+    if LRCLIB_EXACT_FALLBACK and title and artist and 1 <= duration <= 3600:
+        args={'track_name':title,'artist_name':artist,'duration':round(duration,2)}
+        if album:args['album_name']=album
+        row=direct_json('LRCLIB','https://lrclib.net/api/get',args)
+        if isinstance(row,dict):
+            lyr=row.get('syncedLyrics')
+            if lyr:
+                ot=row.get('trackName','');oa=row.get('artistName','')
+                ok,note=acceptable(title,artist,duration,ot,oa,row.get('duration'),lyr)
+                if ok:return Hit(lyr,'LRCLIB',note,'LRCLIB_EXACT_SIGNATURE',True)
+                review.add('LRCLIB',ot,oa,note,lyrics=lyr)
     return None
 
 
@@ -1018,7 +1398,7 @@ def provider_tencent(title,artist,album,duration,review):
             continue
     return None
 
-def search_song(title,artist,album,duration,review,*,only_providers=None,retry_targets=None,timings=None):
+def search_song(title,artist,album,duration,review,*,only_providers=None,retry_targets=None,timings=None,request_traces=None):
     """Return (hit, status, detail, calls).
 
     Completed NO_MATCH providers are NEVER queried again in later rounds.
@@ -1027,8 +1407,10 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
     its provider has been disabled for the rest of the run. HTTP 5xx,
     invalid responses and other errors NEVER trigger another round.
     """
+    global ACTIVE_HTTP_TRACE
     calls=[];completed=0;failures=0;real_timeouts=0
     if timings is None:timings=[]
+    if request_traces is None:request_traces=[]
     if retry_targets is None:retry_targets=set()
     if MB_ENABLED and title and artist:
         musicbrainz_variant(title,artist,duration)
@@ -1038,24 +1420,76 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
                'YouLyTTML':provider_youly,'LrcAPI':provider_lrcapi,
                'LiriQo':provider_liriqo, 'Tencent':provider_tencent}
     sources=tuple(only_providers) if only_providers is not None else (ACTIVE_PROVIDERS if ACTIVE_PROVIDERS is not None else PROVIDERS)
+    global LRCLIB_503_STREAK, LRCLIB_503_RETRY_AT
     for source in sources:
         history_key=search_history_key(source,title,artist,album,duration) if HISTORY_ENABLED else None
         if history_key and history_key in HISTORY_CACHE:
             completed+=1
             calls.append(f'{source}=CACHED_NO_MATCH')
             timings.append((source,0.0))
+            request_traces.append([])
+            print_provider_state(source,'CACHED_NO_MATCH',reason='7-day history; request not sent')
             continue
         if source=='Tencent' and not OPTIONAL_TENCENT_AVAILABLE:
             calls.append('Tencent=UNAVAILABLE (optional dependency not installed)')
             timings.append((source,0.0))
+            request_traces.append([])
+            print_provider_state(source,'UNAVAILABLE',reason='optional dependency not installed; request not sent')
+            continue
+        if source=='LRCLIB' and source in blocked and LOCAL_LRCLIB is not None:
+            # A remote 503/429/access restriction does not prevent genuine
+            # read-only offline lookups. Never make a network request here.
+            started=time.monotonic();trace=[];request_traces.append(trace)
+            ACTIVE_HTTP_TRACE=trace
+            before=review.count.get('LRCLIB local',0)
+            hit=local_lrclib_search(title,artist,duration,review)
+            ACTIVE_HTTP_TRACE=None
+            elapsed=time.monotonic()-started;timings.append((source,elapsed))
+            if hit:
+                calls.append('LRCLIB=SAVED')
+                print_provider_state(source,'LRC_FOUND_OFFLINE',elapsed,trace,'online blocked; local SQLite verified')
+                return hit,'SAVED','LRCLIB local SQLite verified match',calls
+            calls.append(f'LRCLIB=SKIPPED (online blocked: {blocked[source]}; offline checked)')
+            failures+=1
+            print_provider_state(source,'ONLINE_BLOCKED_OFFLINE_CHECKED',elapsed,trace,blocked[source])
             continue
         if source in blocked:
             calls.append(f'{source}=SKIPPED ({blocked[source]})')
             failures+=1
             timings.append((source,0.0))
+            request_traces.append([])
+            print_provider_state(source,'SKIPPED',reason=blocked[source]+'; request not sent')
             continue
+        # Even after repeated HTTP 503s, LRCLIB is re-probed when its temporary
+        # server-recovery cooldown expires. Never convert a 503 into a
+        # permanent per-run block, and never bypass a genuine HTTP 429.
+        if source == 'LRCLIB' and time.monotonic() < LRCLIB_503_RETRY_AT:
+            if COMPLETE_FIRST_PASS and source not in blocked:
+                wait_for_recovery(source, LRCLIB_503_RETRY_AT, 'HTTP 503 recovery')
+            else:
+                remaining=max(1,int(LRCLIB_503_RETRY_AT-time.monotonic()))
+                calls.append(f'LRCLIB=SKIPPED (temporary HTTP 503 recovery; {remaining}s remaining)')
+                failures+=1
+                timings.append((source,0.0))
+                request_traces.append([])
+                print_provider_state(source,'SKIPPED',reason=f'HTTP 503 recovery, next attempt after ~{remaining}s; request not sent')
+                continue
+        if source in PROVIDER_RECOVERY_AT and time.monotonic() < PROVIDER_RECOVERY_AT[source]:
+            if COMPLETE_FIRST_PASS and source not in blocked:
+                wait_for_recovery(source, PROVIDER_RECOVERY_AT[source], 'temporary provider recovery')
+            else:
+                remaining=max(1,int(PROVIDER_RECOVERY_AT[source]-time.monotonic()))
+                calls.append(f'{source}=SKIPPED (temporary provider recovery; {remaining}s remaining)')
+                failures+=1
+                timings.append((source,0.0))
+                request_traces.append([])
+                print_provider_state(source,'SKIPPED',reason=f'temporary recovery ~{remaining}s; request not sent')
+                continue
         print(f'    {source}...',flush=True)
         started=time.monotonic()
+        trace=[]
+        request_traces.append(trace)
+        ACTIVE_HTTP_TRACE=trace
         review_before=review.count.get(source,0)
         try:
             if source in functions:
@@ -1065,8 +1499,13 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
             completed+=1
             had_review=review.count.get(source,0)>review_before
             calls.append(f'{source}='+('SAVED' if hit else 'REVIEW_AVAILABLE' if had_review else 'NO_MATCH'))
-            print(f'      {source}: '+('LRC found' if hit else 'review candidates' if had_review else 'no result')+f' ({time.monotonic()-started:.1f}s)',flush=True)
+            print_provider_state(source,('LRC_FOUND' if hit and hit.verified else 'REVIEW_AVAILABLE' if (had_review or hit) else 'NO_MATCH'),time.monotonic()-started,trace)
             errors[source]=0
+            PROVIDER_ERROR_STREAK[source]=0
+            PROVIDER_RECOVERY_AT.pop(source,None)
+            if source=='LRCLIB':
+                LRCLIB_503_STREAK=0
+                LRCLIB_503_RETRY_AT=0.0
             if hit and not hit.verified:
                 review.add(source,title,artist,'Candidate identity unverified; automatic saving forbidden',lyrics=hit.lyrics)
                 calls[-1]=f'{source}=REVIEW_AVAILABLE'
@@ -1084,6 +1523,7 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
                     continue
                 if history_key:store_search_event(history_key,'VERIFIED_MATCH')
                 timings.append((source,time.monotonic()-started))
+                ACTIVE_HTTP_TRACE=None
                 return hit,'SAVED',f'{source}: {hit.note}',calls
             if history_key:
                 store_search_event(history_key,'REVIEW_AVAILABLE' if had_review else 'NO_MATCH')
@@ -1094,10 +1534,39 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
             if ex.rate_limit:
                 record_rate_limit(source,ex.retry_after)
                 blocked[source]='429 for this run; cooldown recorded'+(f' (Retry-After {ex.retry_after})' if ex.retry_after else '')
-                print(f'    {source}: 429; provider disabled this run and cooldown recorded.',flush=True)
-            elif errors[source]>=(3 if ex.timeout else 2):
-                blocked[source]=('3 consecutive timeouts' if ex.timeout else '2 consecutive provider errors')
-            else:print(f'    {source}: {ex}',flush=True)
+                print_provider_state(source,'HTTP_429_DISABLED',time.monotonic()-started,trace,str(ex)+'; cooldown persisted')
+            else:
+                if source=='LRCLIB' and str(ex).startswith('HTTP 503:'):
+                    LRCLIB_503_STREAK+=1
+                    # Honor a server-specified Retry-After (+5s safety floor);
+                    # otherwise exponential 60s/120s/... capped at 10m.
+                    recovery=lrclib_503_delay(ex.retry_after, LRCLIB_503_STREAK)
+                    LRCLIB_503_RETRY_AT=time.monotonic()+recovery
+                    if LRCLIB_503_STREAK >= LRCLIB_503_CIRCUIT_LIMIT:
+                        blocked[source]=(f'HTTP 503 circuit open after {LRCLIB_503_STREAK} consecutive '
+                                         'overload responses; unanswered songs remain queued for a later run')
+                        print('      LRCLIB: CIRCUIT OPEN — stopping online requests for this run; '
+                              'do not hammer an overloaded server.',flush=True)
+                    print_provider_state(source,'TEMPORARY_HTTP_503',time.monotonic()-started,trace,
+                        f'{ex}; LRCLIB remains enabled, next probe after ~{int(recovery)}s')
+                else:
+                    if is_access_denied(ex):
+                        # Authentication/access failures cannot be repaired by
+                        # resending the same unauthenticated request to all songs.
+                        blocked[source]=str(ex).split(':',1)[0]+': access denied; no further requests this run'
+                    else:
+                        # Temporary failures must NEVER permanently disable
+                        # the provider across the rest of a large collection.
+                        PROVIDER_ERROR_STREAK[source]+=1
+                        if PROVIDER_ERROR_STREAK[source]>=2 or str(ex).startswith('HTTP 503:'):
+                            delay=transient_recovery_delay(source,PROVIDER_ERROR_STREAK[source],ex.retry_after)
+                            PROVIDER_RECOVERY_AT[source]=time.monotonic()+delay
+                    reason=str(ex)
+                    if source in blocked:reason+='; DISABLED for remainder of run: '+blocked[source]
+                    elif source in PROVIDER_RECOVERY_AT:
+                        reason+='; TEMPORARY recovery, not a permanent provider ban'
+                    print_provider_state(source,'TIMEOUT' if ex.timeout else 'ERROR',
+                                         time.monotonic()-started,trace,reason)
             # A 429 is a provider-wide cooldown, NEVER retry it in this run.
             # Ordinary socket timeouts can retry this provider for this song only.
             if ex.timeout and not ex.rate_limit and source not in blocked:
@@ -1105,9 +1574,15 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
         except Exception as ex:
             failures+=1;errors[source]+=1
             calls.append(f'{source}=ERROR ({type(ex).__name__}: {str(ex)[:120]})')
-            if errors[source]>=2:blocked[source]='2 consecutive provider errors'
-            print(f'    {source}: unexpected {type(ex).__name__}',flush=True)
+            PROVIDER_ERROR_STREAK[source]+=1
+            if PROVIDER_ERROR_STREAK[source]>=2:
+                delay=transient_recovery_delay(source,PROVIDER_ERROR_STREAK[source])
+                PROVIDER_RECOVERY_AT[source]=time.monotonic()+delay
+            reason=f'{type(ex).__name__}: {str(ex)[:120]}'
+            if source in blocked:reason+='; DISABLED for remainder of run: '+blocked[source]
+            print_provider_state(source,'UNEXPECTED_ERROR',time.monotonic()-started,trace,reason)
         timings.append((source,time.monotonic()-started))
+        ACTIVE_HTTP_TRACE=None
     if retry_targets:
         # Retry ONLY timed-out sources on THIS song; never successful NO_MATCH
         # providers and never the other tracks in the folder.
@@ -1168,16 +1643,326 @@ def write_summary(folder,selected,states):
             sum(states[p][0] in {'TIMEOUT','DEFERRED_RATE_LIMIT','SERVER_ERROR','INTERRUPTED'} and not p.with_suffix('.lrc').exists() for p in selected))
 
 
+
+def lrclib_catchup_queue_path(folder):
+    return Path(folder) / f'LRC_LRCLIB_Catchup_Queue_v{VERSION.replace(".", "_")}.csv'
+
+
+def write_lrclib_catchup_queue(folder, missing, provider_outcomes):
+    """Persist *unsearched* LRCLIB coverage for an explicit later first attempt.
+
+    Automatic rounds NEVER retry skipped/503/429 outcomes. This file is an
+    invitation for a separate user-initiated LRCLIB-only run, not a retry queue.
+    """
+    queue={}
+    completed=set()
+    for path, outcomes in provider_outcomes:
+        for item in outcomes:
+            if item.startswith(('LRCLIB=NO_MATCH', 'LRCLIB=REVIEW_AVAILABLE',
+                                'LRCLIB=SAVED', 'LRCLIB=CACHED_NO_MATCH')):
+                completed.add(path)
+            elif item.startswith(('LRCLIB=SKIPPED', 'LRCLIB=UNAVAILABLE',
+                                  'LRCLIB=ERROR (HTTP 503',
+                                  'LRCLIB=ERROR (HTTP 429')):
+                queue.setdefault(path, item.split('=',1)[1])
+    output=lrclib_catchup_queue_path(folder)
+    # Preserve earlier missed coverage if a later run searches only a subset.
+    # Completed LRCLIB outcomes and approved sidecars remove stale entries.
+    for row in merge_previous_lrclib_queue(folder,output):
+        path=Path(row.get('MP3 path',''))
+        if path.is_file():
+            queue.setdefault(path,row.get('why LRCLIB was incomplete','from previous run'))
+    pending=sorted(((path,reason) for path,reason in queue.items()
+                    if path not in completed and path.is_file() and not path.with_suffix('.lrc').exists()),
+                   key=lambda pair:str(pair[0]).casefold())
+    with output.open('w',encoding='utf-8-sig',newline='') as out:
+        writer=csv.writer(out)
+        writer.writerow(['MP3 path','why LRCLIB was incomplete'])
+        writer.writerows((str(path),reason) for path,reason in pending)
+    return output,len(pending)
+
+
+def run_lrclib_catchup(folder):
+    """Explicit user-selected action: ONLY LRCLIB, never other providers.
+
+    This is distinct from rounds 2/3; no other provider is searched again.
+    Respects 429 and 503, doesn't erase existing LRCs, candidates or queue on
+    interruption, and writes an independent report (normal run files untouched).
+    """
+    global GREEK_MODE, MB_ENABLED, ACTIVE_PROVIDERS, HISTORY_ENABLED
+    global LRCLIB_EXACT_FALLBACK, COMPLETE_FIRST_PASS
+    COMPLETE_FIRST_PASS=True  # in option 3, wait before each still-pending first attempt
+    folder=Path(folder)
+    queued=lrclib_catchup_queue_path(folder)
+    if not queued.is_file():
+        previous=next((p for p in legacy_lrclib_queue_paths(folder) if p.is_file()),None)
+        if previous is not None:
+            shutil.copy2(previous,queued)
+            print('Imported earlier LRCLIB catch-up queue into v2.1.15 (original preserved).')
+        else:
+            print('No LRCLIB catch-up queue yet. Run SEARCH first to create it.')
+            return
+    configure_local_lrclib(Path(__file__).resolve().parent)
+    global LRCLIB_ONLINE_FALLBACK
+    if LOCAL_LRCLIB is not None:
+        LRCLIB_ONLINE_FALLBACK=(input('After OFFLINE misses, contact the online LRCLIB API? [y/N]: ').strip().lower()=='y')
+        print('LRCLIB catch-up mode:', 'LOCAL + ONLINE' if LRCLIB_ONLINE_FALLBACK else 'OFFLINE ONLY (no HTTP)',flush=True)
+    else:
+        LRCLIB_ONLINE_FALLBACK=True
+    if LRCLIB_ONLINE_FALLBACK and not configure_lrclib_contact(Path(__file__).resolve().parent):return
+    if LRCLIB_ONLINE_FALLBACK:
+        load_provider_cooldowns(folder/'LRC_Provider_Cooldowns.json')
+    if LRCLIB_ONLINE_FALLBACK and 'LRCLIB' in blocked:
+        print('LRCLIB is currently unavailable:',blocked['LRCLIB'])
+        print('The queue is unchanged. Try again after the official cooldown.')
+        return
+    GREEK_MODE=input('Greeklish / Greek filenames for catch-up? [y/N]: ').strip().lower()=='y'
+    MB_ENABLED=False
+    HISTORY_ENABLED=False  # These are missing first-attempt coverage, not cached NO_MATCH.
+    LRCLIB_EXACT_FALLBACK=input('Also try optional LRCLIB exact lookup? [y/N]: ').strip().lower()=='y'
+    ACTIVE_PROVIDERS=('LRCLIB',)
+    try:
+        with queued.open(encoding='utf-8-sig',newline='') as f:
+            entries=list(csv.DictReader(f))
+    except (OSError,csv.Error) as ex:
+        print('Cannot read catch-up queue:',ex);return
+    if not entries:
+        print('Catch-up list is empty.');return
+    print(f'LRCLIB ONLY: {len(entries)} queued songs; no other lyrics sources will be contacted.')
+    print('Existing .lrc files are always skipped; version matching is unchanged.')
+    if input('Start LRCLIB-only catch-up now? [y/N]: ').strip().lower()!='y':
+        print('Canceled; catch-up queue unchanged.');return
+    results=[];remaining=[];saved=0;reviewed=0
+    previous=[];seen=set()
+    for entry in entries:
+        path_string=entry.get('MP3 path','')
+        if not path_string or path_string in seen:continue
+        seen.add(path_string)
+        previous.append((Path(path_string),entry.get('why LRCLIB was incomplete','')))
+    interrupted=False
+    for i,(path,old_reason) in enumerate(previous,1):
+        print(f'[{i}/{len(previous)}] {path.name}',flush=True)
+        if not path.is_file():
+            results.append([str(path),'FILE_MISSING',old_reason,''])
+            remaining.append((path,old_reason))
+            continue
+        if path.with_suffix('.lrc').exists():
+            results.append([str(path),'ALREADY_HAS_LRC','skipped',''])
+            continue
+        if is_live_track(path.stem):
+            results.append([str(path),'LIVE_SKIPPED','no search',''])
+            continue
+        try:
+            title,artist,album,duration=song_info(path)
+            if is_live_track(title):
+                results.append([str(path),'LIVE_SKIPPED','no search',''])
+                continue
+            if not title or not artist:
+                results.append([str(path),'NO_METADATA','missing artist/title',''])
+                remaining.append((path,'Missing metadata'))
+                continue
+            review=CandidateReview(); timing=[]; traces=[]
+            hit,status,detail,calls=search_song(title,artist,album,duration,review,
+                only_providers=('LRCLIB',),timings=timing,request_traces=traces)
+            if hit:
+                try:
+                    save_hit(path,hit);saved+=1;status='SAVED'
+                except FileExistsError:status='ALREADY_HAS_LRC'
+            exported=export_review_candidates(path,'CATCHUP',review)
+            if exported:reviewed+=1
+            if LOCAL_LRCLIB is not None and not LRCLIB_ONLINE_FALLBACK and status not in {'SAVED','ALREADY_HAS_LRC'}:
+                remaining.append((path,'Offline snapshot checked; online LRCLIB not yet searched'))
+                if status in {'NOT_FOUND','REVIEW_AVAILABLE'}:
+                    detail+='; offline only: retained for possible future online catch-up'
+            elif status not in {'SAVED','ALREADY_HAS_LRC','NOT_FOUND','REVIEW_AVAILABLE'}:
+                remaining.append((path,detail))
+            results.append([str(path),status,detail,http_summary('LRCLIB',traces[0] if traces else [])])
+            if 'LRCLIB' in blocked:
+                print('LRCLIB online unavailable (access restriction or 503 circuit); '
+                      'preserving the remaining catch-up queue.',flush=True)
+                remaining.extend(previous[i:])
+                break
+            if time.monotonic()<LRCLIB_503_RETRY_AT:
+                print('LRCLIB returned HTTP 503: this song stays queued; the NEXT song will wait for recovery before its first attempt.',flush=True)
+        except KeyboardInterrupt:
+            print('Interrupted; saving remaining paths.',flush=True)
+            remaining.append((path,old_reason))
+            remaining.extend(previous[i:])
+            interrupted=True
+            break
+        except Exception as ex:
+            results.append([str(path),'ERROR',f'{type(ex).__name__}: {ex}',''])
+            remaining.append((path,old_reason))
+    report=folder/f'LRC_LRCLIB_Catchup_Report_v{VERSION.replace(".", "_")}.csv'
+    with report.open('w',encoding='utf-8-sig',newline='') as f:
+        writer=csv.writer(f)
+        writer.writerow(['MP3 path','outcome','reason','HTTP status summary'])
+        writer.writerows(results)
+    with queued.open('w',encoding='utf-8-sig',newline='') as f:
+        writer=csv.writer(f)
+        writer.writerow(['MP3 path','why LRCLIB was incomplete'])
+        writer.writerows((str(p),r) for p,r in remaining)
+    print('Catch-up complete:',len(results),'processed,',saved,'saved,',reviewed,'with review candidates,',len(remaining),'still pending')
+    print('Report:',report)
+    print('Remaining catch-up queue:',queued)
+
+
+
+def ensure_local_lrclib_config(script_dir, *, input_fn=None):
+    """Verify configured huge SQLite DB; optionally point to an existing installation.
+
+    Only writes LRCLIB_LOCAL_DB.txt in the application folder. Never downloads,
+    copies, extracts, alters or deletes the database itself.
+    """
+    global LOCAL_LRCLIB
+    config=Path(script_dir)/'LRCLIB_LOCAL_DB.txt'
+    configure_local_lrclib(script_dir)
+    if LOCAL_LRCLIB is not None:
+        return True
+    print('OFFLINE MODE requires an existing extracted LRCLIB .sqlite3 database.',flush=True)
+    print('If upgrading from an older program folder, copy LRCLIB_LOCAL_DB.txt into this folder,',flush=True)
+    print('OR enter the existing SQLite file path once (no download or copying needed).',flush=True)
+    print('Example: D:\\DataBase\\lrclib-db-dump-20261012T090639Z.sqlite3',flush=True)
+    if input_fn is None: input_fn=input
+    entry=input_fn('Path to existing .sqlite3 file (Enter to cancel): ').strip().strip('"')
+    if not entry:
+        print('No offline database selected; no scan started.',flush=True)
+        return False
+    try:
+        path=Path(entry).expanduser().resolve()
+        obj=LocalLRCLIB(path)
+        config.write_text(str(path)+'\n',encoding='utf-8')
+        LOCAL_LRCLIB=obj
+        print('Saved location to:',config,flush=True)
+        print('LOCAL LRCLIB: READY —',path,flush=True)
+        return True
+    except (OSError,ValueError,RuntimeError) as ex:
+        print('Invalid offline database:',ex,flush=True)
+        print('Your configuration was not changed.',flush=True)
+        return False
+
+
+def run_offline_lrclib_folder(folder):
+    """Scan any folder using only an existing read-only SQLite dump; NO network calls.
+
+    Uses the normal safe matcher/candidate exporter, and writes independent
+    versioned offline reports so normal SEARCH reports/queues are untouched.
+    """
+    global GREEK_MODE, MB_ENABLED, G2G_ENABLED, G2G_TOOL, HISTORY_ENABLED, ACTIVE_PROVIDERS, ACTIVE_HTTP_TRACE
+    GREEK_MODE=input('Greeklish / Greek folder? [y/N]: ').strip().lower()=='y'
+    G2G_ENABLED=GREEK_MODE and input('Use installed LOCAL G2G AI for Greek names? [y/N]: ').strip().lower()=='y'
+    G2G_TOOL=G2GManager() if G2G_ENABLED else None
+    MB_ENABLED=False       # IMPORTANT: NO remote metadata calls
+    HISTORY_ENABLED=False  # always check each eligible song against local SQLite
+    ACTIVE_PROVIDERS=('LRCLIB',)
+    recursive=input('Include subfolders? [Y/n]: ').strip().lower()!='n'
+    # Case-insensitive MP3 extensions without touching non-MP3 files.
+    files=folder.rglob('*') if recursive else folder.iterdir()
+    mp3s=sorted((p for p in files if p.is_file() and p.suffix.lower()=='.mp3'),key=lambda p:str(p).casefold())
+    eligible=[];existing=0;live=0
+    for track in mp3s:
+        if is_live_track(track.stem):live+=1;continue
+        if track.with_suffix('.lrc').exists():existing+=1;continue
+        eligible.append(track)
+    print(f'Found {len(mp3s)} MP3s; {existing} already had .lrc; {live} filename-LIVE skipped; {len(eligible)} potentially eligible.',flush=True)
+    if not eligible:return
+    howmany=input('How many eligible songs? [20 for test, A for all]: ').strip().lower()
+    if howmany!='a':
+        try:n=int(howmany) if howmany else 20
+        except ValueError:n=20
+        if n<=0:print('No songs selected.');return
+        eligible=eligible[:n]
+    print(f'OFFLINE LRCLIB ONLY: {len(eligible)} songs. No HTTP, no MusicBrainz requests, no other providers.',flush=True)
+    print('Database:',LOCAL_LRCLIB.path,flush=True)
+    print('Only verified matches create .lrc; uncertain results become .candidate.lrc.',flush=True)
+    if input('Start offline-only scan? [y/N]: ').strip().lower()!='y':
+        print('Canceled; nothing scanned.',flush=True);return
+    report=folder/'LRC_Offline_Only_Report_v2_1_15.csv'
+    review_path=folder/'LRC_Offline_Only_Review_v2_1_15.csv'
+    counts=Counter();started=time.monotonic()
+    processed=0;interrupted=False
+    try:
+        with report.open('w',encoding='utf-8-sig',newline='') as outf, review_path.open('w',encoding='utf-8-sig',newline='') as reviewf:
+            writer=csv.writer(outf)
+            writer.writerow(['MP3 path','outcome','reason','seconds','review candidates'])
+            rw=csv.writer(reviewf)
+            rw.writerow(['MP3 path','mode','provider','candidate title','candidate artist','rejected because','candidate .lrc path'])
+            for i,track in enumerate(eligible,1):
+                print(f'[{i}/{len(eligible)}] {track.name}',flush=True)
+                start=time.monotonic(); review=CandidateReview();outcome='NOT_FOUND';detail='';hit=None
+                try:
+                    if track.with_suffix('.lrc').exists():
+                        outcome='EXISTS';detail='Already has .lrc (skipped)'
+                    elif is_live_track(track.stem):
+                        outcome='LIVE_SKIPPED';detail='Filename LIVE'
+                    else:
+                        title,artist,album,duration=song_info(track)
+                        if is_live_track(title):
+                            outcome='LIVE_SKIPPED';detail='ID3 title LIVE'
+                        elif not title or not artist:
+                            outcome='NO_METADATA';detail='Missing usable title/artist'
+                        else:
+                            if GREEK_MODE:
+                                precompute_greek_plan(title,artist,G2G_TOOL)
+                            # Never use provider_lrclib/search_song here: they may call HTTP.
+                            traces=[]
+                            ACTIVE_HTTP_TRACE=traces
+                            try:
+                                hit=local_lrclib_search(title,artist,duration,review)
+                            finally:
+                                ACTIVE_HTTP_TRACE=None
+                            local_error=next((e['detail'] for e in traces if e['status']=='LOCAL_DB_ERROR'),None)
+                            if local_error:
+                                outcome='ERROR';detail='Offline database lookup failure: '+str(local_error)
+                            elif hit:
+                                try:save_hit(track,hit);outcome='SAVED';detail='Verified offline SQLite match'
+                                except FileExistsError:outcome='EXISTS';detail='Already created .lrc during scan'
+                            elif review.items:
+                                outcome='REVIEW';detail=f'{len(review.items)} unverified candidate(s)'
+                            else:
+                                outcome='NO_MATCH';detail='No verified synchronized lyrics in offline snapshot'
+                            # distinguish SQLite errors from actual NOT FOUND
+                            # when local_lrclib_search records a failed database operation
+                            # (errors also print visibly in local_lrclib_search)
+                    rows=export_review_candidates(track,'OFFLINE',review)
+                    rw.writerows(rows)
+                except KeyboardInterrupt:
+                    interrupted=True
+                    print('Interrupted; reports retained for completed songs.',flush=True)
+                    break
+                except Exception as ex:
+                    outcome='ERROR';detail=f'{type(ex).__name__}: {ex}'
+                elapsed=round(time.monotonic()-start,3)
+                writer.writerow([str(track),outcome,detail,elapsed,len(review.items)])
+                outf.flush();reviewf.flush()
+                counts[outcome]+=1;processed+=1
+                print('  '+outcome+': '+detail+f' | {elapsed:.1f}s',flush=True)
+    finally:
+        if G2G_TOOL:
+            G2G_TOOL.flush();G2G_TOOL.release_model()
+        print('OFFLINE SCAN SUMMARY (no internet access):',flush=True)
+        print('  Processed:',processed,'of',len(eligible),flush=True)
+        for key in ('SAVED','REVIEW','NO_MATCH','NO_METADATA','LIVE_SKIPPED','EXISTS','ERROR'):
+            if counts[key]:print(' ',key,':',counts[key],flush=True)
+        print(f'  Elapsed: {time.monotonic()-started:.1f}s',flush=True)
+        print('  Report:',report,flush=True)
+        print('  Review:',review_path,flush=True)
+        if interrupted:print('  Rerun option 4 to continue; songs already having .lrc are skipped.',flush=True)
+
 def main():
     global ROUND
     print(f'\n=== LRC Bulk Finder v{VERSION} | 12 lyrics routes (some aggregate others) ===')
     print('Created by Dimitris L.')
-    print('Only writes verified .lrc sidecars, review-only candidate TXT files and reports; audio never changed.')
+    print('Writes verified .lrc files, nearby .candidate.lrc review files and reports; audio never changed.')
     print('Safety: resolved artist/title, matching version, and duration gap <= 3s required for auto-save.')
     if not OPTIONAL_TENCENT_AVAILABLE:print('Tencent/QQ Music is optional and not installed; it will be skipped.')
     print('Round 2/3: ONLY verified network timeouts for the affected song AND provider.')
     print('NOT_FOUND, SKIPPED, NO_CHECK, HTTP 429, and HTTP 5xx NEVER create a retry.')
-    print('429 disables that provider for this run; skipped source != new timeout.')
+    print('429 and unauthorized 401/403 disable the provider for this run; skipped source != new timeout.')
+    print('Repeated LRCLIB 503 (3 in a row) opens a safety circuit: remaining songs are queued.')
+    print('Optional local LRCLIB SQLite snapshot is searched before online LRCLIB requests.')
+    print('First-attempt coverage can WAIT for temporary 503/network recovery on later songs.')
+    print('A server returning 503 or 401 is not a successful lyrics search; gaps are reported.')
     print('Original artist/title tags remain untouched; AI provides extra search variants only.')
     print('LIVE tracks are completely excluded (filename or title tag).')
     print('Greek alternatives prioritize user-defined aliases; optional LOCAL G2G AI can suggest more.')
@@ -1187,21 +1972,47 @@ def main():
     print('OVERNIGHT: all questions are asked BEFORE conversion/search; none during the run.')
     print('Preflight CSV lists which songs have a suggested Greek alternative BEFORE any network searches.')
     print('New: Unison, Better Lyrics KuGou/TTML and experimental YouLy+ TTML.\n')
-    load_aliases()
-    load_greek_words()
+    print('\nChoose what you want to do:')
+    print('  1 — SEARCH for synchronized lyrics')
+    print('  2 — PROMOTE .candidate.lrc files to .lrc (no network)')
+    print('  3 — LRCLIB-only catch-up (only sources skipped or unavailable earlier)')
+    print('  4 — OFFLINE LRCLIB ONLY (scan ANY folder; no internet)')
+    action=input('Choose [1/2/3/4] (default 1): ').strip()
+    if action not in {'','1','2','3','4'}:
+        print('Invalid choice; no changes made.')
+        return
+    if action!='2':
+        load_aliases()
+        load_greek_words()
     folder=select_folder()
     if not folder:return
     if not folder.is_dir():print('Folder does not exist:',folder);return
+    if action=='3':
+        run_lrclib_catchup(folder)
+        return
+    if action=='4':
+        if not ensure_local_lrclib_config(Path(__file__).resolve().parent):
+            return
+        run_offline_lrclib_folder(folder)
+        return
+    if action=='2':
+        recursive=input('Include subfolders? [Y/n]: ').strip().lower()!='n'
+        promote_candidates(folder,recursive=recursive)
+        return
+    configure_local_lrclib(Path(__file__).resolve().parent)
     load_provider_cooldowns(folder/'LRC_Provider_Cooldowns.json')
     configure_lrclib_contact(Path(__file__).resolve().parent)
-    global MB_ENABLED,GREEK_MODE,ACTIVE_PROVIDERS,G2G_ENABLED,G2G_TOOL,HISTORY_ENABLED
+    global MB_ENABLED,GREEK_MODE,ACTIVE_PROVIDERS,G2G_ENABLED,G2G_TOOL,HISTORY_ENABLED,COMPLETE_FIRST_PASS
     GREEK_MODE=input('Greeklish / Greek folder? [y/N]: ').strip().lower()=='y'
     G2G_ENABLED=GREEK_MODE and input('Use your installed LOCAL G2G AI model? [y/N]: ').strip().lower()=='y'
     G2G_TOOL=G2GManager() if G2G_ENABLED else None
-    MB_ENABLED=GREEK_MODE and input('Extra Greek metadata lookup using MusicBrainz? [y/N]: ').strip().lower()=='y'
+    MB_ENABLED=input('MusicBrainz extra artist/title metadata for this folder? [Y/n] (optional; slower): ').strip().lower() not in {'n','no'}
     mode=input('Search mode: FAST (5 useful providers) or FULL (all 12)? [F/full]: ').strip().lower()
     ACTIVE_PROVIDERS=PROVIDERS if mode in {'full','all','12','a'} else FAST_PROVIDERS
     print('Selected providers:',', '.join(ACTIVE_PROVIDERS))
+    show_provider_availability()
+    COMPLETE_FIRST_PASS=input('Wait for temporary provider recovery before EACH first attempt? [Y/n] (slower, better coverage): ').strip().lower()!='n'
+    print('First-attempt coverage:', 'WAIT for temporary recovery (may take hours if a server stays down)' if COMPLETE_FIRST_PASS else 'SKIP during recovery and record incomplete coverage')
     recursive=input('Include subfolders? [Y/n]: ').strip().lower()!='n'
     HISTORY_ENABLED=input('Skip identical provider searches completed NO_MATCH in the last 7 days? [Y/n]: ').strip().lower()!='n'
     if HISTORY_ENABLED:
@@ -1237,6 +2048,8 @@ def main():
         except ValueError:limit=20
         if limit<=0:return
         missing=missing[:limit]
+    global LRCLIB_EXACT_FALLBACK
+    LRCLIB_EXACT_FALLBACK = input('Optional LRCLIB exact-signature fallback after existing searches? [y/N] (extra HTTP request): ').strip().lower()=='y'
     # All user choices are collected here, BEFORE local AI inference or network calls.
     # This prevents a late prompt from blocking unattended overnight runs.
     run_after_preview = True
@@ -1246,8 +2059,8 @@ def main():
         print('Selected: '+('UNATTENDED PREVIEW + SEARCH' if run_after_preview else 'PREVIEW ONLY')+'; there will be NO more setup questions.',flush=True)
     # PRE-FLIGHT: AI inference is exclusively here. The model is lazy and
     # instantiated once only if an uncached/unaliasable title or artist needs it.
-    greek_plan_path=folder/'LRC_Greek_Search_Preview_v2_1_4.csv'
-    ai_plan_path=folder/'LRC_G2G_AI_Review_v2_1_4.csv'
+    greek_plan_path=folder/'LRC_Greek_Search_Preview_v2_1_15.csv'
+    ai_plan_path=folder/'LRC_G2G_AI_Review_v2_1_15.csv'
     preview=[];ai_preview=[];greek_ready=0
     if GREEK_MODE:
         print('\nPreparing Greek search variants BEFORE contacting lyrics providers...',flush=True)
@@ -1301,13 +2114,14 @@ def main():
             print('PREVIEW ONLY selected at startup. No lyrics services contacted.')
             return
         print('Starting lyrics searches automatically as selected BEFORE preview. No further questions.',flush=True)
-    # New versioned report name avoids appending to a CSV from v1.0-v1.7.
-    report=folder/'LRC_Finder_Report_v2_1_4.csv'
-    reviews_path=folder/'LRC_Finder_Review_v2_1_4.csv'
-    review_folder=folder/'LRC_Review_Only_v2_1_4'
-    providers_path=folder/'LRC_Finder_Provider_Details_v2_1_4.csv'
-    stats_path=folder/'LRC_Source_Statistics_v2_1_4.csv' 
-    states={};rows=[];reviews=[];provider_rows=[];saved=0
+    # New versioned report name avoids appending to prior releases.
+    report=folder/'LRC_Finder_Report_v2_1_15.csv'
+    reviews_path=folder/'LRC_Finder_Review_v2_1_15.csv'
+    providers_path=folder/'LRC_Finder_Provider_Details_v2_1_15.csv'
+    stats_path=folder/'LRC_Source_Statistics_v2_1_15.csv'
+    http_details_path=folder/'LRC_HTTP_Diagnostics_v2_1_15.csv' 
+    states={};rows=[];reviews=[];provider_rows=[];http_rows=[];saved=0
+    lrclib_attempt_log=[]
     pending=list(missing)
     retry_by_song={}  # MP3 -> ONLY the actual timed-out providers
     completed_by_song={}  # help classify later-round failure accurately
@@ -1322,7 +2136,7 @@ def main():
             for index,path in enumerate(current,1):
                 print(f'[{index}/{len(current)}] {path.name}',flush=True)
                 review=CandidateReview();status='TIMEOUT';detail='';calls=[];hit=None
-                new_retry=set();call_timings=[]
+                new_retry=set();call_timings=[];call_traces=[]
                 target_providers=retry_by_song.pop(path,None) if rnd>1 else None
                 if rnd>1:
                     print('    Retry ONLY:',', '.join(sorted(target_providers or [])),flush=True)
@@ -1337,7 +2151,7 @@ def main():
                     else:
                         hit,status,detail,calls=search_song(
                             title,artist,album,duration,review,
-                            only_providers=target_providers,retry_targets=new_retry,timings=call_timings)
+                            only_providers=target_providers,retry_targets=new_retry,timings=call_timings,request_traces=call_traces)
                         if hit:
                             try:save_hit(path,hit);saved+=1
                             except FileExistsError:status='EXISTS';detail='LRC appeared during the run'
@@ -1357,9 +2171,10 @@ def main():
                     status='NOT_FOUND_PARTIAL'
                     detail+='; earlier sources completed NO_MATCH, retry source unavailable'
                 states[path]=(status,detail)
+                lrclib_attempt_log.append((path,tuple(calls)))
                 if status=='TIMEOUT' and new_retry:
                     retry_by_song[path]=new_retry
-                reviews.extend(export_review_candidates(path,rnd,review,review_folder))
+                reviews.extend(export_review_candidates(path,rnd,review))
                 rows.append([str(path),rnd,status,detail,hit.provider if hit else '', ' | '.join(calls), hit.search_variation if hit else ''])
                 for call_index,outcome in enumerate(calls):
                     prov,result=(outcome.split('=',1)+[''])[:2]
@@ -1369,7 +2184,20 @@ def main():
                         query_titles=' / '.join(f'{a} - {t}' for t,a in variants)
                     except Exception:query_titles=''
                     elapsed=round(call_timings[call_index][1],2) if call_index<len(call_timings) else 0.0
-                    provider_rows.append([str(path),rnd,prov,result,query_titles,elapsed])
+                    events=call_traces[call_index] if call_index<len(call_traces) else []
+                    diagnosis=http_summary(prov,events) if '=' in outcome else ''
+                    provider_rows.append([str(path),rnd,prov,result,query_titles,elapsed,diagnosis,
+                                          sum(1 for event in events if event['status'] not in
+                                              {'LOCAL_DB_LOOKUP','LOCAL_DB_ERROR'})])
+                    if events:
+                        for e in events:
+                            http_rows.append([str(path),rnd,prov,e['endpoint'],e['status'],
+                                              e['detail'],e['elapsed_seconds']])
+                    else:
+                        reason=('not requested: '+result if result.startswith(('SKIPPED','UNAVAILABLE','CACHED'))
+                                else 'HTTP status hidden by third-party library' if prov in LIBRARY_MANAGED_SOURCES
+                                else 'no HTTP call recorded')
+                        http_rows.append([str(path),rnd,prov,'', 'NOT_OBSERVED',reason,0])
                 print(f'  {status}: {detail}',flush=True)
                 if status=='TIMEOUT' and new_retry:pending.append(path)
             if interrupted:break
@@ -1383,13 +2211,48 @@ def main():
             elif path not in states:states[path]=('INTERRUPTED','Not attempted because run was interrupted')
         for f,header,output in (
             (report,['MP3 path','round','status','reason','saved provider','provider outcomes','successful search variation'],rows),
-            (reviews_path,['MP3 path','round','provider','candidate title','candidate artist','rejected because','review-only candidate TXT'],reviews),
-            (providers_path,['MP3 path','round','provider','outcome','planned title variants','elapsed_seconds'],provider_rows)):
+            (reviews_path,['MP3 path','round','provider','candidate title','candidate artist','rejected because','nearby candidate .lrc path'],reviews),
+            (providers_path,['MP3 path','round','provider','outcome','planned title variants','elapsed_seconds','HTTP status summary','HTTP request count'],provider_rows),
+            (http_details_path,['MP3 path','round','provider','endpoint (no query string)','HTTP status / transport outcome','reason','request elapsed seconds'],http_rows)):
             with f.open('w',encoding='utf-8-sig',newline='') as csv_file:
                 writer=csv.writer(csv_file);writer.writerow(header);writer.writerows(output)
+        coverage_path=folder/f'LRC_First_Attempt_Coverage_v{VERSION.replace(".", "_")}.csv'
+        first_round={(Path(path),source):(result,int(request_count),summary)
+                     for path,rnd,source,result,_queries,_seconds,summary,request_count in provider_rows
+                     if rnd==1}
+        source_order=tuple(ACTIVE_PROVIDERS or PROVIDERS)
+        coverage_counts=Counter()
+        with coverage_path.open('w',encoding='utf-8-sig',newline='') as cov:
+            writer=csv.writer(cov)
+            writer.writerow(['MP3 path','provider','first-pass coverage','outcome','HTTP requests','HTTP summary'])
+            for path in missing:
+                source_states={source:first_round.get((path,source)) for source in source_order}
+                ended_early=any(item and item[0].startswith('SAVED') for item in source_states.values())
+                for source in source_order:
+                    item=source_states[source]
+                    if item is None:
+                        category='NOT_NEEDED_SAVED_EARLY' if ended_early or path.with_suffix('.lrc').exists() else 'NOT_REACHED'
+                        result='';requests=0;summary=''
+                    else:
+                        result,requests,summary=item
+                        if 'LOCAL_DB_LOOKUP' in summary and not any(x in summary for x in ('HTTP 2','HTTP 3','HTTP 4','HTTP 5')):
+                            category='OFFLINE_SQLITE_LOOKUP'
+                        elif requests>0:category='REQUEST_SENT'
+                        elif result.startswith('CACHED_NO_MATCH'):category='ALREADY_SEARCHED_HISTORY'
+                        elif source in LIBRARY_MANAGED_SOURCES and result.startswith(('NO_MATCH','REVIEW','SAVED')):
+                            category='LIBRARY_SEARCH_HTTP_NOT_VISIBLE'
+                        elif result.startswith(('SKIPPED','UNAVAILABLE')):category='NOT_CONTACTED_UNAVAILABLE'
+                        else:category='NO_HTTP_REQUEST_OBSERVED'
+                    coverage_counts[category]+=1
+                    writer.writerow([str(path),source,category,result,requests,summary])
+        print('FIRST-ATTEMPT COVERAGE:')
+        for label,count in sorted(coverage_counts.items()):print('  ',label,':',count)
+        print('First-attempt coverage detail:',coverage_path)
+        lrclib_queue_path, lrclib_pending = write_lrclib_catchup_queue(folder,missing,lrclib_attempt_log)
+        print(f'LRCLIB missed/failed-coverage queue: {lrclib_pending} song(s) — {lrclib_queue_path}')
         n,t=write_summary(folder,missing,states)
         statistics={source:Counter() for source in PROVIDERS}
-        for path,rnd,source,result,_queries,elapsed in provider_rows:
+        for path,rnd,source,result,_queries,elapsed,_status_summary,_request_count in provider_rows:
             if source in statistics:
                 bucket=('SAVED' if result.startswith('SAVED') else
                         'REVIEW' if result.startswith('REVIEW') else
@@ -1421,9 +2284,12 @@ def main():
         print('Review-needed list:',folder/'LRC_Review_Needed.txt')
         print('Correctly structured detailed CSV:',report)
         print('Uncertain possible matches:',reviews_path)
-        print('Review-only candidate files (never automatically installed):',review_folder)
+        print('Review candidates: .candidate.lrc beside MP3; extra choices: .candidate.2.lrc, etc.')
         print('Provider-by-provider details:',providers_path)
+        print('NEW HTTP status / failure diagnostics:',http_details_path)
         print('NEW source statistics:',stats_path)
+        print('Provider coverage (request sent vs unavailable):',coverage_path)
+        print('LRCLIB catch-up queue (option 3, never automatic):',lrclib_pending,'song(s)')
         print('Saved by provider:',', '.join(f'{source}: {statistics[source]["SAVED"]}' for source in PROVIDERS if statistics[source]['SAVED']) or 'none')
         try:
             run_id=datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -1434,8 +2300,8 @@ def main():
                 archive=archive_root/('Run_'+run_id+'_v'+VERSION.replace('.','_')+f'_{count}')
                 count+=1
             archive.mkdir(parents=True)
-            archive_files=[report,reviews_path,providers_path,stats_path,
-                           folder/'LRC_Not_Found.txt',folder/'LRC_Timeouts.txt',folder/'LRC_Review_Needed.txt']
+            archive_files=[report,reviews_path,providers_path,http_details_path,stats_path,coverage_path,
+                           folder/'LRC_Not_Found.txt',folder/'LRC_Timeouts.txt',folder/'LRC_Review_Needed.txt',lrclib_queue_path]
             if GREEK_MODE:archive_files.extend([greek_plan_path,ai_plan_path])
             for file in archive_files:
                 if file.exists():shutil.copy2(file,archive/file.name)

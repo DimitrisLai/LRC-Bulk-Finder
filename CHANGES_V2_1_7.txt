@@ -1,0 +1,12 @@
+LRC Bulk Finder v2.1.7 — LRCLIB Priority / HTTP 503 Recovery
+Created by Dimitris L. — Public Beta
+
+1. LRCLIB searches first in FAST and FULL.
+2. HTTP 503 from LRCLIB triggers a bounded temporary cooldown, not permanent disable.
+3. HTTP 429 remains strictly rate-limited and persists across restarts.
+4. BetterTTML HTTP 401 is unauthorized (not NO_MATCH); disable this route for the run.
+5. Existing timeout-only song/provider retries, verification, and reports preserved.
+6. No PDF generated in this interim build.
+
+IMPORTANT: This is an offline-tested beta. API availability and LRCLIB server
+behavior must be verified on a small real Windows batch before overnight use.

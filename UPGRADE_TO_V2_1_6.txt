@@ -1,0 +1,33 @@
+LRC BULK FINDER v2.1.7 — PROVIDER DIAGNOSTICS PUBLIC BETA
+Created by Dimitris L.
+
+WHAT CHANGED
+- Every selected provider now prints ACTIVE / SKIPPED / UNAVAILABLE with an explanation.
+- HTTP-based routes show actual HTTP status codes (e.g. 200, 401, 404, 429, 503).
+- Real transport failures show NETWORK_TIMEOUT / NETWORK_ERROR, not invented HTTP status codes.
+- SyncedLyrics/Tencent third-party libraries can hide HTTP internals; these are explicitly marked UNKNOWN.
+- Provider errors that disable a source are visible immediately.
+- Added request-level CSV: LRC_HTTP_Diagnostics_v2_1_7.csv
+- Provider details CSV includes HTTP summary and number of HTTP requests.
+- No change to artist/title validation, MP3 safety, or strict timeout-only retries.
+
+RUNNING
+1. Extract this ZIP to a NEW directory. Leave v2.1.5 intact as backup.
+2. Double-click START_HERE.cmd; all startup questions appear before the batch begins.
+3. Try 20 missing songs in FULL mode to inspect all selected providers.
+4. Use the console and LRC_HTTP_Diagnostics_v2_1_7.csv to see why any source was skipped or failed.
+5. If LRCLIB receives HTTP 429, DO NOT delete the cooldown file to bypass the server limit.
+
+MUSICBRAINZ / PICARD
+- MusicBrainz Picard is a separate tagging tool and is NOT required by LRC Bulk Finder.
+- The optional MusicBrainz metadata lookup requires no Picard installation.
+- If your English/international MP3s already have accurate artist/title tags, choose N for faster searching.
+- Choosing Y may discover spelling variations but adds requests; it does not download lyrics.
+
+DOCS
+No revised PDF is included in this test build. The v2.1.5 PDF still explains the main workflow;
+read README_FIRST.txt and this file for the new provider diagnostics.
+
+IMPORTANT
+This is an offline-tested diagnostic BETA, not a claim that every provider is live/healthy.
+No third-party provider is bypassed or force-retried after a 429 response.

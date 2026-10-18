@@ -1,10 +1,10 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
-title LRC Bulk Finder Public v2.1.4
+title LRC Bulk Finder Public v2.1.15
 chcp 65001 >nul 2>&1
 echo ==========================================
-echo  LRC BULK FINDER - PUBLIC EDITION v2.1.4
+echo  LRC BULK FINDER - PUBLIC EDITION v2.1.15
 echo ==========================================
 echo Keep this window open until the run finishes.
 echo.

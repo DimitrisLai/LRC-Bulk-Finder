@@ -1,0 +1,50 @@
+name: Publish LRC Bulk Finder v2.1.15 Public Beta
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish-v2.1.15.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-v2.1.15
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'DimitrisLai/LRC-Bulk-Finder'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v4
+      - name: Validate release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "downloads/LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip"
+          test -s "docs/LRC_Bulk_Finder_v2_1_15_Complete_User_Manual_EN.pdf"
+          unzip -t "downloads/LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip" > /dev/null
+          file "docs/LRC_Bulk_Finder_v2_1_15_Complete_User_Manual_EN.pdf"
+      - name: Create prerelease and version tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "v2.1.15" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release v2.1.15 already exists; leaving it unchanged."
+            exit 0
+          fi
+          gh release create "v2.1.15" \
+            "downloads/LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip" \
+            "docs/LRC_Bulk_Finder_v2_1_15_Complete_User_Manual_EN.pdf" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "LRC Bulk Finder v2.1.15 — Offline-Only Edition" \
+            --notes-file RELEASE_NOTES_V2_1_15.md \
+            --prerelease

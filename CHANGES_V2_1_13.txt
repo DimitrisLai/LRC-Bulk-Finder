@@ -1,0 +1,26 @@
+LRC BULK FINDER v2.1.13 -- DATABASE AUTO-INSTALLER DISCOVERY FIX
+Created by Dimitris L.
+
+FIXED
+- v2.1.12 incorrectly assumed lrclib.net/db-dumps exposes direct links in static HTML.
+- v2.1.13 primarily reads the structured JSON dump catalog documented in the
+  third-party pylrclib project and constructs a URL on db-dumps.lrclib.net.
+- Safe filename validation, upload timestamp ordering, and optional compressed size.
+- Falls back to the official HTML page for compatibility.
+- Explains both failure reasons if neither source is reachable; does not touch configuration.
+
+UNCHANGED
+- Download requires user confirmation and a high-capacity drive (>=350 GiB free).
+- Resumable downloads where HTTP Range is honored, verified extraction, no bundled lyrics.
+- Normal online lyrics search and 1/2/3 menu, safe matching and catch-up queue behavior.
+
+TESTING / LIMITATIONS
+- Offline tests simulate the documented JSON catalog and database installation.
+- Live accessibility of the external worker and dump download host has NOT been
+  verified in this environment. No real large database has been downloaded.
+- If the catalog is inaccessible on the user's network, both automatic methods may fail.
+- Database installation is entirely optional.
+
+TECHNICAL SOURCES
+- https://github.com/Harmonese/pylrclib/blob/main/pylrclib/api/dumps.py
+- https://lrclib.net/db-dumps

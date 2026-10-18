@@ -1,24 +1,25 @@
-LRC BULK FINDER v2.1.4 - Reliability release (PUBLIC BETA)
-Created by Dimitris L.
+LRC BULK FINDER v2.1.15 — IMPORTANT NEW OPTION 4
+Scan any selected directory using ONLY your existing offline LRCLIB database.
+No catch-up queue or internet required. Run CONNECT_EXISTING_LRCLIB_DATABASE.cmd
+once to connect a pre-installed .sqlite3 file WITHOUT copying/downloading it.
+See HOW_TO_START_V2_1_15.txt and CHANGES_V2_1_15.txt.
 
-From v2.1.3:
-1. Fixed search-history classification: a provider that returns a
-   review candidate cannot be cached as a definitive NO_MATCH.
-   Only genuinely empty completed provider searches are cached.
-2. Provider outcomes now identify REVIEW_AVAILABLE explicitly, separate
-   from NO_MATCH and SAVED. Reviews never silently install an LRC.
-3. Added LRC_Review_Needed.txt for tracks with uncertain candidates.
-4. Added elapsed seconds and review counts to provider detail/statistics CSV.
-5. LRCLIB User-Agent now needs a real publisher contact in
-   LRCLIB_CONTACT.txt, per official API documentation. No made-up identity.
-   Without it, LRCLIB is skipped and other providers continue.
-6. HTTP 429 Retry-After cooldowns persist across future runs; no
-   repeated automatic requests during a service's active cooldown.
-7. Preserved 12 routes, optional offline G2G, Greek manual aliases,
-   FAST/FULL, version matching, original-file protection, and strict
-   affected-song/provider timeout-only retries.
+LRC Bulk Finder v2.1.14 -- Optional Official LRCLIB Auto Installer
+Created by Dimitris L. | Public Beta
 
-NOTE: Changes may yield MORE visible review candidates but not necessarily
-more automatic LRC saves, because the verified matching rules are strict.
+The Windows ZIP contains only the application and installer source; there is
+NO lyrics database inside. The LRCLIB database was publicly reported almost
+250 GB unpacked in August 2026 and is not appropriate for redistribution
+inside a general-purpose GitHub release.
 
-Offline tests do not guarantee all third-party services work live.
+Normal search does not require the database.
+Run SETUP_LRCLIB_DATABASE.cmd only if you want the massive optional offline
+installation. It attempts discovery via the public LRCLIB JSON catalog, then an HTML fallback, asks permission,
+lets you choose storage, downloads with progress, resumes when supported,
+extracts, validates, and configures the application when the official service is available. The external catalog was not reachable during release testing.
+
+The older manual importer is SETUP_LRCLIB_DATABASE_FROM_FILE.cmd.
+Read HOW_TO_START_V2_1_14.txt and CHANGES_V2_1_14.txt before publishing.
+
+NEW v2.1.14: CLEANUP_LRCLIB_DATABASE.cmd offers safe, explicit cleanup of downloaded and extracted LRCLIB files.
+Installer prints actual completed file sizes and attempts to create a cleanup shortcut beside the database.

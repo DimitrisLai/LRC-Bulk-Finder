@@ -32,7 +32,7 @@ if errorlevel 1 (
   )
 )
 echo Checking program syntax...
-%PY% -m py_compile "%~dp0LRC_Bulk_Finder.py" "%~dp0g2g_integration.py"
+%PY% -m py_compile "%~dp0LRC_Bulk_Finder.py" "%~dp0g2g_integration.py" "%~dp0lrclib_local.py" "%~dp0setup_lrclib_database.py" "%~dp0auto_install_lrclib_database.py" "%~dp0cleanup_lrclib_database.py" "%~dp0connect_existing_lrclib_database.py"
 if errorlevel 1 exit /b 13
 echo.
 echo Optional Greek AI: install once using SETUP_GREEK_AI.cmd

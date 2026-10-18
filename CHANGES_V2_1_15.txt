@@ -1,0 +1,33 @@
+LRC BULK FINDER v2.1.15 — OFFLINE LRCLIB FOLDER SEARCH
+Created by Dimitris L. | Public Beta
+
+NEW ACTION 4: OFFLINE LRCLIB ONLY (scan ANY selected MP3 folder)
+- Select any directory (no catch-up queue is needed).
+- Optionally include all subdirectories and search 20 songs or all eligible MP3s.
+- Checks an already-configured official LRCLIB SQLite snapshot ONLY.
+- Never requests lyrics from LRCLIB's online API or any other provider; optional
+  installed local Greek G2G conversion is also offline. MusicBrainz is disabled.
+- Skips LIVE tracks and tracks with existing .lrc sidecars, and never edits audio.
+- Preserves stringent artist, title, recording version, and duration verification.
+- Saves verified timed lyrics as .lrc; exports uncertain .candidate.lrc for review.
+- Writes independent LRC_Offline_Only_Report_v2_1_15.csv and
+  LRC_Offline_Only_Review_v2_1_15.csv; previous search/catch-up files remain untouched.
+- Shows a finished/processed count; safe to restart because existing .lrc files
+  are skipped. An MP3 with no verified local match can be searched again later.
+
+NEW: CONNECT_EXISTING_LRCLIB_DATABASE.cmd
+- Point a NEW v2.1.15 application folder to your ALREADY extracted SQLite file.
+- Chooses a .sqlite3 database with a file picker or paste-in path.
+- Validates schema and writes ONLY LRCLIB_LOCAL_DB.txt in the program folder.
+- NEVER downloads or copies the enormous database.
+- Option 4 also offers to save the existing DB path if not configured yet.
+
+PRESERVED: SEARCH (1), candidate PROMOTE (2), LRCLIB catch-up (3), optional
+local Greek AI, diagnostics, safe installer, safe cleanup and 503 circuit handling.
+Option 1 searches offline LRCLIB first then searches other providers when needed.
+
+OFFLINE ONLY DOES NOT GUARANTEE that lyrics exist for every recording. Some
+remixes, dubs and extended editions have no matching synchronized lyrics.
+
+SAFETY NOTE: If an old LRCLIB_LOCAL_DB.txt is copied, only the configuration
+(text) is copied; NEVER move or delete the extracted SQLite database itself.
