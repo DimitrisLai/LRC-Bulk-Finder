@@ -1,24 +1,40 @@
-LRC BULK FINDER v2.1.7 - PUBLICATION NOTES
+LRC BULK FINDER v2.1.15 — PUBLICATION & LICENSE NOTES
 Created by Dimitris L.
 
-Before publishing this beta:
-- TEST the downloadable ZIP on a clean Windows 10/11 PC with Python 3.10+.
-- TEST live lyrics providers, rate-limit behavior, standard/remix/radio
-  versions and the separate review-candidate workflow.
-- EDIT LRCLIB_CONTACT.txt to include a real public project HTTPS URL or
-  contact email. Without a valid value LRCLIB is deliberately skipped.
-- Choose the license for your own source code and include LICENSE.
-- Review third-party dependencies and service usage conditions.
+OWN CODE
+--------
+Original project source code: MIT License, see LICENSE.
+Copyright (c) 2026 Dimitris L.
 
-Third-party Python packages are installed separately via pip, NOT
-redistributed inside this ZIP. Their licenses still matter:
-  Mutagen, Unidecode: GPL-family terms (see upstream projects)
-  SyncedLyrics: MIT
-  AUEB gr-nlp-toolkit: Apache-2.0 project
-See SOURCES_AND_CREDITS.txt for more source/provider details.
+THIRD-PARTY COMPONENTS ARE NOT COVERED BY OUR MIT LICENSE
+---------------------------------------------------------
+The Python launcher installs required Python packages separately through pip.
+Current upstream license information:
+- Mutagen: GPL-2.0-or-later — https://pypi.org/project/mutagen/
+- Unidecode: GPL-2.0-or-later — https://pypi.org/project/Unidecode/
+- syncedlyrics: MIT — https://github.com/moehmeni/syncedlyrics
+- AUEB gr-nlp-toolkit (optional): see upstream project and model terms
+  https://github.com/nlpaueb/gr-nlp-toolkit
 
-No private MP3 collection, user aliases, preloaded lyric database or
-model weights are bundled. Provider services may disappear/change;
-user metadata may be transmitted in search queries.
+Be aware that GPL-family conditions may apply to redistribution of a program
+combined with GPL dependencies, even though the original LRC Bulk Finder
+source itself has an MIT notice. Do NOT describe the entire installable
+dependency stack as "MIT-only". Check GPL obligations before packaging or
+redistributing an integrated executable.
 
-This is general release information, not legal advice.
+LYRICS, EXTERNAL DATABASES, SERVICES
+------------------------------------
+MIT covers only the original source code. It does NOT give permission to
+redistribute lyrics, audio files or an LRCLIB SQLite dump; such material may
+be protected by separate rights and provider conditions. Large LRCLIB
+snapshots are downloaded separately and are never bundled into this ZIP.
+
+PRODUCTION READINESS
+--------------------
+v2.1.15 is a Public Beta. Test a clean Windows 10/11 installation with
+Python 3.10+, multiple remix/version cases and providers. Respect 401/403
+access restrictions and 429 rate limits. Verify that local databases are
+configured and usable before running very large scans. Avoid posting
+personal music file paths and metadata in public issue reports.
+
+This file summarizes project notices, not legal advice.
