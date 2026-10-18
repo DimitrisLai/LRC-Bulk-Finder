@@ -44,7 +44,7 @@ jobs:
           zip_path = root / "LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip"
           pdf_path = root / "LRC_Bulk_Finder_v2_1_15_Complete_User_Manual_EN.pdf"
           expected = {
-              zip_path: "33d6fa6e4250c0659e8f8d366a627caeb0f9e6a90e1c5f15450ca55460c7b890",
+              zip_path: "d8066fb3d4be29f67e7afb837c9d9d7e4876f1924f52eac6a7f6143abb8df769",
               pdf_path: "84f8361d733814982b574b8dc089fcab2b33d4465e16fbb25d8d4a3b2b4560dc",
           }
           for file, digest in expected.items():
@@ -72,12 +72,22 @@ jobs:
               required = launchers + [
                   "LICENSE", "README.md", "LRC_Bulk_Finder.py",
                   "CREATOR_AND_ATTRIBUTION.txt", "PUBLICATION_AND_LICENSE_NOTES.txt",
+                  "CONTRIBUTING.md", "SECURITY.md",
+                  "TEST_OFFLINE_FOLDER_V2_1_15.py",
+                  "TEST_CONNECT_EXISTING_DB_V2_1_15.py",
+                  ".github/workflows/tests.yml",
               ]
               missing = [x for x in required if prefix + x not in names]
               assert not missing, f"ZIP is missing: {missing}"
               license_text = archive.read(prefix + "LICENSE").decode("utf-8-sig")
               assert "MIT License" in license_text and "Copyright (c) 2026 Dimitris L." in license_text
-              print(f"PASS ZIP integrity, {len(launchers)} launchers, MIT license and creator credit")
+              for item in ("LICENSE", "README.md", "CONTRIBUTING.md", "SECURITY.md",
+                           "TEST_OFFLINE_FOLDER_V2_1_15.py",
+                           "TEST_CONNECT_EXISTING_DB_V2_1_15.py", ".github/workflows/tests.yml"):
+                  assert archive.read(prefix + item) == Path(item).read_bytes(), (
+                      f"Release ZIP differs from current repository: {item}"
+                  )
+              print(f"PASS ZIP integrity, {len(launchers)} launchers, current tests/docs and creator credit")
 
           reader = PdfReader(str(pdf_path))
           assert len(reader.pages) == 17, f"Expected 17 manual pages; found {len(reader.pages)}"
