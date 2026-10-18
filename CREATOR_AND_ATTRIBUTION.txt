@@ -1,10 +1,11 @@
-LRC Bulk Finder v2.1.7 - Public Command-Line Edition
+LRC Bulk Finder v2.1.15 — Offline-Only Edition
 Created by Dimitris L.
+Copyright (c) 2026 Dimitris L.
 
-Creator/project credit applies to the LRC Bulk Finder application,
-its integration, workflows, reports and public manual. It does not
-claim ownership of third-party libraries, APIs, music or lyric content.
+The original project source code is released under the MIT License.
+When redistributing the original code or substantial portions, the MIT
+copyright notice and license terms must be included. See LICENSE.
 
-Python dependencies, AUEB Greek NLP model and external lyrics services
-remain the work of their respective authors. See SOURCES_AND_CREDITS.txt.
-This project does not bundle third-party lyric text or music recordings.
+This creator credit does not claim ownership of third-party libraries,
+provider APIs, music files, songs, lyrics, or LRCLIB database dumps.
+Their respective rights and licenses still apply.
