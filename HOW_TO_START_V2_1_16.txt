@@ -1,0 +1,98 @@
+LRC BULK FINDER v2.1.16 — WINDOWS QUICK START
+Created by Dimitris L. | Public Beta
+
+INSTALLATION AND MAIN MENU
+1. Extract the v2.1.16 ZIP completely to a local folder.
+2. Double-click START_HERE.cmd (Windows 10/11, Python 3.10+).
+3. Choose:
+   1 = SEARCH for synchronized lyrics, offline-first with online fallback
+   2 = BULK INSTALL MARKED CANDIDATES and rotate remaining alternatives
+   3 = LRCLIB catch-up from an existing queue only
+   4 = OFFLINE LRCLIB ONLY for ANY folder (local SQLite; no Internet)
+
+OPTION 2 — NEW MARKED CANDIDATE PROMOTION
+A large search may produce hundreds of uncertain candidate files.
+Option 2 enables playable lyrics while retaining a clear warning:
+- Select your music folder and choose whether to include subfolders.
+- The program shows up to five planned file promotions and the total count.
+- Confirm with Y. Any other answer cancels without file changes.
+- For each MP3 with a valid synchronized Song.candidate.lrc and NO
+  preexisting Song.lrc, a new Song.lrc is created starting with:
+
+    [00:00.00] candidate
+    [00:05.00] Example first lyric
+    [00:10.00] Example second lyric
+
+  The text "candidate" is exactly the displayed reminder that the
+  lyrics may be incorrect for the audio recording or specific remix.
+- The original candidate is consumed after the new LRC is saved safely.
+- Numbered alternatives move down one slot:
+    Song.candidate.2.lrc -> Song.candidate.lrc
+    Song.candidate.3.lrc -> Song.candidate.2.lrc
+    Song.candidate.4.lrc -> Song.candidate.3.lrc
+- Other files are not changed; no existing destination is overwritten.
+
+HOW TO REVIEW WHILE LISTENING
+- Lyrics match the song? Open Song.lrc in a text editor and remove ONLY
+  the line [00:00.00] candidate. Save the file. You are finished.
+- Wrong lyrics? Delete Song.lrc yourself, then run Option 2 again.
+  The next candidate already has the correct primary .candidate.lrc name.
+- Do not remove the marker before verification. Promotion does not prove
+  that artist, title, version, or timing truly match your MP3.
+
+EXAMPLE
+Before:
+  Song.mp3
+  Song.candidate.lrc
+  Song.candidate.2.lrc
+  Song.candidate.3.lrc
+  Song.candidate.4.lrc
+After:
+  Song.mp3
+  Song.lrc                   (00:00 candidate marker added)
+  Song.candidate.lrc         (was .candidate.2.lrc)
+  Song.candidate.2.lrc       (was .candidate.3.lrc)
+  Song.candidate.3.lrc       (was .candidate.4.lrc)
+
+SAFETY RULES FOR OPTION 2
+- NO online services are called.
+- NO MP3 audio or ID3 tags are changed.
+- Existing .lrc files are NEVER overwritten or modified.
+- Missing MP3 or invalid/untimed candidates are skipped.
+- UTF-8 and UTF-8 BOM are supported; existing lyric lines are preserved.
+- On a per-song rename problem, the report includes PARTIAL and a reason.
+- Report: LRC_Candidate_Promotion_Report_v2_1_16.csv.
+- Numbered alternatives shift only after the new .lrc is created.
+- Test on a small copied folder before processing 10,000+ files.
+
+OPTION 4 — OFFLINE LRCLIB DATABASE
+An existing SQLite dump stays in its original location. Never download
+hundreds of GiB again unnecessarily. Run
+CONNECT_EXISTING_LRCLIB_DATABASE.cmd once and choose its .sqlite3.
+Choose option 4 to scan any folder using only this local snapshot.
+Existing .lrc and LIVE songs are skipped. Try 20 songs, then A for all.
+
+OPTION 1 — SEARCH
+For general use choose mode 1. Greek mode and optional local Greeklish AI
+are available. Select FAST for quicker search or FULL for all 12 routes.
+Unverified lyrics are stored as .candidate.lrc and numbered alternatives.
+Option 2 is separate; normal search safeguards remain unchanged.
+
+OPTION 3 — CATCH-UP
+Only use if an older normal search generated a LRCLIB catch-up queue.
+For newly selected folders, choose Option 4 instead.
+
+LAUNCHERS
+START_HERE.cmd — the normal user interface.
+CONNECT_EXISTING_LRCLIB_DATABASE.cmd — link an existing SQLite dump.
+SETUP_LRCLIB_DATABASE.cmd — optional new snapshot download.
+SETUP_LRCLIB_DATABASE_FROM_FILE.cmd — import downloaded SQLite or gzip.
+CLEANUP_LRCLIB_DATABASE.cmd — archive/database cleanup by confirmation.
+SETUP_GREEK_AI.cmd — optional Greeklish local AI.
+Run_Diagnostics.cmd — Python and system checks.
+Run_LRC_Finder.cmd — lower-level Python launcher.
+Start_LRC_Finder.bat — compatibility launcher.
+
+LICENSING
+Original code MIT, Copyright (c) 2026 Dimitris L. External Python
+dependencies and lyrics preserve their respective license/rights.
