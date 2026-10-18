@@ -1,0 +1,106 @@
+name: Verify and sync v2.1.15 release backups
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-release-backups.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-sync:
+    if: github.repository == 'DimitrisLai/LRC-Bulk-Finder'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download official v2.1.15 assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-audit
+          gh release download v2.1.15 --repo "$GITHUB_REPOSITORY" \
+            --pattern "LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip" \
+            --dir release-audit
+          gh release download v2.1.15 --repo "$GITHUB_REPOSITORY" \
+            --pattern "LRC_Bulk_Finder_v2_1_15_Complete_User_Manual_EN.pdf" \
+            --dir release-audit
+          python -m pip install --disable-pip-version-check pypdf
+
+      - name: Verify archive, creator credit, PDF, and SHA256
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          from zipfile import ZipFile
+          from pypdf import PdfReader
+
+          root = Path("release-audit")
+          zip_path = root / "LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip"
+          pdf_path = root / "LRC_Bulk_Finder_v2_1_15_Complete_User_Manual_EN.pdf"
+          expected = {
+              zip_path: "33d6fa6e4250c0659e8f8d366a627caeb0f9e6a90e1c5f15450ca55460c7b890",
+              pdf_path: "84f8361d733814982b574b8dc089fcab2b33d4465e16fbb25d8d4a3b2b4560dc",
+          }
+          for file, digest in expected.items():
+              assert file.exists(), f"Missing official release file: {file.name}"
+              actual = hashlib.sha256(file.read_bytes()).hexdigest()
+              assert actual == digest, f"SHA256 changed for {file.name}: {actual}"
+              print(f"PASS {file.name}: SHA256 {actual}")
+
+          with ZipFile(zip_path) as archive:
+              assert archive.testzip() is None, "Corrupt Windows ZIP"
+              names = archive.namelist()
+              assert len(names) == len(set(names)), "Duplicate ZIP member names"
+              prefix = "LRC_Bulk_Finder_v2_1_15/"
+              launchers = [
+                  "START_HERE.cmd",
+                  "CONNECT_EXISTING_LRCLIB_DATABASE.cmd",
+                  "SETUP_LRCLIB_DATABASE.cmd",
+                  "SETUP_LRCLIB_DATABASE_FROM_FILE.cmd",
+                  "CLEANUP_LRCLIB_DATABASE.cmd",
+                  "SETUP_GREEK_AI.cmd",
+                  "Run_Diagnostics.cmd",
+                  "Run_LRC_Finder.cmd",
+                  "Start_LRC_Finder.bat",
+              ]
+              required = launchers + [
+                  "LICENSE", "README.md", "LRC_Bulk_Finder.py",
+                  "CREATOR_AND_ATTRIBUTION.txt", "PUBLICATION_AND_LICENSE_NOTES.txt",
+              ]
+              missing = [x for x in required if prefix + x not in names]
+              assert not missing, f"ZIP is missing: {missing}"
+              license_text = archive.read(prefix + "LICENSE").decode("utf-8-sig")
+              assert "MIT License" in license_text and "Copyright (c) 2026 Dimitris L." in license_text
+              print(f"PASS ZIP integrity, {len(launchers)} launchers, MIT license and creator credit")
+
+          reader = PdfReader(str(pdf_path))
+          assert len(reader.pages) == 17, f"Expected 17 manual pages; found {len(reader.pages)}"
+          content = "\n".join(p.extract_text() or "" for p in reader.pages).lower()
+          for term in ("lrclib", "offline", "candidate", "database"):
+              assert term in content, f"Manual missing expected topic: {term}"
+          print("PASS PDF: 17 readable pages and expected guide topics")
+          PY
+
+      - name: Sync repository downloads ZIP to official release
+        run: |
+          set -euo pipefail
+          filename="LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip"
+          mkdir -p downloads
+          if cmp -s "downloads/$filename" "release-audit/$filename"; then
+            echo "PASS: Repository ZIP already matches the official release."
+            exit 0
+          fi
+          cp "release-audit/$filename" "downloads/$filename"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "downloads/$filename"
+          git commit -m "chore(downloads): sync Windows ZIP with verified v2.1.15 release"
+          git push
+          cmp "downloads/$filename" "release-audit/$filename"
+          echo "PASS: Repository ZIP is now byte-for-byte identical to the official release."
