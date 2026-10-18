@@ -22,29 +22,102 @@ jobs:
     steps:
       - name: Check out release source
         uses: actions/checkout@v4
-      - name: Validate release files
+        with:
+          persist-credentials: true
+
+      - name: Include MIT license and current project credits in Windows ZIP
         shell: bash
         run: |
           set -euo pipefail
-          test -s "downloads/LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip"
-          test -s "docs/LRC_Bulk_Finder_v2_1_15_Complete_User_Manual_EN.pdf"
-          unzip -t "downloads/LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip" > /dev/null
-          file "docs/LRC_Bulk_Finder_v2_1_15_Complete_User_Manual_EN.pdf"
-      - name: Create prerelease and version tag
+          python - <<'PY'
+          import os
+          import tempfile
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+
+          archive = Path("downloads/LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip")
+          prefix = "LRC_Bulk_Finder_v2_1_15/"
+          docs = ["LICENSE", "CREATOR_AND_ATTRIBUTION.txt",
+                  "PUBLICATION_AND_LICENSE_NOTES.txt", "README.md"]
+          assert archive.is_file(), f"Missing Windows package: {archive}"
+          for filename in docs:
+              assert Path(filename).is_file(), f"Missing source document: {filename}"
+          assert "MIT License" in Path("LICENSE").read_text(encoding="utf-8")
+          replacements = {prefix + p for p in docs}
+
+          fd, temp_name = tempfile.mkstemp(suffix=".zip", dir=archive.parent)
+          os.close(fd)
+          try:
+              with ZipFile(archive, "r") as original, ZipFile(temp_name, "w") as updated:
+                  bad = original.testzip()
+                  if bad:
+                      raise RuntimeError(f"Bad input ZIP member: {bad}")
+                  paths = set(original.namelist())
+                  assert prefix + "START_HERE.cmd" in paths
+                  assert prefix + "LRC_Bulk_Finder.py" in paths
+                  for entry in original.infolist():
+                      if entry.filename not in replacements:
+                          updated.writestr(entry, original.read(entry.filename))
+                  for filename in docs:
+                      updated.write(filename, prefix + filename, compress_type=ZIP_DEFLATED)
+              with ZipFile(temp_name) as verification:
+                  assert verification.testzip() is None
+                  for filename in docs:
+                      assert verification.read(prefix + filename) == Path(filename).read_bytes()
+                  assert len(verification.namelist()) == len(set(verification.namelist()))
+              os.replace(temp_name, archive)
+          finally:
+              if os.path.exists(temp_name):
+                  os.unlink(temp_name)
+          print("Windows ZIP verified with LICENSE, creator credit and updated notices.")
+          PY
+
+      - name: Commit corrected release archive to repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add downloads/LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip
+          if ! git diff --cached --quiet; then
+            git commit -m "release: include MIT license and attribution in v2.1.15 ZIP"
+            git push origin HEAD:main
+          else
+            echo "Archive already up to date."
+          fi
+
+      - name: Publish or update v2.1.15 release assets
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          if gh release view "v2.1.15" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release v2.1.15 already exists; leaving it unchanged."
-            exit 0
+          asset="downloads/LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip"
+          manual="docs/LRC_Bulk_Finder_v2_1_15_Complete_User_Manual_EN.pdf"
+          test -s "$manual"
+          if gh release view v2.1.15 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v2.1.15 "$asset" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create v2.1.15 "$asset" "$manual" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "LRC Bulk Finder v2.1.15 — Offline-Only Edition" \
+              --notes-file RELEASE_NOTES_V2_1_15.md \
+              --prerelease
           fi
-          gh release create "v2.1.15" \
-            "downloads/LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip" \
-            "docs/LRC_Bulk_Finder_v2_1_15_Complete_User_Manual_EN.pdf" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "LRC Bulk Finder v2.1.15 — Offline-Only Edition" \
-            --notes-file RELEASE_NOTES_V2_1_15.md \
-            --prerelease
+
+      - name: Verify downloadable GitHub release archive
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p downloaded
+          gh release download v2.1.15 --repo "$GITHUB_REPOSITORY" \
+            --pattern "LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip" \
+            --dir downloaded
+          asset="LRC_Bulk_Finder_Public_v2_1_15_GitHub_Release_Windows.zip"
+          cmp "downloads/$asset" "downloaded/$asset"
+          unzip -t "downloaded/$asset" > /dev/null
+          unzip -p "downloaded/$asset" "LRC_Bulk_Finder_v2_1_15/LICENSE" | grep -F "Copyright (c) 2026 Dimitris L."
+          echo "Verified downloaded GitHub release ZIP and included MIT copyright notice."
