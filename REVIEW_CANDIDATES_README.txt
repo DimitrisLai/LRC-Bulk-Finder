@@ -1,28 +1,26 @@
-REVIEW CANDIDATES — v2.1.8
+REVIEW CANDIDATES — v2.1.16
 Created by Dimitris L.
 
-Unverified synchronized lyrics go into the SAME FOLDER as the MP3:
-  TheProdigy.mp3
-  TheProdigy.candidate.lrc
-  TheProdigy.candidate.2.lrc  (if a different candidate exists)
+After searching, uncertain synchronized lyrics are stored beside MP3s:
+  Song.mp3
+  Song.candidate.lrc
+  Song.candidate.2.lrc
+  Song.candidate.3.lrc
 
-Approved lyrics still use TheProdigy.lrc. Never automatically replace them.
-Candidate files are real LRC text with timestamps, but their artist, version
-and timing may be WRONG. Opening a candidate file does not mean it is verified.
+NEW OPTION 2 — BULK PROMOTE, BUT STILL UNVERIFIED
+Select the folder, optionally include subfolders, and confirm the action.
+Each valid first .candidate.lrc becomes Song.lrc with a first line:
+  [00:00.00] candidate
+The used candidate disappears, and numbered alternatives shift by one:
+  .candidate.2.lrc -> .candidate.lrc
+  .candidate.3.lrc -> .candidate.2.lrc, and so forth.
 
-At START_HERE.cmd, choose:
-  1 — SEARCH for lyrics (normal downloader, candidates saved beside MP3)
-  2 — PROMOTE reviewed .candidate.lrc to .lrc across folder and subfolders
+Listen while the song plays. If the lyrics are correct, manually remove
+only the [00:00.00] candidate line. If wrong, delete Song.lrc and run
+Option 2 again; the next .candidate.lrc is already ready.
 
-Mode 2 requires a final confirmation, skips songs with an existing .lrc,
-checks that a matching MP3 exists and the candidate contains timed LRC,
-then copies candidate to .lrc and removes the .candidate.lrc after success.
-It does NOT promote .candidate.2.lrc or other alternates automatically.
-It generates LRC_Candidate_Promotion_Report_v2_1_8.csv.
-
-WARNING: A mass promotion can install lyrics for the WRONG VERSION!
-Check the candidate files against your audio before approving.
-
-Previous versions' LRC_Review_Only_v2_1_6 folder and random .candidate.txt
-names are not automatically migrated by this menu. Keep the legacy CSV and
-files for later mapping/import; do NOT just rename hashed files blindly.
+Existing .lrc, MP3 audio and ID3 tags are never overwritten.
+No online provider requests; invalid or untimed candidates are skipped.
+Report: LRC_Candidate_Promotion_Report_v2_1_16.csv.
+Partially completed alternative shifts are logged and need manual review.
+Test on a small folder before mass promotion.
