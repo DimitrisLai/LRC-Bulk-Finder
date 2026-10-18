@@ -1,0 +1,58 @@
+LRC BULK FINDER v2.1.11 — WINDOWS QUICK START
+Created by Dimitris L.
+
+FIRST TIME: optional OFFLINE LRCLIB database (recommended for many MP3s)
+=======================================================================
+1. Extract the entire LRC_Bulk_Finder_Public_v2_1_11_Windows.zip to a new
+   folder. Do NOT run the launcher directly from inside the ZIP.
+2. Open https://lrclib.net/db-dumps in a browser and download an official
+   database snapshot (.sqlite3.gz). This is a SEPARATE, possibly large file.
+   Large snapshots require sufficient free space to download and extract.
+3. Double-click SETUP_LRCLIB_DATABASE.cmd in the extracted PROGRAM folder.
+4. Paste the full path to your downloaded .sqlite3.gz file and press Enter.
+   Example: C:\Users\Public\Downloads\lrclib-db-dump.sqlite3.gz
+   The setup streams extraction into .sqlite3 in the same directory, checks
+   the format, and saves the absolute path in LRCLIB_LOCAL_DB.txt.
+   If your file is already an uncompressed .sqlite3, paste that instead.
+   Existing downloaded databases are NEVER bundled with the program.
+
+FOR AN EXISTING LRCLIB CATCH-UP QUEUE (v2.1.9 / v2.1.10)
+======================================================
+5. Double-click START_HERE.cmd.
+6. At the very FIRST menu, type 3 then press Enter:
+      1 - SEARCH for synchronized lyrics
+      2 - PROMOTE candidates (no network)
+      3 - LRCLIB-only catch-up
+7. Select EXACTLY the same MP3 COLLECTIONS folder as in the earlier run.
+   Your old LRC_LRCLIB_Catchup_Queue_v2_1_10.csv or _v2_1_9.csv will be
+   imported, leaving the original queue intact.
+8. When asked "After OFFLINE misses, contact the online LRCLIB API? [y/N]:"
+   press Enter (N). This uses ONLY your local SQLite snapshot for LRCLIB.
+   It avoids any HTTP 503 from LRCLIB entirely during this catch-up.
+9. International music: "Greeklish / Greek filenames?" -> N.
+   "Also try optional LRCLIB exact lookup?" -> N (not needed offline).
+   "Start LRCLIB-only catch-up now?" -> Y.
+10. Let it finish. Verified sidecars are saved; mismatches go to review;
+    misses stay in the catch-up queue for a later online run if desired.
+
+FOR A FRESH SEARCH OF MORE MP3s
+===============================
+1. Double-click START_HERE.cmd; type 1 (SEARCH), select your MP3 folder.
+2. International: Greek=N, MusicBrainz=N if MP3 tags are already correct.
+3. For an initial test, choose FAST and 20 songs. FULL tries all 12 routes.
+4. Recovery before each first attempt: choose Y for coverage or N for speed.
+5. Include subfolders=Y if applicable; 7-day NO_MATCH history=Y normally.
+6. Optional exact LRCLIB lookup=N (more online requests if enabled).
+7. A configured offline database is always tried BEFORE online LRCLIB.
+   If the local database has no verified match, the regular API is tried.
+   After three consecutive HTTP 503 errors, online LRCLIB will stop for
+   this run and incomplete songs will be put in the LRCLIB catch-up queue.
+
+WARNINGS
+========
+- Local database matching uses the same strict artist/title, version,
+  duration, and synchronized timing checks as online LRCLIB.
+- Do not blindly promote unverified .candidate.lrc files (option 2).
+- Current GitHub package contains neither MP3s nor lyrics/database dumps.
+- This version has been tested with offline fixtures, not a real multi-GB
+  production LRCLIB dump or live Windows service calls.

@@ -1,4 +1,4 @@
-LRC BULK FINDER v2.1.4 - PUBLICATION NOTES
+LRC BULK FINDER v2.1.7 - PUBLICATION NOTES
 Created by Dimitris L.
 
 Before publishing this beta:

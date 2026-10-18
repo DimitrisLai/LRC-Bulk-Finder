@@ -1,0 +1,17 @@
+LRC Bulk Finder v2.1.8 — Sidecar Candidate Management
+Created by Dimitris L.
+
+1. New startup menu: [1] SEARCH, [2] PROMOTE CANDIDATES.
+2. Unverified timed review candidate written as Song.candidate.lrc
+   BESIDE Song.mp3; more choices use Song.candidate.2.lrc, etc.
+3. If Song.candidate.lrc already exists, no overwrite. Identical
+   content reused; different content given next numbered candidate.
+4. Promotion mode searches selected folder and (optionally) subfolders,
+   previews matching files, asks for one confirmation, then promotes only
+   Song.candidate.lrc to Song.lrc if Song.mp3 exists and Song.lrc does not.
+5. Never edits MP3 audio, never overwrites approved .lrc, and never
+   automatically promotes second/third alternate candidates.
+6. Saves a promotion CSV with per-file success and reason for skips.
+7. Keeps v2.1.7 LRCLIB priority/recovery and timeout-only retries.
+8. Legacy random-named .candidate.txt files are NOT automatically mapped.
+9. No PDF in this interim build.

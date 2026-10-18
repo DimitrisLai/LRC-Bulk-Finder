@@ -1,0 +1,49 @@
+LRC BULK FINDER v2.1.11 — OFFLINE LRCLIB + SAFE OVERLOAD CIRCUIT
+Created by Dimitris L. | Windows CLI | Public Beta
+
+Built from the complete v2.1.10 Coverage & Recovery branch.
+
+NEW:
+1. Optional official LRCLIB database snapshot support (SQLite .sqlite3/.db).
+   Download your own snapshot separately from https://lrclib.net/db-dumps.
+   Nothing is bundled or redistributed from the lyrics database.
+2. SETUP_LRCLIB_DATABASE.cmd provides a one-time setup wizard: paste the
+   local .sqlite3 or .sqlite3.gz path. The .gz is streamed to a separate
+   .sqlite3 file without reading the archive into RAM. The original archive
+   remains untouched. The setup validates the database's tracks/lyrics schema.
+3. Search action 1 checks a configured local snapshot first, preserving the
+   existing strict artist/title, remix/version, length (<=3 sec), and LRC
+   timestamp checks. When the snapshot has no verified result, the existing
+   online LRCLIB code is used, respecting access/cooldown limits.
+4. Catch-up action 3 automatically imports existing v2.1.9 or v2.1.10
+   queues. If an offline database is available, it asks whether to attempt
+   online LRCLIB after offline misses. Default NO -> NO LRCLIB HTTP requests.
+   Songs not saved offline remain queued for potential future online catch-up.
+5. After 3 consecutive HTTP 503 replies in the same run, the online LRCLIB
+   circuit opens and no more online LRCLIB calls are made that run. This
+   prevents burning through hundreds of requests when the service is down.
+   Future songs remain in the catch-up queue. Offline local matches still work
+   for subsequent songs even while the online provider is blocked.
+6. Local SQLite lookups have explicit LOCAL_DB_LOOKUP diagnostic events and
+   report ZERO online HTTP requests; diagnostics never invent HTTP codes.
+7. Expanded offline regression tests, including true local SQLite fixtures,
+   remix safeguards, catch-up queue migration, and circuit-breaker behavior.
+
+UNCHANGED:
+- The existing 1=SEARCH, 2=PROMOTE, 3=LRCLIB-ONLY CATCH-UP startup menu.
+- All 12 online lyrics routes, local Greek G2G AI, and optional MusicBrainz.
+- MP3s, ID3 tags and already-approved .lrc files are never modified.
+- AUTO-save only for verified artist/title, version, <=3s duration and timestamps.
+- Uncertain candidates are review-only .candidate.lrc files.
+- Rounds 2/3 retry ONLY actual network timeouts for that song/provider.
+- HTTP 401/403, 429 and provider Retry-After/cooldown must be respected.
+
+LIMITATIONS:
+- OFFLINE snapshots can be very large and are updated only when the user
+  downloads a newer one; newer live lyrics may not be in an older snapshot.
+- Different snapshot schema or SQLite corruption will be reported and the
+  downloader continues with its existing online behavior (if configured).
+- An offline lookup is not an online API request and does not guarantee a
+  match. HTTP 503 is an attempted request, not a successful lyrics lookup.
+- Do not publish LRCLIB lyric content or database dumps inside a GitHub ZIP.
+- This is an interim beta update; real Windows/API runs are not tested here.

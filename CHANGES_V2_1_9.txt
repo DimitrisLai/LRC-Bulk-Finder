@@ -1,0 +1,18 @@
+LRC Bulk Finder v2.1.9 — Conservative LRCLIB Reliability Update
+Created by Dimitris L. | Public Beta
+
+- Strictly preserve v2.1.8 MP3 protection, candidate sidecars, promotion,
+  query matching, provider order, and timeout-only automatic retry logic.
+- HTTP 503 Retry-After respected, plus a cautious minimum 5-second pause;
+  60/120/.../600-second backoff when the header is absent.
+- Add at least 500ms end-to-start spacing between LRCLIB HTTP requests.
+- Optional extra /api/get exact match after existing keyword searches, default
+  OFF to keep the normal request pattern unchanged. Same strict acceptance checks.
+- Unavailable LRCLIB coverage is added to the catch-up CSV, not re-searched
+  automatically in the normal run.
+- Manual startup action 3 searches only this list using LRCLIB and preserves
+  the existing .lrc, MP3s, and provider reports.
+- More offline tests for guards, startup, cooldowns, and candidate protection.
+
+NO new PDF manual in this interim edition. Live Windows/provider testing remains
+necessary before replacing the current public GitHub release.

@@ -1,0 +1,41 @@
+LRC BULK FINDER v2.1.14 | WINDOWS QUICK START
+Created by Dimitris L. | Public Beta
+
+1. Extract the ZIP to a new folder.
+2. To search your MP3 collection WITHOUT a local database, run START_HERE.cmd.
+3. To install a very large OFFLINE LRCLIB snapshot (OPTIONAL), run SETUP_LRCLIB_DATABASE.cmd.
+   - Answer Y to online discovery; approve the large download with Y.
+   - Select a destination drive with at least 350 GiB free.
+   - Wait for download, extraction, and read-only SQLite validation.
+   - When SUCCESS appears, the installer prints both file sizes and remaining free space.
+4. To find additional synchronized lyrics, run START_HERE.cmd, choose 1 (SEARCH)
+   or 3 (LRCLIB catch-up) for the pending queue.
+
+OPTIONAL CLEANUP OF LARGE DATABASE FILES:
+Run CLEANUP_LRCLIB_DATABASE.cmd from the extracted application folder.
+The installer may also create this launcher in the selected database folder.
+  1: DELETE the compressed download (.sqlite3.gz) only (recommended, offline DB still works).
+  2: DELETE the extracted SQLite database only (offline lookup is disabled).
+  3: DELETE BOTH the compressed download and extracted database (offline lookup disabled).
+  4: CANCEL (default).
+The tool prints exact file paths and sizes and requires the matching phrase:
+DELETE DOWNLOAD / DELETE DATABASE / DELETE BOTH.
+It refuses to delete manually configured or unrelated files.
+The removal is permanent; DO NOT choose 2 or 3 unless you no longer need offline LRCLIB.
+
+EXPECTED EXAMPLE FOR 2026-10-12 SNAPSHOT (NOT A FIXED SIZE):
+  Downloaded: 44.6 GiB
+  Extracted: 249,344 MiB = 243.5 GiB
+  Success: database configured after SQLite validation
+
+The database is NOT included in the distributable ZIP. It comes from the
+public LRCLIB database dumps website: https://lrclib.net/db-dumps
+
+UPGRADING AN EXISTING OFFLINE INSTALLATION:
+The new ZIP intentionally does not include LRCLIB_LOCAL_DB.txt, to avoid overwriting
+your already-configured database path. Extract over your earlier program folder
+after keeping a backup, or copy LRCLIB_LOCAL_DB.txt to the new folder.
+If you ONLY want to clean up the completed v2.1.13 installation, download the
+small cleanup add-on instead: place both files in your existing v2.1.13
+program folder (where LRCLIB_LOCAL_DB.txt already points to the installed DB).
+No need to download or unpack the enormous database again.

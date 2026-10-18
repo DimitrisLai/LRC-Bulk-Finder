@@ -1,0 +1,21 @@
+LRC BULK FINDER v2.1.14 - CLEANUP & POST-INSTALL FEEDBACK
+Created by Dimitris L. | Public Beta
+
+- NEW: CLEANUP_LRCLIB_DATABASE.cmd opens an interactive safe cleanup utility.
+- Choose 1: remove only the compressed downloaded .sqlite3.gz (recommended after successful installation).
+- Choose 2: remove only the extracted SQLite database; turns off offline LRCLIB.
+- Choose 3: remove BOTH large files; turns off offline LRCLIB.
+- Choose 4: cancel; ENTER defaults to cancel.
+- Destructive options require an exact typed confirmation phrase, not merely Y.
+- Cleanup only recognizes a matching auto-installed snapshot from LRCLIB_LOCAL_DB.txt.
+- Never deletes a music folder, an MP3, an LRC, or unrelated files.
+- Installer now prints final compressed/uncompressed database size and remaining free disk space.
+- After successful setup it also tries to create a convenience cleanup BAT beside the database;
+  this shortcut delegates to the original safety-checked application cleanup utility.
+- Package includes HOW_TO_START_V2_1_14.txt and version-specific English PDF.
+- No change to existing lyrics searching, matching, timeout-only retry logic, or provider order.
+- Real-world example (official 2026-10-12 snapshot): 44.6 GiB compressed and
+  249,344 MiB (243.5 GiB) extracted. Future snapshot sizes are not guaranteed.
+
+Safety: keep the extracted database if you want OFFLINE searching. The cleanup tool is
+optional and does nothing until you deliberately pick and confirm an action.

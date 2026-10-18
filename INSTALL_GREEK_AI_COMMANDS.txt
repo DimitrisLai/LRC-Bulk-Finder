@@ -38,7 +38,7 @@ HOW TO USE WITH DOWNLOADER
 - Use installed LOCAL G2G model: Y
 - MusicBrainz: N initially (optional)
 - 20 songs + search-after-preview N for preview-only quality review
-- Examine LRC_G2G_AI_Review_v2_1_4.csv in your MP3 folder
+- Examine LRC_G2G_AI_Review_v2_1_7.csv in your MP3 folder
 - Re-run, choose 20 + search-after-preview Y to test actual downloads
 - When satisfied, choose A for all and Y for unattended search
 

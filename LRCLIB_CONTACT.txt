@@ -1,3 +1,4 @@
-# LRCLIB requires a real project URL or contact email.
-# Public GitHub repository for this release:
+# LRC Bulk Finder v2.1.9 - public project URL (already configured).
+# LRCLIB uses this address to identify the client. Leave it as-is,
+# or replace with your own real project URL/contact email for a fork.
 https://github.com/DimitrisLai/LRC-Bulk-Finder

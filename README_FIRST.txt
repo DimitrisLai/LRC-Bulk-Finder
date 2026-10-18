@@ -1,90 +1,194 @@
-LRC BULK FINDER v2.1.4  |  PUBLIC BETA  |  COMMAND-LINE EDITION
+LRC BULK FINDER v2.1.15 — START HERE
+Created by Dimitris L. — PUBLIC BETA
+
+NEW: OFFLINE LRCLIB ONLY (OPTION 4) — SEARCH ANY FOLDER.
+If you have downloaded the huge LRCLIB SQLite snapshot previously,
+run CONNECT_EXISTING_LRCLIB_DATABASE.cmd ONCE to point at it.
+NO NEW DOWNLOAD, NO DATABASE COPY OR EXTRACTION.
+
+Double-click START_HERE.cmd and choose:
+1 = Normal full lyrics searching (offline LRCLIB first; online other providers)
+2 = Promote reviewed .candidate.lrc files (offline)
+3 = Catch-up from a previous LRCLIB queue
+4 = Search ANY MP3 folder using ONLY installed offline LRCLIB SQLite (NO internet)
+
+For step-by-step Windows choices: HOW_TO_START_V2_1_15.txt
+Detailed new features: CHANGES_V2_1_15.txt
+
+---- Previous release notes ----
+LRC BULK FINDER v2.1.15 — IMPORTANT NEW OPTION 4
+Scan any selected directory using ONLY your existing offline LRCLIB database.
+No catch-up queue or internet required. Run CONNECT_EXISTING_LRCLIB_DATABASE.cmd
+once to connect a pre-installed .sqlite3 file WITHOUT copying/downloading it.
+See HOW_TO_START_V2_1_15.txt and CHANGES_V2_1_15.txt.
+
+LRC BULK FINDER v2.1.14 | PUBLIC BETA | Created by Dimitris L.
+
+IMPORTANT: Optional automated OFFLINE LRCLIB database installer (not bundled).
+The official database was nearly 250 GB uncompressed in August 2026.
+Normal searching does not require an offline database. See HOW_TO_START_V2_1_14.txt.
+
+LRC BULK FINDER v2.1.14 | PUBLIC BETA | COMMAND-LINE EDITION
 Created by Dimitris L.
 ===============================================================
-For Windows 10/11 with Python 3.10+. See User_Manual_Public_v2_1_4.pdf.
+Windows 10/11. Python 3.10 or newer. Local AI is optional.
 
-INSTALL / START
-1. Extract all ZIP contents into a new folder (do not run inside a ZIP).
-2. Install Python 3.10+ if needed, including its launcher. Check: py --version
-3. Optionally run SETUP_GREEK_AI.cmd for offline Greeklish-to-Greek AI.
-4. IMPORTANT for LRCLIB: edit LRCLIB_CONTACT.txt, adding a real project
-   HTTPS URL or contact email. Do not enter a made-up URL or email.
-   If left blank, LRCLIB will be skipped and the other sources will run.
-   This identifier is sent ONLY to LRCLIB; others do not receive it.
-5. Double-click START_HERE.cmd or run from PowerShell: .\START_HERE.cmd
-6. Answer ALL startup questions; none will appear while searching.
-7. First run: choose 20 missing tracks to test before 'A' for all.
+For step-by-step offline LRCLIB setup, read HOW_TO_START_V2_1_14.txt.
+Optional large offline LRCLIB: run SETUP_LRCLIB_DATABASE.cmd for automatic official download (requires 350 GiB free).
+Optional safe cleanup afterwards: run CLEANUP_LRCLIB_DATABASE.cmd; choose archive only, database only, both, or cancel.
 
-RECOMMENDED SETTINGS - INTERNATIONAL MUSIC
-  Greek mode: N
-  Search mode: FAST first (5 routes), then FULL (12 routes) for remaining.
-  Include subfolders: Y if wanted.
-  7-day NO_MATCH history: Y, or N to force fresh searches.
-  Tracks: 20 for first test or A for all eligible tracks.
+QUICK START
+1. Extract the ZIP fully to a new folder (never run directly from inside the ZIP).
+2. Double-click START_HERE.cmd or run .\START_HERE.cmd in PowerShell.
+3. Choose 1 (SEARCH), 2 (PROMOTE candidates) or 3 (LRCLIB-only catch-up), then select the MP3 folder.
+4. First test: choose 20 missing songs. Run all later if results are acceptable.
+5. Your MP3 files, ID3 tags and existing LRC sidecars are never modified.
 
-RECOMMENDED SETTINGS - GREEK MUSIC
-  Greek mode: Y
-  Local G2G AI: Y only after installing the optional model.
-  MusicBrainz: N to minimize extra metadata requests.
-  Search mode: FAST first; FULL for thorough follow-up.
-  Include subfolders: Y if wanted.
-  7-day NO_MATCH history: Y, or N to force fresh searches.
-  Tracks: 20 first, then A after checking the preview.
-  After Greek preview, automatically search: Y to run unattended.
+GREEK / GREEKLISH
+  Greek mode: Y. If installed, optional G2G AI: Y. MusicBrainz: optional.
+  Optional model setup: SETUP_GREEK_AI.cmd; command details in INSTALL_GREEK_AI_COMMANDS.txt.
+  The model runs locally and creates alternative search spellings without changing the MP3 tags.
 
-OPTIONAL GREEK AI POWERSHELL SETUP
-  py -m pip install gr-nlp-toolkit
-  py -c "from gr_nlp_toolkit import Pipeline; nlp = Pipeline('g2g'); print(nlp('O Volos kai h Larisa einai sth Thessalia').text)"
-The first model run may download roughly 1.2 GB and additional dependencies.
-AI is optional; original artist/title metadata is never overwritten.
+INTERNATIONAL / NON-GREEK
+  Greek mode: N. MusicBrainz: N when artist/title tags are already accurate (faster),
+  or Y to look for alternative metadata spellings (slower).
+  MusicBrainz Picard is NOT required. It is a separate tagging application.
 
-VERSION 2.1.4 IMPROVEMENTS
-- True NO_MATCH only is saved in the optional 7-day search history.
-- Providers returning review candidates are logged REVIEW_AVAILABLE, not NO_MATCH.
-  Review candidates are NOT silently suppressed by the cache on later runs.
-- Detailed provider report includes elapsed_seconds and candidate status.
-- Source statistics include SAVED, REVIEW, NO_MATCH, CACHED, ERROR,
-  SKIPPED and total/average seconds.
-- LRC_Review_Needed.txt is new, alongside LRC_Not_Found.txt and
-  LRC_Timeouts.txt. Review-only lyrics stay separate from the MP3s.
-- HTTP 429 cooldowns are persisted as LRC_Provider_Cooldowns.json in the
-  selected music folder, respecting a provider's Retry-After value.
-- LRCLIB requires a valid public project URL or contact email to enable.
+FAST / FULL
+  FAST: 5 providers for a quicker first pass.
+  FULL: 12 routes, some overlapping sources; slower and more review candidates.
+  FULL is particularly useful as a second pass on songs still without an LRC.
 
-SAFETY / SEARCH RULES
-- MP3s, ID3 tags and existing .lrc files are NEVER modified.
-- LIVE songs are skipped (filename and ID3 title).
-- Auto-save requires resolved artist/title, matching version, and
-  <= 3-second source-vs-MP3 duration difference, plus plausible timed LRC.
-- Unverifiable candidates go to a separate review-only folder, NOT next
-  to the MP3. Candidates may be wrong; review before manually installing.
-- Only actual network timeouts retry in round 2/3, only that same song
-  and provider. No matches, 429, skipped, and 5xx never retry automatically.
-- Existing .lrc sidecars are skipped even on future runs.
-- Every run archives a separate set of reports under LRC_Run_Reports.
+SAME MATCHING / RETRY SAFEGUARDS AS v2.1.5
+  Automatically save only verified artist/title, correct recording version and <=3s duration gap.
+  Unverified lyrics are saved beside each MP3 as .candidate.lrc, never installed as approved .lrc.
+  Existing LRC sidecars are skipped. LIVE tracks are excluded by filename or ID3 title.
+  Retry rounds 2/3 ONLY for network timeouts on the exact timed-out song AND provider.
+  NO_MATCH, SKIPPED, HTTP 429, HTTP 5xx and generic errors do not trigger retries.
+  HTTP 429 cooldowns are saved and honored across restarts in the selected music folder.
+  A 7-day cache can skip only completed NO_MATCH searches; review results stay searchable.
 
-OUTPUT FILES (WRITTEN TO THE SELECTED MUSIC FOLDER)
-  LRC_Finder_Report_v2_1_4.csv
-  LRC_Finder_Provider_Details_v2_1_4.csv
-  LRC_Finder_Review_v2_1_4.csv
-  LRC_Source_Statistics_v2_1_4.csv
-  LRC_Not_Found.txt
-  LRC_Review_Needed.txt
-  LRC_Timeouts.txt
-  LRC_Review_Only_v2_1_4/      (only when candidates exist)
-  LRC_Greek_Search_Preview_v2_1_4.csv  (Greek mode)
-  LRC_G2G_AI_Review_v2_1_4.csv       (Greek mode)
-  LRC_Completed_Search_History.jsonl (optional)
-  LRC_Provider_Cooldowns.json         (when 429 occurs)
-  LRC_Run_Reports/                   (copies from each run)
+NEW — PROVIDER DIAGNOSTICS
+  Provider startup availability displays READY (not yet contacted), DISABLED, or UNAVAILABLE.
+  Each song shows provider outcome, actual HTTP status when exposed, and elapsed time.
+  HTTP 200 = HTTP request succeeded; it does NOT necessarily mean lyrics were found.
+  HTTP 404 = endpoint/resource had no result; HTTP 401/403 = authorization/access problem.
+  HTTP 429 = rate limit; program respects provider cooldown (do NOT bypass it).
+  HTTP 5xx = service error. NETWORK_TIMEOUT is not an HTTP status code.
+  Some external libraries hide HTTP status codes; the program displays UNKNOWN instead of guessing.
+  A source disabled halfway through a run is still shown on later songs as SKIPPED with its reason.
 
-NO PERSONAL COLLECTION INCLUDED
-This public ZIP includes no MP3s, no prefilled personal aliases, no
-lyrics catalog, and no cached model weights.
+NEW REPORTS — written to your selected MP3 folder
+  LRC_HTTP_Diagnostics_v2_1_14.csv: one row per HTTP request/status or no-request reason.
+     Includes round, provider, endpoint host/path (NEVER the query string), status,
+     reason and request time.
+  LRC_Finder_Provider_Details_v2_1_14.csv: one row per song/provider, provider outcome,
+     HTTP status summary and request count.
+  LRC_Finder_Report_v2_1_14.csv: song-level search results.
+  LRC_Finder_Review_v2_1_14.csv: uncertain candidates and rejection explanations.
+  LRC_Source_Statistics_v2_1_14.csv: results and elapsed time by provider.
+  LRC_Not_Found.txt / LRC_Timeouts.txt / LRC_Review_Needed.txt: final song lists.
+  LRC_Run_Reports/: archived copies of report files for each run.
 
-PUBLICATION NOTES
-This is a PUBLIC BETA, not fully validated across live providers or on
-all Windows computers. External services may change or rate-limit requests.
-Provide a real LRCLIB project/contact identity; choose a project license
-before wider publication. See PUBLICATION_AND_LICENSE_NOTES.txt.
-Keep v2.1.3 as backup while testing. Respect provider terms and lyrics rights.
+OPTIONAL LRCLIB CLIENT ID
+  The public project's official URL is included in LRCLIB_CONTACT.txt.
+  LRCLIB may rate-limit access independently of client ID; a configured URL does not guarantee access.
+
+PUBLIC BETA / DOCUMENTATION
+  This is an installer update for testing. The version-specific English PDF manual is available separately for public release.
+  See CHANGES_V2_1_14.txt and HOW_TO_START_V2_1_14.txt for current setup.
+  External lyrics sources and libraries have separate licenses and terms.
+  This ZIP contains no personal song lists, MP3s, lyrics or cached AI model.
+
+
+v2.1.7 — LRCLIB PRIORITY & RECOVERY
+  LRCLIB is queried first in FAST and FULL, provided its real client URL is
+  configured and an HTTP 429 cooldown is not active.
+  HTTP 503 is a temporary provider-wide recovery (60s, 120s, etc., capped at
+  10 minutes); another song can probe after cooldown. It does NOT cause rounds
+  2/3, because those are reserved ONLY for real network timeouts.
+  HTTP 429 remains protected by the persistent cooldown. Do not circumvent it.
+  BetterTTML HTTP 401 is now correctly treated as unauthorized, not NO_MATCH,
+  and the route stops for the run instead of wasting hundreds of requests.
+  Existing LRC and MP3 protection, candidate sidecars, reports and all 12
+  routes remain in place. No new PDF for this interim test version.
+
+
+v2.1.8 — CANDIDATE SIDECARS AND SAFE PROMOTION
+  The launch menu offers 1 = normal lyrics search or 2 = promote .candidate.lrc to .lrc.
+  Search stores MP3NAME.candidate.lrc beside MP3NAME.mp3, without changing audio.
+  If several sources offer different lyrics, extras are stored as
+  MP3NAME.candidate.2.lrc, MP3NAME.candidate.3.lrc, etc. They remain UNAPPROVED.
+  A song's approved MP3NAME.lrc is never overwritten. Existing candidate files
+  are also never overwritten on repeat searches.
+  Promotion scans the selected directory and optionally subdirectories,
+  previews the first five filenames, and requires explicit confirmation.
+  It only promotes the primary MP3NAME.candidate.lrc when matching MP3 exists,
+  the candidate is timestamped LRC and there is no existing approved .lrc.
+  Alternate .candidate.2.lrc (etc.) stay untouched; choose manually after
+  reviewing if the primary was wrong. Results go to
+  LRC_Candidate_Promotion_Report_v2_1_8.csv.
+  WARNING: Promotion means YOU ACCEPT the candidate. The script does not verify
+  that the lyrics or timings actually match the audio. Listen and check first.
+  Prior .candidate.txt files from v2.1.6/2.1.7 remain in their legacy folder.
+  This menu deliberately does NOT attempt to guess their MP3 identities.
+
+
+v2.1.9 — CONSERVATIVE LRCLIB RELIABILITY PATCH (INTERIM BETA)
+  1) Existing LRCLIB /api/search requests, order, strict matching, FAST/FULL
+     and three timeout-only rounds are unchanged by default.
+  2) The program now honors the LRCLIB 503 Retry-After response with an extra
+     safe minimum 5 seconds after overload. Without Retry-After it retains
+     60/120/.../600-second fallback. 429 persists cooldown across restarts.
+  3) LRCLIB sends requests sequentially with at least a 500ms finished-to-next-
+     request gap, in addition to the previously used 2.4-second pacing.
+  4) NEW OPTIONAL startup question after selecting how many songs:
+       Optional LRCLIB exact-signature fallback after existing searches? [y/N]
+     DEFAULT: N. Y adds at most ONE /api/get request after all existing
+     /api/search attempts failed to find a verified match, and only if valid
+     artist/title and a duration between 1 and 3600 seconds are available.
+     This can make FULL scans longer and adds server load; for the first test
+     on a huge library, choose N. All exact results pass the SAME strict
+     song identity, version and duration checks before auto-saving.
+  5) A normal SEARCH now writes a separate:
+       LRC_LRCLIB_Catchup_Queue_v2_1_9.csv
+     listing songs whose LRCLIB coverage was incomplete due to HTTP 503/429
+     or the resulting provider cooldown. Existing queue entries are kept
+     across smaller later runs unless successfully checked or now have .lrc.
+     This list does NOT automatically cause extra retries.
+  6) NEW STARTUP ACTION 3 (manual, separate from automatic timeout retries):
+       LRCLIB-only catch-up
+     Select SAME music collection root and read that versioned queue. It
+     contacts ONLY LRCLIB, never other lyrics providers; it skips existing
+     .lrc and LIVE tracks and creates normal safe review candidate sidecars.
+     It respects any persistent 429 cooldown, pauses/stops on 503, and writes
+       LRC_LRCLIB_Catchup_Report_v2_1_9.csv
+     Already accepted .lrc, original MP3s, and normal search reports are
+     never overwritten. This step needs explicit user confirmation.
+
+For your full-folder overnight run: choose 1 SEARCH, optional exact lookup N
+unless you deliberately want to test the extra request (start with 20 songs).
+After the run, you may choose 3 to cover only those songs LRCLIB missed.
+Do NOT delete provider 429 cooldown files to force additional requests.
+
+
+v2.1.10 — FIRST-ATTEMPT COVERAGE & RECOVERY
+  Before "Include subfolders" the SEARCH workflow asks:
+  "Wait for temporary provider recovery before EACH first attempt? [Y/n]"
+    Y (default): wait before contacting the temporarily unavailable provider
+      for EACH NEW SONG; can take MANY HOURS if a server keeps returning 503.
+    N: faster; provider is marked SKIPPED for songs encountered during its
+      recovery interval, with missing coverage visible in the reports.
+  HTTP 503 is not automatically retried for the same song: the next song gets
+  its own first request after cooldown. HTTP 401/403 access denied stops that
+  provider; HTTP 429 respects its original persisted cooldown.
+  LiriQo is no longer permanently disabled after two ordinary server errors.
+  New LRC_First_Attempt_Coverage_v2_1_14.csv tells whether each source
+  actually received a request for each selected song. External libraries may
+  hide actual HTTP traffic, which is explicitly marked UNKNOWN.
+  Option 3 automatically imports v2.1.9's existing LRCLIB catch-up queue,
+  preserving the original, and waits between queued songs during 503 recovery.
+  Use CTRL+C if repeated server 503s make waiting unproductive; reports and
+  outstanding catch-up queue entries remain available for a later run.
+  Do not use this mode to bypass HTTP 429, access restrictions or external
+  provider terms. Provider availability is not guaranteed.

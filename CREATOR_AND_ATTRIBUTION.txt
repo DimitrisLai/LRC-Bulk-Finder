@@ -1,4 +1,4 @@
-LRC Bulk Finder v2.1.4 - Public Command-Line Edition
+LRC Bulk Finder v2.1.7 - Public Command-Line Edition
 Created by Dimitris L.
 
 Creator/project credit applies to the LRC Bulk Finder application,

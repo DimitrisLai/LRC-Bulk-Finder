@@ -1,0 +1,30 @@
+LRC BULK FINDER v2.1.13 -- WINDOWS QUICK START
+Created by Dimitris L.
+
+NORMAL (SMALL DOWNLOAD, NO DATABASE REQUIRED):
+1. Extract this ZIP to a new folder.
+2. Double-click START_HERE.cmd.
+3. Choose 1 for normal SEARCH or 3 for LRCLIB-only catch-up.
+4. Select your MP3 folder and answer the app prompts.
+
+OPTIONAL OFFLINE LRCLIB (VERY LARGE DOWNLOAD):
+1. Ensure your computer has fast internet and a drive with AT LEAST 350 GiB free.
+   The database alone was reported at almost 250 GB uncompressed in Aug 2026.
+   Size may be greater now; downloads could take hours.
+2. Double-click SETUP_LRCLIB_DATABASE.cmd.
+3. Read the warnings and choose Y to discover the newest official snapshot.
+4. Read the offered URL and choose Y to authorize downloading it.
+5. Select a destination drive/folder in the Windows picker.
+6. Wait for downloading and extraction to complete. Existing config is only
+   replaced after validation. Resume may be available on network interruption.
+7. Run START_HERE.cmd again and choose 1 or 3.
+
+You do NOT have to download the database to use the downloader.
+v2.1.13 reads the JSON dump catalog (not just webpage HTML). If it fails,
+confirm your internet connection and check the error message. The alternative
+manual setup is SETUP_LRCLIB_DATABASE_FROM_FILE.cmd, but is not mandatory.
+The JSON dump listing endpoint is independently documented, but was not live-
+verified during the v2.1.13 build.
+
+SOURCE: https://lrclib.net/db-dumps
+NOT INCLUDED IN ZIP: database contents, downloaded song lyrics.

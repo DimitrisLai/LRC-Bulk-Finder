@@ -1,0 +1,80 @@
+LRC BULK FINDER v2.1.15 — WINDOWS QUICK START
+Created by Dimitris L. | Public Beta
+
+WHAT TO DOUBLE-CLICK
+--------------------
+START_HERE.cmd                         Main downloader; menu options 1, 2, 3, 4.
+CONNECT_EXISTING_LRCLIB_DATABASE.cmd  Link the huge database you ALREADY installed.
+SETUP_LRCLIB_DATABASE.cmd             OPTIONAL new database download/installation.
+SETUP_LRCLIB_DATABASE_FROM_FILE.cmd   OPTIONAL setup from an existing .sqlite3/.gz file.
+CLEANUP_LRCLIB_DATABASE.cmd           OPTIONAL file deletion with confirmation;
+                                       DO NOT select extracted-database deletion if
+                                       you want offline searching to keep working.
+SETUP_GREEK_AI.cmd                    OPTIONAL local Greeklish/G2G AI installation.
+Run_Diagnostics.cmd                   Python/dependencies diagnostics.
+Run_LRC_Finder.cmd                    Launcher internals; START_HERE is simpler.
+Start_LRC_Finder.bat                  Compatibility launcher.
+
+USING THE EXISTING HUGE DATABASE — NO RE-DOWNLOAD!
+--------------------------------------------------
+1. Extract this ZIP into a NEW folder. Keep your old version as a backup.
+2. Double-click CONNECT_EXISTING_LRCLIB_DATABASE.cmd.
+3. Select your ALREADY extracted SQLite file (not the compressed .gz).
+   On Windows your own file path might look like:
+   D:\DataBase\lrclib-db-dump-20261012T090639Z.sqlite3
+4. You should see SUCCESS. Only a tiny LRCLIB_LOCAL_DB.txt file is written.
+   The database is NOT moved, copied, or downloaded.
+
+ALTERNATIVE: Copy LRCLIB_LOCAL_DB.txt from the PREVIOUS program folder
+into the NEW program folder, preserving the database path. Nothing else
+needs to be copied (and do NOT copy or move the huge database).
+
+OPTION 4 — ANY FOLDER, OFFLINE LRCLIB ONLY
+----------------------------------------
+1. Run START_HERE.cmd.
+2. Choose 4.
+3. Choose the MP3 directory in the Windows folder chooser.
+4. If no database is configured, paste the existing .sqlite3 path once.
+5. Greeklish / Greek folder? [y/N] => N for international; Y for Greek.
+6. Installed LOCAL G2G AI? [y/N] => Y only if Greek AI is installed and useful.
+7. Include subfolders? [Y/n] => Enter / Y for subdirectories.
+8. How many eligible songs? [20 for test, A for all] => Enter for 20; A for all.
+9. Start offline-only scan? [y/N] => Y to begin.
+
+There are NO Internet requests by option 4. It does not need a catch-up
+queue. It skips tracks with existing .lrc and LIVE tracks. It writes:
+  LRC_Offline_Only_Report_v2_1_15.csv
+  LRC_Offline_Only_Review_v2_1_15.csv
+in your selected MP3 root folder. Potential review lyrics appear as
+.candidate.lrc beside MP3s. Only strict verified matches are installed.
+
+OPTION 1 — OFFLINE FIRST, THEN OTHER PROVIDERS
+----------------------------------------------
+1. Double-click START_HERE.cmd and choose 1.
+2. Select the MP3 directory.
+3. Choose Greek mode Y if Greek/Greeklish; optional G2G AI as appropriate.
+4. MusicBrainz? N if tags are accurate and you prefer speed.
+5. Choose FAST or FULL; FULL searches all selected source routes.
+6. Include subfolders? Enter/Y if needed.
+7. Test 20 songs first; A will process all eligible missing lyrics.
+Configured local LRCLIB is searched BEFORE the online LRCLIB endpoint,
+then the other enabled lyrics sources as necessary. This mode DOES
+contact external services and needs network access.
+
+OPTION 2 — MANUAL REVIEW / PROMOTION
+------------------------------------
+Uses NO network. Carefully review candidate .lrc content before approving.
+
+OPTION 3 — LRCLIB CATCH-UP QUEUE ONLY
+------------------------------------
+Requires a previous SEARCH run that produced an LRCLIB catch-up queue.
+NOT for scanning an entirely NEW folder. Use option 4 for that.
+
+FOR 10,000+ FILES
+-----------------
+Test with 20, then a few hundred before choosing A. Searches may take a
+long time on slow disks. Keep Windows awake; do not remove the database.
+The current snapshot's contents may not include obscure remixes. No
+network sources are queried by option 4 to fill gaps.
+
+LRC Bulk Finder checks audio and candidate safety; it never changes MP3 tags.
