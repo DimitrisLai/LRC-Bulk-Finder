@@ -1,61 +1,117 @@
-# LRC Bulk Finder
+# 🎵 LRC Bulk Finder
 
-**Windows synchronized lyrics downloader · v2.1.15 · Public Beta**  
-Created by **Dimitris L.**
+**Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-Find synchronized `.lrc` lyrics for MP3 collections, with strict artist, recording-version and duration safeguards. Optional local LRCLIB SQLite searches can work without lyrics-provider network requests. Greek/Greeklish search variants and an optional locally installed G2G AI model are also supported.
+**Windows · Python 3.10+ · Public Beta v2.1.15 · Created by Dimitris L.**  
+**Project source code: [MIT License](LICENSE)** · [Releases](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases) · [Changelog](CHANGELOG.md)
 
-> The full LRCLIB database is **not bundled**. Provider services and database snapshots have their own usage rules. No lyrics provider can guarantee matches for every song or remix.
+LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music libraries. It can work through multiple online lyrics sources or search an optional **local LRCLIB SQLite snapshot** — without internet requests during an offline-only scan. It supports international music, Greek and Greeklish titles, multi-folder collections, and reporting designed for large unattended runs.
 
-## Getting started
+Lyrics are saved alongside the MP3 with the same base filename, making them compatible with many portable music players and car stereos that support synchronized LRC text.
 
-Download the matching **Windows ZIP and complete English PDF User Manual** from [GitHub Releases](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases). Extract the ZIP to a folder, then double-click **`START_HERE.cmd`**. Requires Windows 10/11 and Python 3.10+.
+> **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
-| Menu | What it does | Network |
+## ✨ Highlights
+
+- **Four clear work modes:** complete search, review/promote, LRCLIB catch-up, and offline-only scanning of any folder.
+- **Offline LRCLIB:** optionally search an official, locally installed SQLite snapshot before going online—or exclusively offline.
+- **12 lyrics search routes:** FAST (5) and FULL (12); some routes use overlapping back-end services.
+- **Greek/Greeklish search:** manual alias and word conversion support; optional local Greeklish-to-Greek AI.
+- **Matching safeguards:** title and artist verification, version/remix compatibility, and duration within 3 seconds for automatic saving.
+- **No silent substitutions:** uncertain timed lyrics become `.candidate.lrc` files requiring manual review.
+- **Safe library handling:** no modifications to MP3 audio or ID3 artist/title tags; existing `.lrc` files are skipped; LIVE tracks are excluded.
+- **Diagnostics:** per-provider HTTP/status details, per-song results, review lists, timeout records, and statistics.
+- **Smart retries:** only verified network timeouts trigger targeted retry rounds; HTTP 429 and access restrictions are respected.
+- **Large collections:** subfolders, seven-day no-match history, and unattended processing.
+
+## 🚀 Quick start
+
+1. Download the **Windows ZIP** and **PDF user manual** from [the latest release](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases).
+2. Extract the ZIP completely to a normal folder; don't launch from inside an archive.
+3. Install [Python 3.10 or later](https://www.python.org/downloads/) if necessary. The Windows launcher can install required Python packages through `pip` if they are missing.
+4. Double-click **`START_HERE.cmd`**. Select one of the four menu modes, then follow the questions.
+5. Test with **20** eligible songs before choosing **A** to scan an entire collection.
+
+### Main menu
+
+| Choice | Use it when… | Network during scan? |
 | --- | --- | --- |
-| **1 — SEARCH** | Offline LRCLIB first if configured, then selected online lyrics providers | Yes for remote providers |
-| **2 — PROMOTE** | Review/approve primary `.candidate.lrc` files | No |
-| **3 — LRCLIB CATCH-UP** | Retry a prior incomplete LRCLIB queue | Optional |
-| **4 — OFFLINE LRCLIB ONLY** | Scan any selected MP3 folder, even without a catch-up queue | No lyrics/metadata HTTP requests |
+| **1 — SEARCH** | You want offline LRCLIB first (if configured) and then other selected lyrics sources for missing matches. | **Yes**, for selected online routes |
+| **2 — PROMOTE** | You personally reviewed a `.candidate.lrc` file and want to promote it to an approved `.lrc`. | **No** |
+| **3 — LRCLIB CATCH-UP** | A previous run created a queue of unfinished LRCLIB searches. | Configurable: offline-only or online fallback |
+| **4 — OFFLINE LRCLIB ONLY** | You want to scan **any MP3 directory**, even if no catch-up queue exists, using only your local LRCLIB database. | **No** lyrics/metadata requests |
 
-For **option 4**, connect a previously extracted LRCLIB SQLite snapshot once via `CONNECT_EXISTING_LRCLIB_DATABASE.cmd`. Choose the existing `.sqlite3` file. It saves a tiny `LRCLIB_LOCAL_DB.txt` configuration; it does **not** copy or download the database. Then launch `START_HERE.cmd`, choose 4, select a folder, and try **20** songs before **A** (all). Optional Greek G2G conversion runs locally after it has been installed.
+**Option 3 is not a general-purpose new-folder scanner.** Use **option 4** to search a new folder only against your local LRCLIB snapshot.
 
-## What every CMD/BAT file does
+### 🔌 Reuse an existing LRCLIB database
 
-| Launcher | Purpose |
-| --- | --- |
-| `START_HERE.cmd` | Recommended main launcher, actions 1–4 |
-| `CONNECT_EXISTING_LRCLIB_DATABASE.cmd` | Link a previously extracted huge SQLite database without downloading it again |
-| `SETUP_LRCLIB_DATABASE.cmd` | Optional automatic download/install of an official LRCLIB snapshot |
-| `SETUP_LRCLIB_DATABASE_FROM_FILE.cmd` | Set up from an already downloaded `.sqlite3` or `.sqlite3.gz` |
-| `CLEANUP_LRCLIB_DATABASE.cmd` | Confirmed cleanup of a downloaded archive, extracted DB, or both |
-| `SETUP_GREEK_AI.cmd` | Optional Greeklish-to-Greek AI setup |
-| `Run_Diagnostics.cmd` | Python/dependency diagnostics |
-| `Run_LRC_Finder.cmd` | Lower-level runner invoked by START_HERE |
-| `Start_LRC_Finder.bat` | Compatibility launcher |
+Already have a large `.sqlite3` snapshot installed?
 
-## Main behavior
+1. Run **`CONNECT_EXISTING_LRCLIB_DATABASE.cmd`**.
+2. Select or paste the full path to your existing SQLite database.
+3. The tool saves its location in `LRCLIB_LOCAL_DB.txt`. **It doesn't copy, decompress or re-download the database.**
+4. Open `START_HERE.cmd` and choose **4** to scan only offline or **1** for offline-first, then other sources.
 
-- Original MP3 audio and artist/title tags are not modified.
-- Existing `.lrc` files and LIVE tracks are skipped.
-- Automatic saves require verified artist/title, matching recording version and duration within 3 seconds.
-- Unverified timed lyrics are written as `.candidate.lrc` files requiring careful manual review.
-- Only genuine network timeouts trigger targeted timeout-retry rounds; HTTP 429/503 and access-denied errors do not.
-- Option 4 never contacts online lyrics providers or MusicBrainz during the scan.
-- Option 3 needs a previously created LRCLIB catch-up queue. Use option 4 for any new folder.
+A large LRCLIB database is **never bundled** inside this GitHub repository or its Windows ZIP. Official snapshots can use **hundreds of GiB of disk space**; confirm disk capacity before installing one.
 
-## Optional offline LRCLIB storage
+### 🇬🇷 Greek and Greeklish collections
 
-The SQLite database can require **hundreds of GiB**. One official October 2026 snapshot extracted to about **243.5 GiB**, but later files may vary. After verifying installation, cleanup option **1** removes only the compressed archive and keeps the local SQLite search available. Deleting the extracted database disables offline searching.
+Choose Greek mode **Y** when prompted. You may optionally install the local Greeklish-to-Greek AI model with `SETUP_GREEK_AI.cmd`; model downloads are separate. Original MP3 filenames and ID3 tags remain untouched. Greek search can work without the AI through built-in search variants and reviewed aliases.
 
-## Greek and international collections
+**MusicBrainz Picard is not required.** MusicBrainz metadata lookup is an optional built-in online search aid, not a separate lyrics database.
 
-For Greek/Greeklish, answer **Y** to Greek mode and optionally install/enable the G2G model. For international music with good artist/title tags, MusicBrainz metadata lookup can be set to **N** for faster online search. **MusicBrainz Picard is not required.**
+## 🪟 Which Windows launcher should I use?
 
-## Documentation, rights and reporting
+| Launcher | What it does | Recommended use |
+| --- | --- | --- |
+| **`START_HERE.cmd`** | Opens the four-mode application menu | **Start here for everyday use** |
+| `CONNECT_EXISTING_LRCLIB_DATABASE.cmd` | Links an already extracted local SQLite snapshot | Reuse an existing database, no new download |
+| `SETUP_LRCLIB_DATABASE.cmd` | Offers an optional automated official snapshot download and setup | First-time **offline database installation**, with enough disk space |
+| `SETUP_LRCLIB_DATABASE_FROM_FILE.cmd` | Imports a separately obtained `.sqlite3` or `.sqlite3.gz` file | Manual database setup |
+| `CLEANUP_LRCLIB_DATABASE.cmd` | Offers separately confirmed deletion of compressed archive, extracted database, both, or cancel | Recover disk space safely |
+| `SETUP_GREEK_AI.cmd` | Installs optional local Greeklish AI dependencies | Greek/G​reeklish music |
+| `Run_Diagnostics.cmd` | Checks Python and basic application dependencies | Troubleshooting |
+| `Run_LRC_Finder.cmd` | Lower-level command-line program launcher | Alternative/advanced usage |
+| `Start_LRC_Finder.bat` | Compatibility launcher | When an older Windows batch entry point is needed |
 
-The matching PDF manual provides step-by-step installation, each prompt and default, all nine launchers, three examples, report formats, troubleshooting, and release history.
+If you use PowerShell instead of double-clicking a launcher, prefix the filename with `.\`, for example:
 
-See [CHANGELOG.md](CHANGELOG.md), [SOURCES_AND_CREDITS.txt](SOURCES_AND_CREDITS.txt) and [PUBLICATION_AND_LICENSE_NOTES.txt](PUBLICATION_AND_LICENSE_NOTES.txt). A public repository does **not** automatically grant a code or lyric redistribution license; the project owner must select an appropriate license after checking dependencies and third-party content rights.
+```powershell
+.\START_HERE.cmd
+```
 
-Submit reproducible problems using [GitHub Issues](https://github.com/DimitrisLai/LRC-Bulk-Finder/issues). Sanitize local paths and credentials; never post private music collections or copyright-protected lyrics.
+## 🛡️ Matching, review, and reports
+
+The program saves a normal `.lrc` only when it can verify the artist, song title, recording version, and a duration difference of **no more than three seconds**. A possible result that cannot be reliably verified is stored as a **review-only** `.candidate.lrc` rather than silently replacing the correct remix or radio edit.
+
+Results, source statistics and HTTP diagnostics are written to the selected MP3 folder. They help distinguish **NO_MATCH** from an unavailable provider, HTTP **401/403**, **429**, **503**, a genuine **network timeout**, and a candidate requiring review. Only actual network timeouts are eligible for the automated retry rounds.
+
+Do not bulk-promote candidate files without listening and confirming their specific recording versions.
+
+## 📘 Documentation
+
+The accompanying [v2.1.15 English PDF manual](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/tag/v2.1.15) includes:
+
+- Installation and every CMD/BAT launcher, explained in order
+- Each startup prompt and the meaning of **Enter / Y / N / FAST / FULL / 20 / A**
+- International, Greek/Greeklish, and offline-only worked examples
+- LRCLIB automatic setup, existing-database connection, and optional cleanup
+- Review candidates, report files, troubleshooting, and version history
+
+For individual changes across versions, see [CHANGELOG.md](CHANGELOG.md).
+
+## ⚖️ License, third-party software and lyrics rights
+
+**Original LRC Bulk Finder project source code** is made available under the [MIT License](LICENSE), © 2026 Dimitris L.
+
+**This does not relicense third-party packages, provider APIs, song lyrics, or LRCLIB database dumps.** The program uses separately installed libraries, including **Mutagen** and **Unidecode**, both **GPL-2.0-or-later**. Their copyleft terms may affect redistribution of a combined application, even where the original code has an MIT notice. Distributors should review the applicable obligations and include relevant notices; do not represent the entire dependency stack as MIT-only.
+
+Other components include `syncedlyrics` (MIT) and an optional AUEB Greek NLP toolkit (check its upstream license and model terms). See [SOURCES_AND_CREDITS.txt](SOURCES_AND_CREDITS.txt) and [PUBLICATION_AND_LICENSE_NOTES.txt](PUBLICATION_AND_LICENSE_NOTES.txt).
+
+Downloaded lyrics belong to their respective rights holders. No MP3s, lyrics collection, or huge LRCLIB snapshot is distributed with the program.
+
+## 💬 Feedback and contributions
+
+Found a bug, an outdated provider or an inaccurate match? Open a [GitHub Issue](https://github.com/DimitrisLai/LRC-Bulk-Finder/issues) with the **software version**, selected mode, the provider status/error, and a sanitized report excerpt. **Remove personal folder paths and private metadata** before uploading reports.
+
+Contributions that improve reliability, offline searching, provider error handling, or documentation are welcome. The current Windows CLI edition remains a **Public Beta**.
