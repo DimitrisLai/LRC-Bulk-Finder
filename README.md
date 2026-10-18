@@ -3,7 +3,12 @@
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
 **Windows · Python 3.10+ · Public Beta v2.1.15 · Created by Dimitris L.**  
-**Project source code: [MIT License](LICENSE)** · [Releases](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases) · [Changelog](CHANGELOG.md)
+
+![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![MIT License](https://img.shields.io/badge/License-MIT-green)
+[![Python tests](https://github.com/DimitrisLai/LRC-Bulk-Finder/actions/workflows/tests.yml/badge.svg)](https://github.com/DimitrisLai/LRC-Bulk-Finder/actions/workflows/tests.yml)
+
+**Project source code: [MIT License](LICENSE)** · [Releases](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music libraries. It can work through multiple online lyrics sources or search an optional **local LRCLIB SQLite snapshot** — without internet requests during an offline-only scan. It supports international music, Greek and Greeklish titles, multi-folder collections, and reporting designed for large unattended runs.
 
@@ -109,6 +114,19 @@ For individual changes across versions, see [CHANGELOG.md](CHANGELOG.md).
 Other components include `syncedlyrics` (MIT) and an optional AUEB Greek NLP toolkit (check its upstream license and model terms). See [SOURCES_AND_CREDITS.txt](SOURCES_AND_CREDITS.txt) and [PUBLICATION_AND_LICENSE_NOTES.txt](PUBLICATION_AND_LICENSE_NOTES.txt).
 
 Downloaded lyrics belong to their respective rights holders. No MP3s, lyrics collection, or huge LRCLIB snapshot is distributed with the program.
+
+## ✅ Automated tests
+
+GitHub Actions runs a focused set of **28 offline feature and safety regression tests** across Windows and Linux using Python 3.10 and 3.13. The badge above reflects the actual workflow status. These tests cover offline LRCLIB folder scanning, database reuse, no-network safeguards, review behavior and remix/version matching. **They do not test live lyrics-provider availability** or guarantee perfect matching on every track.
+
+Run locally with:
+
+```sh
+python -m pip install mutagen Unidecode
+python -m unittest -v TEST_OFFLINE_FOLDER_V2_1_15 TEST_CONNECT_EXISTING_DB_V2_1_15 TEST_PACKAGE_OFFLINE TEST_SAFETY_V2_1_4
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for test and pull-request guidance, and [SECURITY.md](SECURITY.md) for privacy, database and safety notes.
 
 ## 💬 Feedback and contributions
 
