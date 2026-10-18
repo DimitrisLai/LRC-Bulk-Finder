@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.1.15 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.1.16 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -18,7 +18,7 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 ## ✨ Highlights
 
-- **Four clear work modes:** complete search, review/promote, LRCLIB catch-up, and offline-only scanning of any folder.
+- **Four clear work modes:** complete search, marked candidate promotion, LRCLIB catch-up, and offline-only scanning of any folder.
 - **Offline LRCLIB:** optionally search an official, locally installed SQLite snapshot before going online—or exclusively offline.
 - **12 lyrics search routes:** FAST (5) and FULL (12); some routes use overlapping back-end services.
 - **Greek/Greeklish search:** manual alias and word conversion support; optional local Greeklish-to-Greek AI.
@@ -42,11 +42,31 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 | Choice | Use it when… | Network during scan? |
 | --- | --- | --- |
 | **1 — SEARCH** | You want offline LRCLIB first (if configured) and then other selected lyrics sources for missing matches. | **Yes**, for selected online routes |
-| **2 — PROMOTE** | You personally reviewed a `.candidate.lrc` file and want to promote it to an approved `.lrc`. | **No** |
+| **2 — MARKED PROMOTION** | Bulk-install the first `.candidate.lrc` for each MP3 as a playable, clearly **UNVERIFIED** `.lrc`, then shift other numbered candidates down. | **No** |
 | **3 — LRCLIB CATCH-UP** | A previous run created a queue of unfinished LRCLIB searches. | Configurable: offline-only or online fallback |
 | **4 — OFFLINE LRCLIB ONLY** | You want to scan **any MP3 directory**, even if no catch-up queue exists, using only your local LRCLIB database. | **No** lyrics/metadata requests |
 
 **Option 3 is not a general-purpose new-folder scanner.** Use **option 4** to search a new folder only against your local LRCLIB snapshot.
+
+### Option 2 — bulk promotion with a visible review marker (new in v2.1.16)
+
+For large libraries where opening hundreds of candidate files individually is impractical:
+
+1. Choose **2** in `START_HERE.cmd`, select your MP3 folder, and optionally include subfolders.
+2. Review the preview, then explicitly confirm bulk promotion. It never contacts the Internet.
+3. For each song without an existing `.lrc`, the first `Song.candidate.lrc` becomes `Song.lrc` **with this first line:**
+
+   ```lrc
+   [00:00.00] candidate
+   [00:05.00] First synchronized lyric
+   ```
+
+4. The used primary candidate is removed. Remaining alternatives advance one position: `.candidate.2.lrc` becomes `.candidate.lrc`, `.candidate.3.lrc` becomes `.candidate.2.lrc`, and so on.
+5. Listen to the track. If the lyrics are correct, delete only the **00:00 candidate line**. If wrong, delete `Song.lrc` and run Option 2 again to try the next candidate.
+
+Example: `Song.mp3`, `Song.candidate.lrc`, `Song.candidate.2.lrc`, `Song.candidate.3.lrc` becomes `Song.mp3`, `Song.lrc`, `Song.candidate.lrc`, `Song.candidate.2.lrc`.
+
+**Safety:** Option 2 does *not* verify the true recording version. Existing `.lrc` files, MP3 audio and ID3 tags are never overwritten. Invalid/untimed candidates are skipped. Errors and partially shifted alternatives are listed in `LRC_Candidate_Promotion_Report_v2_1_16.csv`. No online providers are queried.
 
 ### 🔌 Reuse an existing LRCLIB database
 
@@ -87,15 +107,15 @@ If you use PowerShell instead of double-clicking a launcher, prefix the filename
 
 ## 🛡️ Matching, review, and reports
 
-The program saves a normal `.lrc` only when it can verify the artist, song title, recording version, and a duration difference of **no more than three seconds**. A possible result that cannot be reliably verified is stored as a **review-only** `.candidate.lrc` rather than silently replacing the correct remix or radio edit.
+Automatic search (options 1 and 4) saves an unmarked `.lrc` only when it can verify the artist, song title, recording version, and a duration difference of **no more than three seconds**. A possible result that cannot be reliably verified is stored as a **review-only** `.candidate.lrc` rather than silently replacing the correct remix or radio edit.
 
 Results, source statistics and HTTP diagnostics are written to the selected MP3 folder. They help distinguish **NO_MATCH** from an unavailable provider, HTTP **401/403**, **429**, **503**, a genuine **network timeout**, and a candidate requiring review. Only actual network timeouts are eligible for the automated retry rounds.
 
-Do not bulk-promote candidate files without listening and confirming their specific recording versions.
+Option 2 intentionally makes candidate lyrics playable **without claiming they are verified**. The line `[00:00.00] candidate` is a reminder to review the track in your player; delete that single line only after confirming its accuracy.
 
 ## 📘 Documentation
 
-The accompanying [v2.1.15 English PDF manual](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/tag/v2.1.15) includes:
+The accompanying [v2.1.16 English PDF manual](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/tag/v2.1.16) includes:
 
 - Installation and every CMD/BAT launcher, explained in order
 - Each startup prompt and the meaning of **Enter / Y / N / FAST / FULL / 20 / A**
@@ -117,13 +137,13 @@ Downloaded lyrics belong to their respective rights holders. No MP3s, lyrics col
 
 ## ✅ Automated tests
 
-GitHub Actions runs a focused set of **28 offline feature and safety regression tests** across Windows and Linux using Python 3.10 and 3.13. The badge above reflects the actual workflow status. These tests cover offline LRCLIB folder scanning, database reuse, no-network safeguards, review behavior and remix/version matching. **They do not test live lyrics-provider availability** or guarantee perfect matching on every track.
+GitHub Actions runs focused **offline feature and safety regression tests, including marked candidate rotation,** across Windows and Linux using Python 3.10 and 3.13. The badge above reflects the actual workflow status. These tests cover offline LRCLIB folder scanning, database reuse, no-network safeguards, review behavior and remix/version matching. **They do not test live lyrics-provider availability** or guarantee perfect matching on every track.
 
 Run locally with:
 
 ```sh
 python -m pip install mutagen Unidecode
-python -m unittest -v TEST_OFFLINE_FOLDER_V2_1_15 TEST_CONNECT_EXISTING_DB_V2_1_15 TEST_PACKAGE_OFFLINE TEST_SAFETY_V2_1_4
+python -m unittest -v TEST_OFFLINE_FOLDER_V2_1_15 TEST_CONNECT_EXISTING_DB_V2_1_15 TEST_PACKAGE_OFFLINE TEST_SAFETY_V2_1_4 TEST_CANDIDATE_PROMOTION_V2_1_16 TEST_CANDIDATE_SIDECARS_V2_1_8
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for test and pull-request guidance, and [SECURITY.md](SECURITY.md) for privacy, database and safety notes.
