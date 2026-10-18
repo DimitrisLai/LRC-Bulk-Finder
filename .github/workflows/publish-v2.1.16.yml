@@ -213,7 +213,7 @@ jobs:
 
       - name: Publish v2.1.16 as a separate prerelease
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if gh release view v2.1.16 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
@@ -227,7 +227,7 @@ jobs:
           fi
       - name: Download assets back and verify identity
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p downloaded
