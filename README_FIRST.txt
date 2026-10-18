@@ -1,3 +1,17 @@
+LRC BULK FINDER v2.1.16 — START HERE
+Created by Dimitris L. — PUBLIC BETA
+
+NEW OPTION 2: BULK INSTALL UNVERIFIED CANDIDATES WITH VISIBLE MARKER
+Promotes first Song.candidate.lrc -> Song.lrc and prepends:
+  [00:00.00] candidate
+Remaining Song.candidate.2.lrc -> Song.candidate.lrc;
+Song.candidate.3.lrc -> Song.candidate.2.lrc, etc.
+Existing .lrc, MP3 and ID3 data are never overwritten.
+If lyrics are correct, remove the marker line after listening.
+If wrong, delete Song.lrc and run Option 2 again to use the next candidate.
+Full instructions: HOW_TO_START_V2_1_16.txt or README.md.
+
+--- HISTORICAL NOTES ---
 LRC BULK FINDER v2.1.15 — START HERE
 Created by Dimitris L. — PUBLIC BETA
 
