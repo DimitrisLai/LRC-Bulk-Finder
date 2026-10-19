@@ -1,0 +1,69 @@
+LRC BULK FINDER v2.1.17 - WINDOWS QUICK START
+Created by Dimitris L. | Public Beta
+
+WHAT CHANGED: GREEKLISH CONVERSION IS NOW MORE PRECISE
+The previous version used the AUEB G2G AI model before the word dictionary,
+even for words that the accented dictionary already knew.
+This allowed bad output such as 'φωναζο' even though the local lexicon
+already had 'fonazo,φωνάζω'. Version 2.1.17 fixes that priority.
+
+NEW LOOKUP PRIORITY:
+  1. Manually reviewed full-title/artist overrides in Greek_Aliases.csv.
+  2. Curated whole-title conversion using accented Greek_Words.csv words.
+  3. Optional local AUEB G2G model for plausible unresolved Greeklish only.
+  4. No invented transliteration for obvious English titles.
+
+CORRECTED EXAMPLES:
+  Fonazo                           => Φωνάζω
+  Den Ise Erotas Esi              => Δεν είσαι έρωτας εσύ
+  Den Eisai Erotas Esy            => Δεν είσαι έρωτας εσύ
+  Esy Horeveis Kai Ego Pethaino   => Εσύ χορεύεις και εγώ πεθαίνω
+  Fevgis Ke Hanese                => Φεύγεις και χάνεσαι
+  Avrio                            => Αύριο
+  2002 Nyhtes - 2025 Remastered   => 2002 Νύχτες - 2025 Remastered
+  Best of Times                    => [KEEP ENGLISH AS-IS]
+  2002 GR (artist credit)          => [KEEP ORIGINAL LABEL]
+
+HOW TO GET GOOD RESULTS:
+1. Extract the latest ZIP into a NEW Windows directory.
+2. If you previously edited Greek_Aliases.csv, copy your file to this
+   new directory. Do not overwrite your personal manual mappings.
+3. If you already use a local LRCLIB SQLite snapshot, run
+   CONNECT_EXISTING_LRCLIB_DATABASE.cmd once to point to its path.
+   Alternatively, copy your old LRCLIB_LOCAL_DB.txt configuration.
+4. Run START_HERE.cmd. Choose option 1 (SEARCH).
+5. Set Greek mode Y. Choose the installed local G2G AI only if needed.
+6. Run a 20-song sample first and inspect the Greek preview.
+7. For large libraries, avoid waiting for temporary provider recovery
+   on every song (answer N to that question); FAST can also help.
+8. Unknown words may still have AI mistakes; review the CSV preview.
+
+ADDING YOUR OWN ACCURATE WORDS:
+Greek_Words.csv has two headers: greeklish,greek
+  horeveis,χορεύεις
+  pethaino,πεθαίνω
+  fonazo,φωνάζω
+These word spellings are used when ALL base-title words are covered.
+
+ADDING COMPLETE TITLE OVERRIDES:
+Greek_Aliases.csv uses three headers: type,greeklish,greek
+  title,Den Ise Erotas Esi,Δεν είσαι έρωτας εσύ
+  artist,Giannis Test,Γιάννης Test
+Manual aliases win over dictionary and AI. Use real artist spellings;
+the second line above is only a format example, not a verified artist.
+
+IMPORTANT LIMITATIONS:
+- AUEB gr-nlp-toolkit G2G is a real ML model, but it is trained for
+  Greeklish transliteration, not recognizing official music releases.
+- Accent placement, names, rare slang and ambiguities need reviewing.
+- We do not rewrite MP3 audio, file names or ID3 tags.
+- We always try original artist/title metadata before any Greek alternative.
+- No AI-only search text is automatically proof of the correct remix.
+- The existing v2.1.16 option 2 remains unchanged: [00:00.00] candidate.
+
+REMAINING MODES:
+1 = SEARCH offline LRCLIB first, then online routes if needed.
+2 = BULK INSTALL unverified candidates with [00:00.00] marker and
+    shift numbered alternatives after the promoted primary candidate.
+3 = LRCLIB catch-up from previously saved queue.
+4 = Search ANY folder using existing LOCAL LRCLIB SQLite ONLY.
