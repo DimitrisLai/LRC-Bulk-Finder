@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.1.18 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.1.19 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -78,6 +78,14 @@ Already have a large `.sqlite3` snapshot installed?
 4. Open `START_HERE.cmd` and choose **4** to scan only offline or **1** for offline-first, then other sources.
 
 A large LRCLIB database is **never bundled** inside this GitHub repository or its Windows ZIP. Official snapshots can use **hundreds of GiB of disk space**; confirm disk capacity before installing one.
+
+### Greeklish artist-name accuracy in v2.1.19
+
+**New separate `Greek_Artists.csv`** contains 113 curated standalone artist and group name spellings, separate from the word dictionary. This addresses full identities rather than attempting letter-by-letter conversion, e.g. `Giorgos Alkaios → Γιώργος Αλκαίος`, `Alkinoos Ioannidis → Αλκίνοος Ιωαννίδης`, `Ditikes Sinikies → Δυτικές Συνοικίες`, `Antidrasi → Αντίδραση`. The file contains no private MP3 filenames or collection paths.
+
+**Exact search plan:** original title + original artist is always first; original title + approved Greek artist is second; Greek title + approved artist follows if present. Unknown Greeklish artist names are **not** converted by the local AI. Your personal `Greek_Aliases.csv` overrides the public artist names.
+
+**Mixed-language titles:** preserve known English words in Greeklish titles: `Sexy koritsia` becomes `Sexy κορίτσια`, never `Σεξυ κορίτσια`. This improves search alternatives but does not change song tags. The new guide `HOW_TO_START_V2_1_19.txt` contains **all 12 prompts** in the correct Option 1 order for a 20-song quality test.
 
 ### Greeklish accuracy in v2.1.18 - expanded dictionary + local SQLite
 
