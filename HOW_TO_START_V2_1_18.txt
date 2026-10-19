@@ -1,0 +1,71 @@
+LRC BULK FINDER v2.1.18 — GREEK WORD DATABASE QUICK START
+Created by Dimitris L. | Windows Public Beta
+
+NEW: EXPANDED GREEKLISH LEXICON + SMALL SQLITE CACHE
+- Greek_Words_Expanded.csv: 950 distinct standalone word spellings in
+  accented Greek, curated from recurring words in a Greek music example.
+- Greek_Words.csv: the existing editable word dictionary. When a word
+  exists in both CSVs, YOUR Greek_Words.csv entry wins.
+- Greek_Lexicon.sqlite3: tiny, offline, READ-ONLY database generated
+  from both CSV files and bundled in the Windows release ZIP.
+- BUILD_GREEK_LEXICON_DB.py: rebuilds that tiny database using Python.
+- Greek_Aliases.csv: full-title and artist overrides; highest priority.
+
+IMPORTANT: THIS IS NOT THE BIG LRCLIB LYRICS DATABASE.
+The big LRCLIB snapshot stays on your existing disk untouched.
+The small Greek lexicon only helps transform search phrases.
+Do NOT copy any private OneDrive folder/path listing into the public repo.
+
+GREEKLISH SEARCH PRIORITY:
+1) Original MP3/ID3 artist + title are searched FIRST.
+2) Approved full-title/artist aliases in Greek_Aliases.csv.
+3) Curated accented dictionary in local SQLite/CSV for complete titles.
+4) Optional AUEB local AI for remaining Greeklish, corrected where
+   known dictionary words align with the model output.
+5) English song titles, brands and edition labels remain protected.
+
+FOR YOUR NEXT SEARCH:
+1) Extract Windows v2.1.18 ZIP to its own folder.
+2) Copy YOUR custom Greek_Aliases.csv to the new directory, if you
+   previously edited it (avoid overwriting your customized contents).
+3) Reconnect existing LRCLIB SQLite with CONNECT_EXISTING_LRCLIB_DATABASE.cmd
+   or copy your LRCLIB_LOCAL_DB.txt configuration from the older version.
+4) Run START_HERE.cmd. Choose Option 1 and Greek mode Y.
+5) First select 20 songs to inspect the Greek search preview.
+6) For very large online batches choose FAST first; answer N to
+   'Wait for temporary provider recovery before EACH first attempt?'
+   to avoid multi-minute blocking waits on broken external providers.
+
+AFTER CUSTOMIZING THE WORD DICTIONARY:
+- Open Greek_Words.csv in a UTF-8 CSV editor.
+- Add: greeklish,greek (for example: fonazo,φωνάζω).
+- Optional: run python BUILD_GREEK_LEXICON_DB.py.
+- Without rebuilding, the app detects a stale SQLite and still uses
+  your edited CSV files. No changes are made to any MP3 or LRC.
+
+ADDING PRIVATE FULL-TITLE ALIASES:
+Full title aliases use CSV headers: type,greeklish,greek.
+  title,Akouei Kaneis,Ακούει κανείς
+  title,Ta paidia ton louloudion,Τα παιδιά των λουλουδιών
+A full title override handles context that word-by-word conversion
+cannot infer. The user-supplied Greek song file listing is NOT shipped
+with this public release. Review external private title suggestions
+before merging only selected lines into Greek_Aliases.csv.
+
+LIMITATIONS:
+Greeklish is ambiguous: 'i' can be η/ή/οι; 'pote' πότε/ποτέ;
+'kaneis' κάνεις/κανείς; 'ton' τον/των. No standalone dictionary
+can guarantee the official spelling of each recording.
+Google's contextual whole-phrase searches can use more signals.
+MusicBrainz artist/title lookup is available as an OPTIONAL slower
+online metadata aid; it is not a guaranteed Greek music title source.
+
+OTHER MODES UNCHANGED:
+Option 2 bulk-installs timed candidate lyrics starting with exactly
+  [00:00.00] candidate
+  and advances alternate .candidate.N.lrc files.
+Option 3 catches up previously queued online LRCLIB lookups.
+Option 4 scans any folder ONLY using the separate local LRCLIB dump.
+
+Windows 10/11, Python 3.10+, license: original code MIT,
+Copyright (c) 2026 Dimitris L. External libraries retain licenses.
