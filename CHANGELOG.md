@@ -2,6 +2,14 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.1.17 — Greeklish quality and dictionary-first search
+- Corrected Greek search-plan priority to **manual full title alias → verified accented word dictionary → optional local AI suggestion**.
+- Expanded the small curated word-level Greeklish lexicon and preserved punctuation, years and remix/version labels.
+- Avoided phonetic Greek nonsense for common English titles and international/mixed artist credits such as `2002 GR`.
+- Made dictionary corrections apply to matching tokens in previously cached AI suggestions, without trusting invented spellings.
+- Original artist/title search variants remain first; MP3 files and existing lyrics are not changed.
+- Added isolated Greek-title quality regression tests on Linux and Windows.
+
 ## v2.1.16 — Marked bulk candidate promotion
 - Option 2 installs a timed primary candidate as playable `.lrc` with `[00:00.00] candidate` at the beginning, visibly UNVERIFIED.
 - Following promotion, numbered alternate candidates shift down one position.
