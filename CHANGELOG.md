@@ -2,6 +2,14 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.4.1 — Reliable STOP and stage-by-stage live counters
+- Fixed Stop in both Python and frozen Windows GUI via console-independent, per-run cooperative marker; provider sleeps respond promptly.
+- Completed stage checkpoints and reports are retained when stopping gracefully; an explicit last-resort Force STOP is available after eight seconds.
+- Five counters: verified LRC, candidate and not-found THIS stage, plus unique verified LRC and candidate totals across ALL stages of the current run. Stage counts reset after finishing.
+- Resume respects completed checkpoints; errors/timeouts never inflate NOT_FOUND counters.
+- Expanded Windows/Linux automated regressions, live Tkinter stop-button checks, and new independent Windows standalone build verification.
+- All v2.4 features and original source audio/ID3 protection remain unchanged.
+
 ## v2.4.0 — Built-in Greek/Night presets, incremental library, multiple formats & experimental Sync Lab
 - Six editable prebuilt templates; per-control help tooltips and native LRCLIB/G2G setup buttons.
 - Read-only SQLite audio index for new/changed files, reused metadata for unchanged library members; optional GUI toggle.
