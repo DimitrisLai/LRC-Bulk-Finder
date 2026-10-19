@@ -77,7 +77,7 @@ class OfflineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             target=fixture(td)
             conf=Path(td)/'LRCLIB_LOCAL_DB.txt';conf.write_text('# comment\n'+str(target)+'\n')
-            self.assertEqual(load_local_config(conf),target)
+            self.assertEqual(load_local_config(conf).resolve(),target.resolve())
 
     def test_three_503_open_circuit_no_extra_requests(self):
         app.ACTIVE_PROVIDERS=('LRCLIB',)
@@ -132,7 +132,7 @@ class OfflineTests(unittest.TestCase):
             http.assert_not_called()
             self.assertTrue(good.with_suffix('.lrc').is_file())
             self.assertFalse(other.with_suffix('.lrc').exists())
-            with (folder/'LRC_LRCLIB_Catchup_Queue_v2_1_15.csv').open(encoding='utf-8-sig') as out:
+            with (folder/f"LRC_LRCLIB_Catchup_Queue_v{app.VERSION.replace('.', '_')}.csv").open(encoding='utf-8-sig') as out:
                 pending=list(csv.DictReader(out))
             self.assertEqual([row['MP3 path'] for row in pending],[str(other)])
             self.assertTrue(old.exists())
