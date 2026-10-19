@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "DO_NOT_TRIGGER_UNTIL_READY"
+      - ".github/workflows/publish-v2.1.20.yml"
   workflow_dispatch:
 
 permissions:
