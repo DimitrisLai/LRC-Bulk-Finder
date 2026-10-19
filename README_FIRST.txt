@@ -1,3 +1,26 @@
+LRC BULK FINDER v2.3.0 - COMPLETE WINDOWS PACKAGE
+Created by Dimitris L. - PUBLIC BETA
+
+NEW: OPEN_CONTROL_CENTER.cmd  (native Windows GUI, Python 3.10+)
+  - SAVE named search settings and folder profiles locally
+  - TRACK live elapsed time, progress and honest per-round ETA
+  - REVIEW .candidate.lrc and open matching MP3 in default audio player
+  - PROMOTE one primary candidate ONLY after explicit confirmation;
+    all promoted sidecars keep [00:00.00] candidate marker: NOT VERIFIED!
+EXISTING: START_HERE.cmd (original full interactive CLI; no changes)
+OTHER: Run_Diagnostics.cmd, existing LRCLIB DB reconnect/setup scripts.
+
+SAFE LOCAL PROFILE DATA: %APPDATA%\LRCBulkFinder\profiles.json
+CLI 13-PROMPT GUIDE, GUI DETAILS: HOW_TO_START_V2_3.txt
+RELEASE NOTES: RELEASE_NOTES_V2_3.md
+NEW TESTS: TEST_AUDIT_V2_3.md
+
+A separately built standalone GUI EXE bundle may be published if
+Windows packaging smoke tests pass. Python GUI is the reliable default.
+NO large LRCLIB SQLite database or local G2G AI model is bundled.
+
+---- PRIOR RELEASE NOTES ----
+
 LRC BULK FINDER v2.2.0 - WINDOWS START HERE
 Created by Dimitris L. - PUBLIC BETA
 
