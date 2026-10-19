@@ -2235,6 +2235,7 @@ def run_offline_lrclib_folder(folder):
             G2G_TOOL.flush();G2G_TOOL.release_model()
         print('OFFLINE SCAN SUMMARY (no internet access):',flush=True)
         print('STAGE FINAL:',stage_counts.line(),flush=True)
+        print(stage_counts.start('OFFLINE'),flush=True)  # zero stage, keep run totals
         print('  Processed:',processed,'of',len(eligible),flush=True)
         for key in ('SAVED','REVIEW','NO_MATCH','NO_METADATA','LIVE_SKIPPED','EXISTS','ERROR'):
             if counts[key]:print(' ',key,':',counts[key],flush=True)
@@ -2664,6 +2665,7 @@ def main():
                 elif not offline_stage and status=='TIMEOUT' and new_retry and rnd<3:
                     pending.append(path)
             print('STAGE FINAL:',stage_counts.line(),flush=True)
+            print(stage_counts.start(rnd),flush=True)  # clear stage upon completion
             if interrupted:break
             suffix=('song(s) to check online next.' if offline_stage else
                     'song(s) with timed-out providers eligible for a retry.')
