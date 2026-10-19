@@ -1,0 +1,88 @@
+LRC BULK FINDER v2.2.0 - WINDOWS / PERFORMANCE & RELIABLE RESUME
+Created by Dimitris L. | Public Beta
+
+COMPLETE WINDOWS PACKAGE:
+- START_HERE.cmd is the preferred launcher (also Run_LRC_Finder.cmd,
+  Start_LRC_Finder.bat and all 6 extra setup/diagnostic launchers).
+- Requires Python 3.10+ on Windows; NOT a standalone EXE.
+- Keep your existing LARGE LRCLIB SQLite database outside the ZIP and
+  reconnect via CONNECT_EXISTING_LRCLIB_DATABASE.cmd if necessary.
+- Your existing v2.1.21 installation can remain as a backup.
+
+NEW v2.2.0
+1) PERSISTENT MUSICBRAINZ SPELLING CACHE:
+   LRC_MusicBrainz_Cache_v2_2.jsonl in the SELECTED MUSIC FOLDER.
+   Reuses artist/title suggestions across restarts. A duration- and
+   Greek-mode-specific lookup; positive results expire after 30 days,
+   completed no-match requests expire after 7 days. Transport errors,
+   429/503 and transient failures are NEVER cached. MusicBrainz does not
+   guarantee that lyrics match a recording.
+2) CONFIGURABLE PROVIDER ORDER:
+   DEFAULT (D, press Enter): unchanged original order.
+   SMART (S): prioritizes measured VERIFIED lyric saves per elapsed second
+   when each provider has at least 10 completed observations. LRCLIB
+   stays first; sources with insufficient evidence remain eligible.
+   CUSTOM (C): paste every provider name exactly once, comma-separated,
+   in the exact order you prefer. No silent missing providers are allowed.
+   FAST selects 5 providers. FULL selects all 12 routes. A custom list
+   must contain ALL names in the selected FAST or FULL set. Invalid input
+   falls safely back to DEFAULT.
+3) REAL PROVIDER SUCCESS STATISTICS:
+   LRC_Provider_Performance_v2_2.jsonl (local history, 90 days), and
+   LRC_Provider_Performance_v2_2.csv (human-readable report).
+   Saves count ONLY VERIFIED automatically installed lyrics, NOT review
+   candidates. Records actual completed NO_MATCH, REVIEW, and errors,
+   while CACHED/SKIPPED/UNAVAILABLE are excluded from denominators.
+   Reports % verified per completed provider outcome and elapsed time.
+   Opaque identifiers avoid storing actual MP3 filenames in history.
+4) MORE ROBUST INTERRUPT RESUME:
+   LRC_Run_Checkpoint_v2_2_0.jsonl (new v2.2 checkpoint).
+   Each completed song/stage is flushed and fsynced to disk. An incomplete
+   last line is repaired when the next entry is appended. Re-running
+   Option 1/5 with unchanged settings/song/dictionaries/local SQLite
+   replays finished stages and skips repeat requests. A purely reordered
+   provider list within the same mode does NOT invalidate completed
+   provider coverage. A fresh run starts a new stats session if the
+   checkpoint journal has been renamed or moved.
+
+NOTE: Checkpoint files from v2.1.21 are NOT loaded as v2.2.0 records.
+Previously saved .lrc files are automatically skipped.
+
+COMPLETE OPTIONS IN EXACT ON-SCREEN ORDER FOR OPTION 5:
+  1. Choose [1/2/3/4/5] (default 1):        5
+  2. Select MP3 folder:                     your complete music folder
+     If prompted, select EXISTING large LRCLIB .sqlite3 snapshot.
+  3. Greeklish / Greek folder? [y/N]:      Y for a Greek collection
+  4. Use installed LOCAL G2G AI? [y/N]:    Y only if installed; else N
+  5. MusicBrainz metadata? [Y/n]:          Y
+  6. Search FAST or FULL? [F/full]:         full
+  7. Provider order? [D/s/c]:              D / S / C (new question)
+     IF C: List ALL provider names in the selected mode separated by
+     commas in the exact requested order. No omissions or duplicates.
+  8. Wait for provider recovery? [Y/n]:    N for faster unattended run
+  9. Include subfolders? [Y/n]:            Y
+ 10. Skip 7-day completed NO_MATCH? [Y/n]: N for a deliberate fresh test
+ 11. How many missing songs? [20/A]:       20 first, A for entire folder
+ 12. LRCLIB exact HTTP fallback? [y/N]:    Y
+ 13. Search after Greek preview? [Y/n]:    Y (N = preview-only)
+
+NOTE: Option 1 has the same prompts, except it doesn't require the local
+SQLite database. Option 4 is still OFFLINE ONLY and never uses these
+online settings, MusicBrainz or provider ranking.
+
+FAST SOURCE NAMES (DEFAULT):
+  LRCLIB, SyncLRC, NetEase, Unison, LrcAPI
+FULL SOURCE NAMES (DEFAULT, all 12):
+  LRCLIB, SyncLRC, Unison, BetterKuGou, BetterTTML, YouLyTTML,
+  LrcAPI, LiriQo, NetEase, Musixmatch, Megalobiz, Tencent
+
+RECOMMENDATION FOR YOUR COLLECTION:
+FIRST 20-SONG TEST: Option 5, FULL, DEFAULT order, 20, exact fallback Y.
+THEN LARGE RUN: Option 5, FULL, SMART (after enough provider samples),
+   or DEFAULT for directly comparable results; A for all.
+
+DO NOT RUN TWO COPIES AGAINST THE SAME FOLDER AT THE SAME TIME.
+Respect provider 429 / 503 / 401/403 and MusicBrainz terms. The
+provider order never relaxes song identity, duration, remix, or
+verified-only automatic saving checks. Unsure matches remain candidates.
+Your MP3 audio, ID3 and already existing .lrc files are untouched.
