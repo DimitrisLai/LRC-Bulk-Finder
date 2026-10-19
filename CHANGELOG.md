@@ -2,6 +2,15 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.1.19 — Full artist/group identities, not letter-by-letter conversions
+- Re-analysed a Greek music filename inventory (about 5,686 MP3 files). Added 113 standalone, public artist and group spelling aliases to `Greek_Artists.csv` without shipping music paths or the inventory.
+- Approved artist names take priority; speculative AI artist transliteration is disabled as a search alternative.
+- Original title + approved Greek artist is searched before combined alternatives, especially in LRCLIB's first two variants.
+- Added sensible mixed English/Greeklish title handling such as `Sexy koritsia` → `Sexy κορίτσια`.
+- Added song vocabulary for the supplied cases including `Kimata`, `Mesanychta Savvatou`, `Antidrasi`.
+- Added artist-identity and recording-query regression tests on Windows and Linux.
+- Preserved original MP3s, ID3 tags, old sidecars, review candidate marker, local SQLite and existing releases.
+
 ## v2.1.18 — Large public Greek word lexicon and read-only SQLite
 - Added 950 separate Greeklish word spellings to the public `Greek_Words_Expanded.csv`, drawn from recurring spellings in a large Greek music example list (without sharing private song filenames or personal paths).
 - Added reproducible SQLite database builder `BUILD_GREEK_LEXICON_DB.py`, combining public words and customizable `Greek_Words.csv` into an optional small read-only `Greek_Lexicon.sqlite3` included in the Windows ZIP.
