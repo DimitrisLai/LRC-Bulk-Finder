@@ -1,3 +1,31 @@
+LRC BULK FINDER v2.2.0 - WINDOWS START HERE
+Created by Dimitris L. - PUBLIC BETA
+
+PREFERRED LAUNCHER: START_HERE.cmd
+Windows Python 3.10+ required (NOT a standalone EXE).
+
+NEW: persistent MusicBrainz metadata cache (30 days, no-match 7 days).
+NEW: D=DEFAULT, S=SMART, C=CUSTOM provider ordering (after FAST/FULL).
+NEW: actual verified-match provider success metrics and time per verified save.
+NEW: fsync crash-tolerant per-song checkpoint with truncated-line recovery.
+
+COMPLETE EXACT OPTION 1/5 PROMPTS: HOW_TO_START_V2_2.txt
+VERSION NOTES: RELEASE_NOTES_V2_2.md
+TEST COVERAGE: TEST_AUDIT_V2_2.md
+
+CHECKPOINT: LRC_Run_Checkpoint_v2_2_0.jsonl
+MUSICBRAINZ CACHE: LRC_MusicBrainz_Cache_v2_2.jsonl
+STATS FILE: LRC_Provider_Performance_v2_2.csv
+
+OPTION 4: Offline SQLite ONLY with no MusicBrainz or HTTP.
+OPTION 5: Local SQLite all songs -> online misses -> true timeouts only.
+Existing original MP3s/ID3, verified .lrc and candidate safety protected.
+
+Your separately downloaded LARGE LRCLIB database is NOT bundled.
+Use CONNECT_EXISTING_LRCLIB_DATABASE.cmd to reconnect without redownloading.
+
+---- PREVIOUS VERSION NOTES ----
+
 LRC BULK FINDER v2.1.21 - START HERE
 Created by Dimitris L. - PUBLIC BETA
 
