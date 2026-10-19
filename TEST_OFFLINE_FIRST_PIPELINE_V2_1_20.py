@@ -65,9 +65,9 @@ class StagedPipelineTests(unittest.TestCase):
                  redirect_stdout(io.StringIO()):
                  app.main()
             self.assertEqual(events[:3],[('offline','A'),('offline','B'),('offline','C')])
-            self.assertEqual(events[3],[('online','B',None)])
-            self.assertEqual(events[4],[('online','C',None)])
-            self.assertEqual(events[5],[('retry','B',('LiriQo',))])
+            self.assertEqual(events[3],('online','B',None))
+            self.assertEqual(events[4],('online','C',None)
+            self.assertEqual(events[5],('retry','B',('LiriQo',))
             self.assertEqual(len(events),6)
             self.assertEqual((folder/'A.mp3').read_bytes(),b'DO NOT CHANGE')
             self.assertTrue((folder/'A.lrc').is_file())
