@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "PUBLISH_EXE_PAUSED_UNTIL_V2_4_1_RELEASE_EXISTS"
+      - ".github/workflows/build-v2.4.1-exe.yml"
   workflow_dispatch:
 
 permissions:
