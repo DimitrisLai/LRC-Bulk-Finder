@@ -10,6 +10,7 @@ from search_checkpoint import SearchCheckpoint, checkpoint_signature
 from search_performance import MusicBrainzDiskCache, ProviderPerformance, choose_provider_order
 from progress_eta import RoundProgress
 from runtime_paths import program_folder
+from incremental_library import AUDIO_EXTENSIONS, safe_audio_files, IncrementalLibrary
 import hashlib
 import sqlite3
 import shutil
@@ -41,8 +42,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.3.0'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.3.0',
+VERSION = '2.4.0'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.4.0',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -839,7 +840,9 @@ def tag_string(tags,key):
     except Exception: return ''
 
 
-def song_info(path):
+LIBRARY_INDEX=None
+
+def _read_audio_info(path):
     audio=AudioFile(path,easy=True)
     tags=audio.tags if audio and audio.tags else {}
     title=tag_string(tags,'title')
@@ -851,6 +854,29 @@ def song_info(path):
         title=title or guess_title.strip()
         artist=artist or guess_artist.strip()
     return title,artist,album,duration
+
+
+def song_info(path):
+    if LIBRARY_INDEX is not None:
+        return LIBRARY_INDEX.metadata(path,_read_audio_info)
+    return _read_audio_info(path)
+
+
+def start_incremental_index(folder,paths):
+    global LIBRARY_INDEX
+    if LIBRARY_INDEX is not None:
+        try:LIBRARY_INDEX.close()
+        except Exception:pass
+    LIBRARY_INDEX=None
+    if __import__('os').environ.get('LRC_INCREMENTAL','0')!='1':return
+    try:
+        LIBRARY_INDEX=IncrementalLibrary(folder)
+        summary=LIBRARY_INDEX.inventory(paths)
+        print('INCREMENTAL LIBRARY:',', '.join(f'{k}={summary[k]}' for k in ('new','changed','unchanged')),
+              'cached metadata:',LIBRARY_INDEX.database,flush=True)
+    except (OSError,ValueError,sqlite3.Error) as ex:
+        LIBRARY_INDEX=None
+        print('Incremental index unavailable; falling back to ordinary safe scan:',ex)
 
 
 class ProviderFailure(Exception):
@@ -1185,7 +1211,11 @@ def promote_candidate_file(candidate):
     if not candidate.name.lower().endswith(suffix):
         return 'SKIPPED','not a primary .candidate.lrc file'
     original_stem=candidate.name[:-len(suffix)]
-    mp3=candidate.with_name(original_stem+'.mp3')
+    matches=[candidate.with_name(original_stem+ext) for ext in AUDIO_EXTENSIONS
+             if candidate.with_name(original_stem+ext).is_file()]
+    if len(matches)!=1:
+        return 'SKIPPED','Expected exactly one matching audio track for sidecar'
+    mp3=matches[0]
     target=candidate.with_name(original_stem+'.lrc')
     if not mp3.is_file():return 'SKIPPED','matching MP3 not found'
     if target.exists():return 'SKIPPED','existing .lrc preserved (never overwrite)'
@@ -2103,13 +2133,15 @@ def run_offline_lrclib_folder(folder):
     recursive=input('Include subfolders? [Y/n]: ').strip().lower()!='n'
     # Case-insensitive MP3 extensions without touching non-MP3 files.
     files=folder.rglob('*') if recursive else folder.iterdir()
-    mp3s=sorted((p for p in files if p.is_file() and p.suffix.lower()=='.mp3'),key=lambda p:str(p).casefold())
+    mp3s,collisions=safe_audio_files(folder,recursive)
+    if collisions:print('Skipping ambiguous sidecar stems (multiple formats):',len(collisions))
+    start_incremental_index(folder,mp3s)
     eligible=[];existing=0;live=0
     for track in mp3s:
         if is_live_track(track.stem):live+=1;continue
         if track.with_suffix('.lrc').exists():existing+=1;continue
         eligible.append(track)
-    print(f'Found {len(mp3s)} MP3s; {existing} already had .lrc; {live} filename-LIVE skipped; {len(eligible)} potentially eligible.',flush=True)
+    print(f'Found {len(mp3s)} supported audio tracks; {existing} already had .lrc; {live} filename-LIVE skipped; {len(eligible)} potentially eligible.',flush=True)
     if not eligible:return
     howmany=input('How many eligible songs? [20 for test, A for all]: ').strip().lower()
     if howmany!='a':
@@ -2203,6 +2235,7 @@ def main():
     print(f'\n=== LRC Bulk Finder v{VERSION} | 12 lyrics routes (some aggregate others) ===')
     print('Created by Dimitris L.')
     print('Writes verified .lrc files, nearby .candidate.lrc review files and reports; audio never changed.')
+    print('Audio formats: MP3, FLAC, M4A, MP4, OGG, OPUS, WAV (read-only tags, sidecar lyrics).')
     print('Safety: resolved artist/title, matching version, and duration gap <= 3s required for auto-save.')
     if not OPTIONAL_TENCENT_AVAILABLE:print('Tencent/QQ Music is optional and not installed; it will be skipped.')
     print('Round 2/3: ONLY verified network timeouts for the affected song AND provider.')
@@ -2289,7 +2322,9 @@ def main():
     if HISTORY_ENABLED:
         load_search_history(folder/'LRC_Completed_Search_History.jsonl')
     it=folder.rglob('*') if recursive else folder.iterdir()
-    all_mp3=sorted((p for p in it if p.is_file() and p.suffix.lower()=='.mp3'),key=lambda p:str(p).casefold())
+    all_mp3,collisions=safe_audio_files(folder,recursive)
+    if collisions:print('Skipping ambiguous sidecar stems (multiple formats):',len(collisions))
+    start_incremental_index(folder,all_mp3)
     # LIVE is excluded BEFORE limiting the test size and BEFORE any provider request.
     # Tag-only LIVE also counts, even if the file is named without the word.
     missing=[]; live_skipped=[]; already_have=0; metadata_cache={}
@@ -2310,7 +2345,7 @@ def main():
             # A malformed MP3 will be reported in the normal error path.
             pass
         missing.append(track)
-    print(f'Found {len(all_mp3)} MP3; skipped {len(live_skipped)} LIVE songs; '
+    print(f'Found {len(all_mp3)} supported audio tracks; skipped {len(live_skipped)} LIVE songs; '
           f'{already_have} already had LRC; {len(missing)} eligible songs without .lrc.')
     if not missing:return
     howmany=input('How many missing songs? [20 for test, A for all]: ').strip().lower()
