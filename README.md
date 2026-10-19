@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.1.21 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.2.0 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -15,6 +15,18 @@ LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music librarie
 Lyrics are saved alongside the MP3 with the same base filename, making them compatible with many portable music players and car stereos that support synchronized LRC text.
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
+
+## What's new in v2.2.0: Search performance
+
+**Persistent MusicBrainz metadata cache** (30-day suggestions, 7-day successful no-matches): completed lookups survive restarts without using unverified artist/title spellings to auto-save lyrics. Failed HTTP responses are not cached.
+
+**Configurable provider ordering:** After FAST/FULL, choose **D** for the original list, **S** for SMART (rank based on verified saves per elapsed second from prior runs) or **C** for an exact comma-separated permutation of the selected provider names. Custom order must include each selected source once; invalid choices fall back to DEFAULT. Changing the order does not omit providers or reduce matching strictness.
+
+**Actual provider performance:** Local `LRC_Provider_Performance_v2_2.csv` and a 90-day local historical JSONL log count only **verified** automatic lyric saves as successes, separately tracking review candidates, no-matches, errors and elapsed seconds. Skipped/cached/unavailable providers are excluded. SMART keeps LRCLIB first and waits for at least 10 completed outcomes per provider before ranking it.
+
+**Safer interruption recovery:** Flush and fsync completed song/stage checkpoints, repair a partially written final JSONL entry, and reuse unchanged work even when provider order changes within the same selection mode. Checkpoint identity prevents counting resumed stages twice in success-rate metrics.
+
+All five modes and the existing offline-first sequence are retained. **See [every v2.2 setting in the correct order](HOW_TO_START_V2_2.txt).**
 
 ## What's new in v2.1.21: stability, accuracy, checkpoint resume
 
