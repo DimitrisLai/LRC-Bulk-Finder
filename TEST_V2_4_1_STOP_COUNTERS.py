@@ -183,7 +183,11 @@ class StopAndCounterTests(unittest.TestCase):
             log2=run()
             self.assertEqual(events,old,"Completed results must be replayed without network")
             self.assertIn("CHECKPOINT:",log2)
-            self.assertIn("total_found=2 total_candidate=1",log2)
+            # A new run excludes already-installed LRCs from the eligible
+            # batch. The total correctly describes the CURRENT run, not
+            # earlier successful runs. Checkpointed C remains the only task.
+            self.assertIn("STAGE COUNTERS: stage=3 found=0 candidate=0 not_found=1",log2)
+            self.assertIn("total_found=0 total_candidate=0",log2)
 
 
 if __name__=="__main__":
