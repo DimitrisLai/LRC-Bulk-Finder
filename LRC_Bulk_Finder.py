@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LRC Bulk Finder v2.1.18. See README for provider/API limitations.
+"""LRC Bulk Finder v2.1.19. See README for provider/API limitations.
 Reads audio ID3 metadata; writes ONLY sidecar .lrc and reports, never audio tags.
 Created by Dimitris L. (project credit; third-party services credited separately).
 """
@@ -37,8 +37,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.1.18'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.18',
+VERSION = '2.1.19'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.19',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -340,10 +340,58 @@ AI_PREVIEW_FIELDS = ['original title','original artist','Greek title alternative
    'Greek artist alternative','title origin','artist origin','AI title output',
    'AI artist output','AI title flag','AI artist flag','search variations','review flag']
 GREEK_TITLE_ALIASES = {}
-# Custom Greek spellings can be edited without changing this script.
-# File columns: type,greeklish,greek ; title AND artist aliases are supported.
-# Empty by default in public release; every user may add their own aliases.
+# Public artist-name vocabulary is DISTINCT from general Greek word spelling.
+# Full artist identities need approved exact aliases; never guess from letters.
+# User-controlled Greek_Aliases.csv is loaded LAST and overrides this list.
+def load_curated_artists():
+    f=Path(__file__).with_name('Greek_Artists.csv')
+    if not f.is_file():return
+    try:
+        with f.open(encoding='utf-8-sig',newline='') as stream:
+            for row in csv.DictReader(stream):
+                key=normalize(row.get('greeklish',''))
+                value=(row.get('greek') or '').strip()
+                if key and value and any('Α'<=c<='ώ' for c in value):
+                    GREEK_ARTIST_ALIASES[key]=value
+    except (OSError,UnicodeError,csv.Error) as ex:
+        print('Could not read public Greek_Artists.csv:',ex)
+
+
+_ARTIST_CREDIT_SPLIT=re.compile(r'(,\\s*|\\s+&\\s+|\\s+\\bfeat\\.?\\s+|\\s+\\bft\\.?\\s+)',re.IGNORECASE)
+_KEEP_LATIN_ARTIST_CREDIT={'2002 gr','magic de spell','domenica','onirama','stan',
+    'melisses','tamta','kings','antique','one','rec','apon','goin through'}
+
+
+def approved_artist_alias(original_artist):
+    """Use whole official artist aliases, optionally joining known credit segments.
+
+    No syllable-level or AI artist conversion: an unknown name returns ''.
+    English/brand segments are preserved only as independent credits.
+    """
+    name=str(original_artist or '').strip()
+    direct=GREEK_ARTIST_ALIASES.get(normalize(name),'')
+    if direct:return direct
+    parts=_ARTIST_CREDIT_SPLIT.split(name)
+    if len(parts)<3:return ''
+    output=[];changed=False
+    for pos,part in enumerate(parts):
+        if pos%2:
+            output.append(part);continue
+        key=normalize(part)
+        translated=GREEK_ARTIST_ALIASES.get(key)
+        if translated:
+            output.append(translated);changed=True
+        elif key in _KEEP_LATIN_ARTIST_CREDIT or bool(G2G_GREEK.search(part)):
+            output.append(part)
+        else:
+            return ''  # A composite with unknown credits must not be guessed.
+    return ''.join(output) if changed else ''
+
+
+# Personal full-title/artist spellings override public names, dictionary, AI.
+# File columns: type,greeklish,greek
 def load_aliases():
+    load_curated_artists()
     f=Path(__file__).with_name('Greek_Aliases.csv')
     if not f.exists():return
     try:
@@ -421,20 +469,27 @@ def _capitalize_first_letter(text):
     return re.sub(r'[Α-Ωα-ωάέήίόύώϊϋΐΰ]',lambda m:m.group(0).upper(),text,count=1)
 
 
-def dictionary_greek_title(title):
-    """Translate ONLY fully known Greeklish words; preserve years/punctuation.
+_PRESERVE_ENGLISH_TITLE_WORDS={'sexy','baby','love','dance','party','summer',
+    'best','time','times','happy','birthday','remix','edit','radio','extended',
+    'original','mix','version','featuring','instrumental','remastered'}
 
-    The small curated accented lexicon is deliberately precise, not a blind
-    character-by-character transliterator. Never translate English titles.
+
+def dictionary_greek_title(title):
+    """Translate known Greeklish tokens and preserve recognized English words.
+
+    Never invent partial words; mixed titles such as 'Sexy koritsia' become
+    'Sexy κορίτσια', while wholly English titles stay English.
     """
     title=str(title or '')
     if g2g_english_skip(title,'title'):return None
     words=re.findall(r'[A-Za-z]+',title)
-    if not words or any(normalize(w) not in GREEK_WORDS for w in words):
+    if not words:return None
+    known=sum(normalize(w) in GREEK_WORDS for w in words)
+    if not known or any(normalize(w) not in GREEK_WORDS and
+                       normalize(w) not in _PRESERVE_ENGLISH_TITLE_WORDS for w in words):
         return None
     def replace(match):
-        word=GREEK_WORDS[normalize(match.group(0))]
-        # The lexicon's "s" is "σ'"; don't duplicate an existing apostrophe.
+        word=GREEK_WORDS.get(normalize(match.group(0)),match.group(0))
         if word.endswith("'") and match.end()<len(title) and title[match.end()] in "'’":
             return word[:-1]
         return word
@@ -647,10 +702,14 @@ def query_variants(title,artist):
         if mb and not GREEK_TITLE_ALIASES.get(normalize(clean_title_for_greek(title))):
             mbtitle,mbartist=mb
             if mbtitle and (normalize(mbtitle),normalize(mbartist)) != (normalize(title),normalize(artist)):
-                mbartist=GREEK_ARTIST_ALIASES.get(normalize(artist)) or mbartist or artist
+                mbartist=approved_artist_alias(artist) or mbartist or artist
                 alternative=(mbtitle,mbartist,'MUSICBRAINZ_METADATA')
                 if not any((t,a)==alternative[:2] for t,a,_ in plan):
-                    plan.insert(1,alternative)
+                    # Never displace the approved Greek-artist lookup used by
+                    # the first two LRCLIB searches. Metadata can occupy an
+                    # available third query or replace a weak AI-title guess.
+                    index=2 if any(tag=='APPROVED_ARTIST' for _,_,tag in plan) else 1
+                    plan.insert(index,alternative)
         return [(t,a) for t,a,_ in plan[:3]]
     base=clean_title_for_greek(title)
     alt_t=GREEK_TITLE_ALIASES.get(normalize(base))
@@ -685,9 +744,9 @@ def precompute_greek_plan(title,artist,manager=None):
     key=(normalize(original_title),normalize(original_artist))
     title_alias=GREEK_TITLE_ALIASES.get(normalize(base),'')
     ai_base,version_suffix=protect_recording_suffix(base)
-    artist_alias=GREEK_ARTIST_ALIASES.get(normalize(original_artist),'')
+    artist_alias=approved_artist_alias(original_artist)
     title_kind='MANUAL_TITLE' if title_alias else ''
-    artist_kind='MANUAL_ARTIST' if artist_alias else ''
+    artist_kind='APPROVED_ARTIST' if artist_alias else ''
     ai_title='';ai_artist='';title_flag='';artist_flag=''
     if not title_alias:
         # The curated accent-aware dictionary MUST win over AI guesses.
@@ -702,10 +761,12 @@ def precompute_greek_plan(title,artist,manager=None):
                 corrected=patch_known_greek_words(ai_base,ai_title)
                 title_alias=corrected+version_suffix;title_kind='AI_TITLE'
                 if corrected!=ai_title:title_flag+='; DICTIONARY_WORD_CORRECTIONS'
-    if not artist_alias and manager and safe_to_convert_artist(original_artist) and not g2g_english_skip(base,'title'):
-        ai_artist,artist_flag=manager.convert(original_artist,'artist')
-        if ai_artist:
-            artist_alias=ai_artist;artist_kind='AI_ARTIST'
+    # Critical: G2G AI often mangles artist identities (e.g. Γιοργος,
+    # Αλκινοως, Συνοικίες). Never promote an unverified artist spelling
+    # to a search query. Unknown artist names stay in their original Latin
+    # script until approved in Greek_Artists.csv or Greek_Aliases.csv.
+    if not artist_alias and manager and safe_to_convert_artist(original_artist):
+        artist_flag='SKIP_UNVERIFIED_ARTIST_G2G'
     if not title_alias and base!=original_title:
         title_alias=base;title_kind='CLEANED_TITLE'
     # Only include genuine changes, not alternate capitalization/accent variants
@@ -715,12 +776,14 @@ def precompute_greek_plan(title,artist,manager=None):
     if artist_alias and normalize(artist_alias)==normalize(original_artist):
         artist_alias='';artist_kind=''
     plan=[(original_title,original_artist,'ORIGINAL')]
+    if artist_alias:
+        # The same original title + approved Greek artist is the highest
+        # priority alternate query, including one of LRCLIB's two searches.
+        plan.append((original_title,artist_alias,artist_kind))
     if title_alias and artist_alias:
         plan.append((title_alias,artist_alias,title_kind+'+'+artist_kind))
     if title_alias:
         plan.append((title_alias,original_artist,title_kind))
-    elif artist_alias:
-        plan.append((original_title,artist_alias,artist_kind))
     unique=[]
     for t,a,provenance in plan:
         if not any((x,y)==(t,a) for x,y,_ in unique):unique.append((t,a,provenance))
