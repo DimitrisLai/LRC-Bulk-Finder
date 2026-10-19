@@ -6,6 +6,7 @@ Run: python -u run_saved_profile.py --profile "Greek FULL"
 from __future__ import annotations
 import argparse
 import builtins
+import os
 import sys
 from pathlib import Path
 from search_profiles import ProfileAnswers,load_profiles,validate_profile
@@ -21,6 +22,8 @@ def run_profile(name,profiles_path=None):
         raise ValueError("Selected music folder does not exist: "+str(folder))
     import LRC_Bulk_Finder as finder
     answers=ProfileAnswers(profile)
+    prior_incremental=os.environ.get('LRC_INCREMENTAL')
+    os.environ['LRC_INCREMENTAL']='1' if profile.get('incremental',True) else '0'
     old_input=builtins.input
     old_select=finder.select_folder
     finder.select_folder=lambda:folder
@@ -32,6 +35,11 @@ def run_profile(name,profiles_path=None):
     finally:
         builtins.input=old_input
         finder.select_folder=old_select
+        if prior_incremental is None:os.environ.pop('LRC_INCREMENTAL',None)
+        else:os.environ['LRC_INCREMENTAL']=prior_incremental
+        if finder.LIBRARY_INDEX is not None:
+            finder.LIBRARY_INDEX.close()
+            finder.LIBRARY_INDEX=None
 
 
 def main(argv=None):
