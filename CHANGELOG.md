@@ -2,6 +2,14 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.4.0 — Built-in Greek/Night presets, incremental library, multiple formats & experimental Sync Lab
+- Six editable prebuilt templates; per-control help tooltips and native LRCLIB/G2G setup buttons.
+- Read-only SQLite audio index for new/changed files, reused metadata for unchanged library members; optional GUI toggle.
+- Additional FLAC/M4A/MP4/OGG/OPUS/WAV audio support alongside MP3. Same-stem duplicates conservatively skipped.
+- Experimental untimed lyrics helper with rough initial timestamps and manual tap timing, user-reviewed/saved only as unverified .candidate.lrc.
+- Full Windows/Linux regression matrix, 29-page manual and optional separate Windows standalone GUI EXE release.
+- Original strict recording verification, offline-first 3-stage search and MP3/ID3 protections remain in force. No fingerprinting.
+
 ## v2.3.0 — Saved profiles, live progress and safe candidate review
 - NEW `OPEN_CONTROL_CENTER.cmd` and `LRC_Control_Center.py`: native Python/Tkinter GUI and log/progress/ETA dashboard. CLI START_HERE.cmd remains available.
 - NEW `search_profiles.py` and `run_saved_profile.py`: validated, atomic local user profiles and known-answer-only launch of Options 1, 4 and 5.
