@@ -848,7 +848,7 @@ def _read_audio_info(path):
     title=tag_string(tags,'title')
     artist=tag_string(tags,'artist')
     album=tag_string(tags,'album')
-    duration=float(audio.info.length) if audio and audio.info else 0
+    duration=float(audio.info.length) if audio is not None and getattr(audio,'info',None) else 0
     if ' - ' in path.stem and (not title or not artist):
         guess_artist,guess_title=path.stem.split(' - ',1)
         title=title or guess_title.strip()
