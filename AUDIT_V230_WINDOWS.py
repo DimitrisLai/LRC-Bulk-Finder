@@ -65,6 +65,41 @@ class WindowsStandaloneReleaseAudit(unittest.TestCase):
         self.assertEqual(result.returncode,0,result.stdout+"\n"+result.stderr)
         self.assertIn("0 eligible",result.stdout)
 
+    def test_04_real_tagged_mp3_and_standalone_offline_match(self):
+        """Real parseable MPEG frames + actual ID3 tags, no mocked metadata."""
+        from mutagen.mp3 import MP3
+        from mutagen.id3 import TIT2,TPE1
+        import hashlib
+        song=self.folder/"Test Artist - Sample.mp3"
+        # Valid MPEG1 Layer-III 128kbps 44.1kHz frames. No external ffmpeg.
+        song.write_bytes((b"\xff\xfb\x90\x64"+b"\0"*413)*172)
+        audio=MP3(song)
+        self.assertGreater(audio.info.length,4)
+        audio.add_tags()
+        audio.tags.add(TIT2(encoding=3,text="Sample"))
+        audio.tags.add(TPE1(encoding=3,text="Test Artist"))
+        audio.save()
+        duration=MP3(song).info.length
+        before=hashlib.sha256(song.read_bytes()).hexdigest()
+        with closing(sqlite3.connect(self.db)) as connection,connection:
+            connection.execute(
+              "INSERT INTO tracks(id,name,name_lower,artist_name,artist_name_lower,duration,last_lyrics_id) VALUES(1,?,?,?,?,?,1)",
+              ("Sample","sample","Test Artist","test artist",duration))
+            connection.execute("INSERT INTO lyrics VALUES(1,?)",(
+                "[00:00.40] One\n[00:01.40] Two\n[00:02.40] Three\n[00:04.20] Four\n",))
+        result=launch({},self.folder)
+        self.assertEqual(result.returncode,0,result.stdout+"\n"+result.stderr)
+        self.assertIn("SAVED",result.stdout,"Frozen worker must find and save a real tagged MP3")
+        lyric=song.with_suffix(".lrc")
+        self.assertTrue(lyric.exists(),result.stdout)
+        self.assertIn("[00:00.40] One",lyric.read_text(encoding="utf-8"))
+        self.assertEqual(hashlib.sha256(song.read_bytes()).hexdigest(),before,
+                         "Original MP3/ID3 bytes were modified")
+        again=launch({},self.folder)
+        self.assertEqual(again.returncode,0,again.stdout+"\n"+again.stderr)
+        self.assertEqual(hashlib.sha256(song.read_bytes()).hexdigest(),before)
+        self.assertEqual(lyric.read_text(encoding="utf-8").count("One"),1)
+
     def test_04_missing_music_folder_rejected(self):
         result=launch({},self.folder/"not_there")
         self.assertNotEqual(result.returncode,0)
