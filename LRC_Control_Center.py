@@ -1,4 +1,4 @@
-"""LRC Bulk Finder v2.3 Control Center (standard-library Tkinter).
+"""LRC Bulk Finder v2.4 Control Center (standard-library Tkinter).
 
 Search runs execute in a separate Python process using the unchanged strict
 matching engine; GUI never writes MP3/audio/ID3 or unmarked 'verified' lyrics.
@@ -9,6 +9,8 @@ import queue
 import re
 import signal
 import subprocess
+import time
+import webbrowser
 import sys
 import threading
 import tkinter as tk
@@ -16,7 +18,10 @@ from pathlib import Path
 from tkinter import filedialog,messagebox,scrolledtext,ttk
 
 from search_profiles import (DEFAULT,PROVIDER_FAST,PROVIDER_FULL,load_profiles,
-                             save_profiles,validate_profile)
+                             save_profiles,validate_profile,PRESET_TEMPLATES,
+                             PRESET_DESCRIPTIONS,preset_profile)
+from tooltip_help import ToolTip
+from lyric_sync_lab import plain_lines,estimate_timestamps,draft_lrc,save_unverified_draft
 from review_candidates_gui import (list_review_candidates,preview_candidate,
                                    explicitly_promote)
 from runtime_paths import program_folder
@@ -25,9 +30,9 @@ from runtime_paths import program_folder
 class ControlCenter(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LRC Bulk Finder v2.3 — Control Center")
-        self.geometry("1050x780")
-        self.minsize(870,670)
+        self.title("LRC Bulk Finder v2.4 — Control Center")
+        self.geometry("1140x910")
+        self.minsize(970,770)
         self.process=None
         self.reader=None
         self.messages=queue.Queue()
@@ -53,12 +58,15 @@ class ControlCenter(tk.Tk):
         self.search_tab=ttk.Frame(self.notebook,padding=12)
         self.run_tab=ttk.Frame(self.notebook,padding=12)
         self.review_tab=ttk.Frame(self.notebook,padding=12)
+        self.sync_tab=ttk.Frame(self.notebook,padding=12)
         self.notebook.add(self.search_tab,text="  Saved searches  ")
         self.notebook.add(self.run_tab,text="  Live progress  ")
         self.notebook.add(self.review_tab,text="  Candidate review  ")
+        self.notebook.add(self.sync_tab,text="  Sync Lab (experimental)  ")
         self._build_profiles()
         self._build_progress()
         self._build_review()
+        self._build_sync_lab()
 
     def _build_profiles(self):
         outer=self.search_tab
@@ -72,9 +80,22 @@ class ControlCenter(tk.Tk):
         self.custom_order=tk.StringVar()
         self.limit=tk.StringVar(value="20")
         self.boolvars={}
-        for field in ("greek","local_ai","musicbrainz","recovery_wait","recursive","history","exact_fallback","auto_search"):
+        for field in ("greek","local_ai","musicbrainz","recovery_wait","recursive","history","exact_fallback","auto_search","incremental"):
             self.boolvars[field]=tk.BooleanVar(value=DEFAULT[field])
         row=0
+        self.preset_name=tk.StringVar()
+        self.preset_description=tk.StringVar(value="Choose a built-in example, then click Apply. Your saved profiles are not replaced.")
+        ttk.Label(outer,text="Ready-made preset").grid(row=row,column=0,sticky="w",padx=5,pady=5)
+        preset_choice=ttk.Combobox(outer,textvariable=self.preset_name,
+                                   values=list(PRESET_TEMPLATES),state="readonly",width=44)
+        preset_choice.grid(row=row,column=1,sticky="ew",padx=5)
+        preset_choice.bind("<<ComboboxSelected>>",self._preset_selected)
+        ttk.Button(outer,text="Apply preset",command=self._apply_preset).grid(row=row,column=2,sticky="ew",padx=5)
+        ToolTip(preset_choice,"Built-in examples: Greek full search, Greek overnight maximum coverage, offline only, quick 20-song test, optional local AI and international FAST. Saved profiles remain yours.")
+        row+=1
+        ttk.Label(outer,textvariable=self.preset_description,wraplength=950,
+                  style="Hint.TLabel").grid(row=row,column=0,columnspan=3,sticky="w",padx=5,pady=(0,8))
+        row+=1
         ttk.Label(outer,text="Saved profile").grid(row=row,column=0,sticky="w",padx=5,pady=5)
         self.name_choice=ttk.Combobox(outer,textvariable=self.name,width=40)
         self.name_choice.grid(row=row,column=1,sticky="ew",padx=5)
@@ -127,10 +148,34 @@ class ControlCenter(tk.Tk):
             ("history","Use cached completed NO_MATCH history"),
             ("exact_fallback","Extra LRCLIB exact-signature request"),
             ("auto_search","Search after Greek preview"),
+            ("incremental","Incremental library tracking (fast repeat scans)"),
         ]
+        descriptions={
+            "greek":"Create approved Greek/Greeklish title and artist search alternatives. Not a filter that excludes non-Greek audio.",
+            "local_ai":"Optional locally downloaded G2G model to propose Greek spelling. Not bundled in standalone EXE.",
+            "musicbrainz":"Use MusicBrainz to improve title and artist metadata, with a persistent 30-day cache.",
+            "recursive":"Include audio files in every subfolder under your chosen music directory.",
+            "recovery_wait":"When enabled, waits for temporarily unavailable providers before first attempts. Overnight mode can take many hours.",
+            "history":"Skip provider searches that already returned a definite NO_MATCH recently; does not hide review candidates.",
+            "exact_fallback":"Optional extra exact LRCLIB lookup after ordinary requests; may add network calls.",
+            "auto_search":"After Greek conversion preview, automatically continue searching without asking again.",
+            "incremental":"Save a local SQLite metadata index; unchanged tracks reuse metadata while changed/new tracks are refreshed.",
+        }
         for i,(key,label) in enumerate(toggles):
-            ttk.Checkbutton(frame,text=label,variable=self.boolvars[key]).grid(
-                row=i//2,column=i%2,sticky="w",padx=12,pady=4)
+            widget=ttk.Checkbutton(frame,text=label,variable=self.boolvars[key])
+            widget.grid(row=i//2,column=i%2,sticky="w",padx=12,pady=4)
+            ToolTip(widget,descriptions[key])
+        row+=1
+        setup=ttk.LabelFrame(outer,text="Downloads & local setup",padding=8)
+        setup.grid(row=row,column=0,columnspan=3,sticky="ew",pady=5)
+        lrclib_button=ttk.Button(setup,text="Download / set up LRCLIB database",
+                                 command=lambda:self._launch_setup("SETUP_LRCLIB_DATABASE.cmd"))
+        lrclib_button.pack(side="left",padx=5)
+        ai_button=ttk.Button(setup,text="Download / set up Greek G2G AI",
+                             command=lambda:self._launch_setup("SETUP_GREEK_AI.cmd"))
+        ai_button.pack(side="left",padx=5)
+        ToolTip(lrclib_button,"Starts the bundled LRCLIB setup script in a separate Windows terminal, with its own prompts. Already downloaded? Use Choose database instead.")
+        ToolTip(ai_button,"Starts the bundled local Greek AI installation guide/setup. Optional and model-heavy; standalone EXE cannot embed this model.")
         row+=1
         ttk.Button(outer,text="Save profile and START SEARCH",
                    command=self._run_profile).grid(row=row,column=0,columnspan=3,sticky="ew",padx=5,pady=8)
@@ -162,7 +207,7 @@ class ControlCenter(tk.Tk):
         ttk.Label(self.review_tab,text="Review before installing. Only explicitly selected primary candidates can become MARKED [00:00.00] candidate LRCs. This NEVER certifies lyrics as verified.",wraplength=850).pack(anchor="w",pady=10)
         columns=("track","candidate","status")
         self.review_tree=ttk.Treeview(self.review_tab,columns=columns,show="headings",height=12)
-        for key,caption,width in (("track","MP3",350),("candidate","Candidate",330),("status","Status",200)):
+        for key,caption,width in (("track","Audio",350),("candidate","Candidate",330),("status","Status",200)):
             self.review_tree.heading(key,text=caption)
             self.review_tree.column(key,width=width,stretch=True)
         self.review_tree.pack(fill="both",expand=True)
@@ -173,12 +218,46 @@ class ControlCenter(tk.Tk):
         self.candidate_text.configure(state="disabled")
         buttons=ttk.Frame(self.review_tab)
         buttons.pack(fill="x",pady=12)
-        ttk.Button(buttons,text="Play MP3 externally",command=self._play_selected).pack(side="left")
+        ttk.Button(buttons,text="Play audio externally",command=self._play_selected).pack(side="left")
         ttk.Button(buttons,text="Promote selected to MARKED LRC",command=self._promote_selected).pack(side="left",padx=10)
         ttk.Label(buttons,text="Numbered alternatives are read-only until they become primary.").pack(side="right")
 
+    def _preset_selected(self,_event=None):
+        self.preset_description.set(PRESET_DESCRIPTIONS.get(self.preset_name.get(),""))
+
+    def _apply_preset(self):
+        name=self.preset_name.get()
+        if name not in PRESET_TEMPLATES:return
+        folder=self.folder.get()
+        database=self.database.get()
+        # Presets are editable templates, not silently persisted profiles.
+        profile={**DEFAULT,**PRESET_TEMPLATES[name],
+                 "folder":folder,"database":database}
+        self._set_values(profile)
+        self.name.set(name)
+        self._preset_selected()
+
+    def _launch_setup(self,script):
+        path=program_folder()/script
+        if sys.platform=="win32" and path.is_file() and not getattr(sys,"frozen",False):
+            if self.process is not None and self.process.poll() is None:
+                messagebox.showwarning("Search running","Finish your music scan before changing the setup.")
+                return
+            if not messagebox.askyesno("Run setup",f"Open {script} in a separate terminal?\n\nRead the installer prompts before confirming downloads."):
+                return
+            try:
+                subprocess.Popen(["cmd.exe","/c",str(path)],cwd=str(program_folder()),
+                    creationflags=subprocess.CREATE_NEW_CONSOLE)
+            except OSError as error:
+                messagebox.showerror("Setup launcher",str(error))
+        else:
+            if messagebox.askyesno("Python package required",
+                "The setup CMD scripts are included in the complete Python Windows ZIP, "
+                "not the standalone EXE. Open the official release page to download it?"):
+                webbrowser.open("https://github.com/DimitrisLai/LRC-Bulk-Finder/releases")
+
     def _browse_music(self):
-        selected=filedialog.askdirectory(title="Select MP3 folder",initialdir=self.folder.get() or str(Path.home()))
+        selected=filedialog.askdirectory(title="Select audio library folder",initialdir=self.folder.get() or str(Path.home()))
         if selected:self.folder.set(selected)
 
     def _browse_database(self):
@@ -371,7 +450,7 @@ class ControlCenter(tk.Tk):
         try:
             for i,item in enumerate(list_review_candidates(folder,self.boolvars["recursive"].get())):
                 path=item["path"]
-                status=("Missing MP3" if not item["has_mp3"] else
+                status=("Missing / ambiguous audio" if not item["has_mp3"] else
                         "Already has LRC" if item["has_lrc"] else
                         "Primary — review" if item["index"]==1 else "Alternative — read-only")
                 key=str(i)
@@ -414,12 +493,12 @@ class ControlCenter(tk.Tk):
         item=self._selection()
         if not item:return
         if item["index"]!=1 or not item["has_mp3"] or item["has_lrc"]:
-            messagebox.showinfo("Not eligible","Only a primary candidate with MP3 and no existing LRC can be promoted.")
+            messagebox.showinfo("Not eligible","Only a primary candidate with exactly one matching audio file and no existing LRC can be promoted.")
             return
         if not messagebox.askyesno("Install UNVERIFIED candidate?",
             f"Install {item['path'].name} as a MARKED .lrc?\n\n"
             "It will contain [00:00.00] candidate and remain UNVERIFIED.\n"
-            "Original MP3/ID3 will NOT change. Numbered alternatives shift forward."):
+            "Original audio/metadata will NOT change. Numbered alternatives shift forward."):
             return
         try:
             status,detail=explicitly_promote(item["path"],approved=True)
