@@ -1,3 +1,27 @@
+LRC BULK FINDER v2.1.21 - START HERE
+Created by Dimitris L. - PUBLIC BETA
+
+NEW v2.1.21: More accurate offline Greek artist/title matching,
+review-candidate statuses retained across every round,
+and durable auto-resume after interruption for Options 1 and 5.
+
+RESTART WITH THE SAME SETTINGS to reuse per-song checkpoints saved as:
+  LRC_Run_Checkpoint_v2_1_21.jsonl (inside selected MP3 folder)
+To force completely fresh searches, rename/move this file BEFORE launch.
+
+Historical regression tests now cover all 22 modules on Windows/Linux.
+The original MP3 audio/ID3 and existing .lrc files are never overwritten.
+Use Option 4 for strictly local-only search.
+Use Option 5 for local ALL -> online MISSING -> timeouts ONLY.
+
+EXACT ALL OPTIONS: HOW_TO_START_V2_1_21.txt
+RELEASE NOTES: RELEASE_NOTES_V2_1_21.md
+TEST AUDIT: TEST_AUDIT_V2_1_21.md
+Full version has START_HERE.cmd, Run_LRC_Finder.cmd and BAT launchers.
+The downloaded LARGE LRCLIB SQLite is NOT bundled. Reconnect existing DB.
+
+---- PREVIOUS RELEASE NOTES ----
+
 LRC BULK FINDER v2.1.20 - START HERE
 Created by Dimitris L. - PUBLIC BETA
 
