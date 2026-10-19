@@ -22,7 +22,7 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 ## ✨ Highlights
 
-- **Four clear work modes:** complete search, marked candidate promotion, LRCLIB catch-up, and offline-only scanning of any folder.
+- **Five clear work modes:** normal search, candidate promotion, LRCLIB catch-up, offline-only search, and the new offline-first three-stage search.
 - **Offline LRCLIB:** optionally search an official, locally installed SQLite snapshot before going online—or exclusively offline.
 - **12 lyrics search routes:** FAST (5) and FULL (12); some routes use overlapping back-end services.
 - **Greek/Greeklish search:** manual alias and word conversion support; optional local Greeklish-to-Greek AI.
