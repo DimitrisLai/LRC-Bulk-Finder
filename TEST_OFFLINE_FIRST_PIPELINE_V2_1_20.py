@@ -49,7 +49,7 @@ class StagedPipelineTests(unittest.TestCase):
                 return None,'NOT_FOUND','no match',['SyncLRC=NO_MATCH']
             def save(track,hit):
                 track.with_suffix('.lrc').write_text(hit.lyrics,encoding='utf-8')
-            answers=iter(['5','n','n','full','n','n','n','a','y'])
+            answers=iter(['5','n','n','full','d','n','n','n','a','y'])
             def answer(_prompt=''):
                 return next(answers)
             with mock.patch('builtins.input',side_effect=answer),\
