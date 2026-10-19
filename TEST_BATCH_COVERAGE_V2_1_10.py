@@ -45,12 +45,12 @@ class TestFullBatch(unittest.TestCase):
                 app.main()
             self.assertEqual(len(requested),2)
             waiting.assert_called_once()
-            coverage=folder/'LRC_First_Attempt_Coverage_v2_1_15.csv'
+            coverage=folder/'LRC_First_Attempt_Coverage_v'+app.VERSION.replace('.','_')+'.csv'
             with coverage.open(encoding='utf-8-sig') as f:rows=list(csv.DictReader(f))
             lc=[r for r in rows if r['provider']=='LRCLIB']
             self.assertEqual(len(lc),2)
             self.assertEqual([r['first-pass coverage'] for r in lc],['REQUEST_SENT','REQUEST_SENT'])
-            catchup=folder/'LRC_LRCLIB_Catchup_Queue_v2_1_15.csv'
+            catchup=folder/'LRC_LRCLIB_Catchup_Queue_v'+app.VERSION.replace('.','_')+'.csv'
             with catchup.open(encoding='utf-8-sig') as f:queued=list(csv.DictReader(f))
             self.assertEqual(len(queued),1)
             self.assertEqual(queued[0]['MP3 path'],str(one))
