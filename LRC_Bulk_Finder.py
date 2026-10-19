@@ -9,7 +9,7 @@ from lrclib_local import LocalLRCLIB, load_local_config
 from search_checkpoint import SearchCheckpoint, checkpoint_signature
 from search_performance import MusicBrainzDiskCache, ProviderPerformance, choose_provider_order
 from progress_eta import RoundProgress
-from stop_control import check_stop, interruptible_sleep
+from stop_control import check_stop, interruptible_sleep, stop_requested
 from stage_counters import StageCounters
 from runtime_paths import program_folder
 from incremental_library import AUDIO_EXTENSIONS, safe_audio_files, IncrementalLibrary
@@ -2593,6 +2593,8 @@ def main():
                             except (OSError,ValueError) as ex:
                                 status='SERVER_ERROR';detail=f'File save failed: {ex}'
                 except KeyboardInterrupt:
+                    if stop_requested():
+                        print('STOP REQUESTED: gracefully leaving current song; completed checkpoints remain.',flush=True)
                     states[path]=('INTERRUPTED','Interrupted while searching')
                     rows.append([str(path),rnd,'INTERRUPTED','Interrupted while searching','', ''])
                     interrupted=True
