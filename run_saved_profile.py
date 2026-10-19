@@ -10,6 +10,7 @@ import os
 import sys
 from pathlib import Path
 from search_profiles import ProfileAnswers,load_profiles,validate_profile
+from stop_control import check_stop
 
 
 def run_profile(name,profiles_path=None):
@@ -29,9 +30,11 @@ def run_profile(name,profiles_path=None):
     finder.select_folder=lambda:folder
     builtins.input=answers
     try:
+        check_stop()
         print("STARTING SAVED PROFILE:",name,flush=True)
         print("Selected MP3 folder:",folder,flush=True)
         finder.main()
+        check_stop()  # interrupted stage may have returned after saving reports
     finally:
         builtins.input=old_input
         finder.select_folder=old_select
@@ -56,6 +59,9 @@ def main(argv=None):
         parser.error('--profile is required for searches')
     try:
         run_profile(args.profile,args.profiles_path)
+    except KeyboardInterrupt:
+        print('STOP REQUESTED: search ended; completed checkpoints and reports preserved.',flush=True)
+        return 130
     except (ValueError,RuntimeError,OSError) as error:
         print("PROFILE ERROR:",error,file=sys.stderr,flush=True)
         return 2
