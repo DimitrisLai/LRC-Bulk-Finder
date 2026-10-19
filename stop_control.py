@@ -22,6 +22,11 @@ def check_stop():
         raise KeyboardInterrupt("Stop requested by the Control Center")
 
 def interruptible_sleep(seconds,poll=0.15):
+    if stop_file() is None:
+        # Preserve historical timing/rate-limit semantics for the CLI and
+        # deterministic legacy tests. Polling is needed only for a GUI worker.
+        time.sleep(max(0.0,float(seconds)))
+        return
     deadline=time.monotonic()+max(0.0,float(seconds))
     while True:
         check_stop()
