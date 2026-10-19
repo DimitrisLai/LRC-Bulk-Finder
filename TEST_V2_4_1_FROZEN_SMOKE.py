@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+@unittest.skipUnless(os.environ.get("LRC_SMOKE_EXE"),"Only run against a freshly built standalone Windows worker EXE")
 class FrozenStopSmoke(unittest.TestCase):
     def test_real_frozen_worker_acknowledges_stop_marker(self):
         executable=Path(os.environ['LRC_SMOKE_EXE']).resolve()
