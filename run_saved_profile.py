@@ -44,9 +44,16 @@ def run_profile(name,profiles_path=None):
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description="Run one saved LRC Bulk Finder search profile")
-    parser.add_argument("--profile",required=True,help="Saved profile name")
+    parser.add_argument("--profile",help="Saved profile name")
+    parser.add_argument("--setup-lrclib",action="store_true",help="Run the consent-based official LRCLIB database downloader")
     parser.add_argument("--profiles-path",help="Optional alternate profiles.json for portable/test runs")
     args=parser.parse_args(argv)
+    if args.setup_lrclib:
+        from auto_install_lrclib_database import main as install_lrclib
+        install_lrclib()
+        return 0
+    if not args.profile:
+        parser.error('--profile is required for searches')
     try:
         run_profile(args.profile,args.profiles_path)
     except (ValueError,RuntimeError,OSError) as error:
