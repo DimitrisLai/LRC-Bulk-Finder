@@ -39,10 +39,10 @@ class GreekTitleQualityTests(unittest.TestCase):
 
     def test_user_examples_have_correct_accents(self):
         examples=[
-            ('Den Ise Erotas Esi','Δεν Είσαι Έρωτας Εσύ'),
-            ('Den Eisai Erotas Esy','Δεν Είσαι Έρωτας Εσύ'),
-            ('Esy Horeveis Kai Ego Pethaino','Εσύ Χορεύεις Και Εγώ Πεθαίνω'),
-            ('Fevgis Ke Hanese','Φεύγεις Και Χάνεσαι'),
+            ('Den Ise Erotas Esi','Δεν είσαι έρωτας εσύ'),
+            ('Den Eisai Erotas Esy','Δεν είσαι έρωτας εσύ'),
+            ('Esy Horeveis Kai Ego Pethaino','Εσύ χορεύεις και εγώ πεθαίνω'),
+            ('Fevgis Ke Hanese','Φεύγεις και χάνεσαι'),
             ('Diadromi','Διαδρομή'),
             ('Barouti','Μπαρούτι'),
             ('Avrio','Αύριο'),
@@ -59,7 +59,7 @@ class GreekTitleQualityTests(unittest.TestCase):
         self.assertEqual(app.dictionary_greek_title('2002 Nyhtes'),'2002 Νύχτες')
         self.assertEqual(app.dictionary_greek_title('Ah-Kaimeni'),'Αχ-καημένη')
         self.assertEqual(app.dictionary_greek_title("Ego De Sou Eipa S' Agapo"),
-                         "Εγώ Δε Σου Είπα Σ' Αγαπώ")
+                         "Εγώ δε σου είπα σ' αγαπώ")
 
     def test_english_title_never_turned_into_phonetic_greek(self):
         for title in ['Best of Times','Best Music','Happy Birthday','Love You Forever']:
@@ -76,9 +76,9 @@ class GreekTitleQualityTests(unittest.TestCase):
         cases=[
             ('Fonazo - 2025 Remastered','Φωνάζω - 2025 Remastered'),
             ('Den Ise Erotas Esi - Extended Remix',
-             'Δεν Είσαι Έρωτας Εσύ - Extended Remix'),
+             'Δεν είσαι έρωτας εσύ - Extended Remix'),
             ('Esy Horeveis Kai Ego Pethaino - 2024 Remix',
-             'Εσύ Χορεύεις Και Εγώ Πεθαίνω - 2024 Remix')
+             'Εσύ χορεύεις και εγώ πεθαίνω - 2024 Remix')
         ]
         for title, expected in cases:
             with self.subTest(title=title):
