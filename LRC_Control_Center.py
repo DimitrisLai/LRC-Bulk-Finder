@@ -507,6 +507,143 @@ class ControlCenter(tk.Tk):
             messagebox.showerror("Candidate result",str(error))
         self._refresh_review()
 
+    def _build_sync_lab(self):
+        area=self.sync_tab
+        ttk.Label(area,text="Experimental Sync Lab — untimed lyrics",style="Header.TLabel").pack(anchor="w")
+        ttk.Label(area,text="Import or paste plain lyric text. Estimate rough timings or tap along while you listen. "
+                  "This cannot confirm alignment and only saves MARKED .candidate.lrc sidecars.",
+                  wraplength=900).pack(anchor="w",pady=(4,10))
+        top=ttk.Frame(area);top.pack(fill="x")
+        self.sync_audio=tk.StringVar()
+        ttk.Entry(top,textvariable=self.sync_audio).pack(side="left",fill="x",expand=True)
+        ttk.Button(top,text="Choose audio...",command=self._sync_choose_audio).pack(side="left",padx=5)
+        ttk.Button(top,text="Open audio player",command=self._sync_play).pack(side="left",padx=5)
+        ttk.Label(area,text="Plain lyrics (paste your own text, or import a .txt / plain .lrc)").pack(anchor="w",pady=(8,2))
+        self.sync_source=scrolledtext.ScrolledText(area,height=9,wrap="word",font=("Consolas",10))
+        self.sync_source.pack(fill="both",expand=True)
+        top=ttk.Frame(area);top.pack(fill="x",pady=7)
+        ttk.Button(top,text="Import plain text...",command=self._sync_import).pack(side="left",padx=2)
+        ttk.Button(top,text="Generate ESTIMATED timestamps",command=self._sync_estimate).pack(side="left",padx=4)
+        ttk.Button(top,text="Start tap timing",command=self._sync_start_tap).pack(side="left",padx=4)
+        ttk.Button(top,text="Tap NEXT line",command=self._sync_tap).pack(side="left",padx=4)
+        self.sync_status=tk.StringVar(value="No timings generated. All results are unverified.")
+        ttk.Label(area,textvariable=self.sync_status,wraplength=930).pack(anchor="w")
+        ttk.Label(area,text="Editable LRC draft — candidate marker must remain the first line").pack(anchor="w",pady=(10,2))
+        self.sync_draft=scrolledtext.ScrolledText(area,height=10,wrap="word",font=("Consolas",10))
+        self.sync_draft.pack(fill="both",expand=True)
+        ttk.Button(area,text="Save as UNVERIFIED .candidate.lrc (never overwrite)",
+                   command=self._sync_save).pack(fill="x",pady=10)
+        self.sync_lines=[]
+        self.sync_times=[]
+        self.sync_start=None
+        self.sync_position=0
+
+    def _sync_choose_audio(self):
+        path=filedialog.askopenfilename(title="Choose an audio track",
+            filetypes=[("Supported audio","*.mp3 *.flac *.m4a *.mp4 *.ogg *.opus *.wav"),("All files","*.*")])
+        if path:
+            self.sync_audio.set(path)
+            self.sync_status.set("Selected "+Path(path).name+". Original audio will never be modified.")
+
+    def _sync_play(self):
+        path=Path(self.sync_audio.get())
+        if not path.is_file():
+            messagebox.showerror("Sync Lab","Choose an existing audio track first.")
+            return
+        try:
+            if sys.platform=="win32":os.startfile(path)
+            elif sys.platform=="darwin":subprocess.Popen(["open",str(path)])
+            else:subprocess.Popen(["xdg-open",str(path)])
+        except (OSError,AttributeError) as error:messagebox.showerror("Audio player",str(error))
+
+    def _sync_import(self):
+        path=filedialog.askopenfilename(title="Open untimed lyrics",
+            filetypes=[("Text or LRC","*.txt *.lrc"),("Text files","*.txt"),("All files","*.*")])
+        if not path:return
+        try:
+            file=Path(path)
+            if file.stat().st_size>150000:raise ValueError("Text file exceeds 150 KB preview limit")
+            source=file.read_text(encoding="utf-8-sig",errors="replace")
+            self.sync_source.delete("1.0","end")
+            self.sync_source.insert("1.0",source)
+            self.sync_status.set("Imported text. Generate estimates or start tapping.")
+        except (OSError,ValueError) as error:messagebox.showerror("Import",str(error))
+
+    def _sync_estimate(self):
+        try:
+            from mutagen import File as MutagenFile
+            track=Path(self.sync_audio.get())
+            if not track.is_file():raise FileNotFoundError("Choose an existing audio track")
+            audio=MutagenFile(track,easy=True)
+            if audio is None or audio.info is None:raise ValueError("Cannot read duration")
+            duration=float(audio.info.length)
+            lines=plain_lines(self.sync_source.get("1.0","end"))
+            times=estimate_timestamps(lines,duration)
+            draft=draft_lrc(lines,times)
+            self.sync_lines=lines;self.sync_times=times;self.sync_start=None
+            self.sync_draft.delete("1.0","end")
+            self.sync_draft.insert("1.0",draft)
+            self.sync_status.set(f"ESTIMATE ONLY: {len(lines)} lines across {duration:.1f}s. "
+                 "Review and edit timestamps; not aligned to speech.")
+        except (OSError,ValueError,TypeError) as error:messagebox.showerror("Timing estimate",str(error))
+
+    def _sync_start_tap(self):
+        try:
+            self.sync_lines=plain_lines(self.sync_source.get("1.0","end"))
+        except ValueError as error:
+            messagebox.showerror("Tap timing",str(error))
+            return
+        self.sync_times=[]
+        self.sync_position=0
+        self.sync_start=time.monotonic()
+        self.sync_status.set("Tap started! Press Tap NEXT line when you hear the next lyric begin. "
+                             "Align the audio player's playback yourself; this does not control the player.")
+        self.sync_draft.delete("1.0","end")
+        self.sync_draft.insert("1.0","[00:00.00] candidate\n")
+
+    def _sync_tap(self):
+        if self.sync_start is None or self.sync_position>=len(self.sync_lines):
+            self.sync_status.set("Start tap timing, or all lyric lines have already been marked.")
+            return
+        current=round(max(0,time.monotonic()-self.sync_start),2)
+        if self.sync_times and current<=self.sync_times[-1]:
+            current=self.sync_times[-1]+0.01
+        self.sync_times.append(current)
+        self.sync_position+=1
+        self.sync_draft.insert("end",f"{self._sync_stamp(current)} {self.sync_lines[self.sync_position-1]}\n")
+        self.sync_status.set(f"Tapped {self.sync_position}/{len(self.sync_lines)} lines. "
+            "Manual taps remain UNVERIFIED until reviewed against the recording.")
+
+    @staticmethod
+    def _sync_stamp(value):
+        from lyric_sync_lab import stamp
+        return stamp(value)
+
+    def _sync_save(self):
+        if self.process is not None and self.process.poll() is None:
+            messagebox.showwarning("Search running","Finish your search before writing candidate files.")
+            return
+        if not self.sync_lines or len(self.sync_times)!=len(self.sync_lines):
+            messagebox.showerror("Incomplete timings","Generate estimates or tap ALL lyric lines first.")
+            return
+        track=Path(self.sync_audio.get())
+        if not track.is_file():
+            messagebox.showerror("Missing audio","Choose an existing audio file first.")
+            return
+        if not messagebox.askyesno("SAVE UNVERIFIED candidate",
+            "Create an additional .candidate.lrc next to this audio file?\n\n"
+            "These timings are EXPERIMENTAL and have NOT been aligned or verified. "
+            "The candidate marker will stay. Existing lyrics and audio are protected."):
+            return
+        try:
+            target=save_unverified_draft(track,self.sync_draft.get("1.0","end"),
+                                        self.sync_lines,self.sync_times)
+            self.sync_status.set("Saved UNVERIFIED candidate: "+str(target))
+            messagebox.showinfo("Candidate saved",f"Saved:\n{target}\n\nUnverified timing — review before promotion.")
+            self._refresh_review()
+        except (OSError,ValueError,FileExistsError) as error:
+            messagebox.showerror("Cannot save candidate",str(error))
+
     def _close(self):
         if self.process is not None and self.process.poll() is None:
             messagebox.showwarning("Search running",
