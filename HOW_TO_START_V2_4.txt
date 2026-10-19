@@ -1,0 +1,91 @@
+LRC BULK FINDER v2.4.0 — COMPLETE WINDOWS GUIDE
+Public Beta — created by Dimitris L.
+
+START THE APPLICATION
+  OPEN_CONTROL_CENTER.cmd  → GUI with saved profiles, ready-made presets,
+                             hover explanations, setup, review and Sync Lab.
+  START_HERE.cmd           → original 5-mode interactive console.
+  LRC_Control_Center.exe  → separately released optional standalone GUI.
+  LRC_Bulk_Finder_Worker.exe → keep beside the standalone GUI executable.
+
+NEW IN 2.4 — PRE-SAVED EXAMPLE PRESETS (NOT OVERWRITING PERSONAL PROFILES)
+  Greek FULL — Offline First           : whole Greek folder SQLite → FULL online
+                                         missing songs → genuine timeouts.
+  Greek Night Search — Maximum Coverage: full overnight/unattended search,
+                                         wait for temporary provider recovery,
+                                         search all eligible missing songs.
+  Greek Quick Test — 20 Songs          : FULL Greek mode for 20 missing files.
+  Greek OFFLINE ONLY                   : local SQLite, zero online lyrics calls.
+  Greek Local AI — FULL                : requires separately installed local
+                                         G2G AI model and Python distribution.
+  International FAST — 20 Songs        : quick international non-Greek test.
+
+Select preset in the top drop-down and click APPLY PRESET.
+Select your music folder, local LRCLIB SQLite if needed, then SAVE PROFILE
+or SAVE PROFILE AND START SEARCH. Your own saved profiles remain separate.
+These are search modes for GREEK / GREEKLISH collections; 'Greek only'
+does not silently discard audio based on guessed language.
+A NIGHT profile is an UNATTENDED profile, not a scheduled Windows task.
+If servers recover slowly it can take many hours; rate limits are respected.
+
+MOUSEOVER HELP
+  Hover over preset or each setting to see what it changes. Available
+  choices include recursion, Greek AI, MusicBrainz, exact LRCLIB fallback,
+  FULL/FAST provider choice, provider priority and incremental tracking.
+
+SETUP / DOWNLOAD BUTTONS
+  'Download / set up LRCLIB database' launches the optional official
+  database installer. It will ask consent, destination and disk space
+  confirmation. Never downloads a big dump silently.
+  'Download / set up Greek G2G AI' opens its optional Python installation
+  flow, which can download ~1.2 GB plus dependencies.
+  IN STANDALONE EXE: the LRCLIB download opens a worker console; the
+  optional external Greek G2G AI button directs to the full Python ZIP.
+
+NEW SUPPORTED AUDIO INPUT (READ-ONLY):
+  MP3, FLAC, M4A, MP4, OGG, OPUS, WAV.
+  Uses Mutagen to read duration/metadata. Files are never transcoded,
+  retagged, overwritten or renamed. Verified lyrics are sidecars .lrc
+  with exactly the original audio stem. If SAME folder has both
+  'Song.mp3' AND 'Song.flac', both are deliberately skipped because they
+  would compete for Song.lrc. Rename manually to distinguish versions.
+
+INCREMENTAL LIBRARY TRACKING (DEFAULT ON IN GUI)
+  LRC_Incremental_Library_v2_4.sqlite3 in the music folder.
+  Tracks size, modification time, whether .lrc exists and read-only
+  metadata for each file. First run populates; later runs read unchanged
+  metadata from index. New or changed files are rechecked. This does
+  NOT automatically overwrite LRCs, nor does it override stage-specific
+  resumable JSONL checkpoints. Disable with the GUI toggle to revert
+  to full metadata reads.
+
+SYNC LAB (EXPERIMENTAL — UNVERIFIED)
+  1) Choose MP3/FLAC/M4A/MP4/OGG/OPUS/WAV audio file.
+  2) Paste YOUR OWN untimed plain lyrics, or import .txt/plain .lrc.
+  3) Either GENERATE ESTIMATES using the actual track duration, then
+     manually edit the displayed LRC, OR
+     start TAP TIMING when music playback begins externally and TAP
+     each lyric line while you listen to its beginning.
+  4) Check every timestamp yourself. Click SAVE UNVERIFIED CANDIDATE.
+  5) Confirm in the prompt. It writes ONLY Song.candidate.lrc, or
+     Song.candidate.2.lrc if the primary exists.
+  The first line is ALWAYS [00:00.00] candidate. Saved timings are
+  approximations or manual taps — NOT real forced audio alignment,
+  music transcription or automatically verified synchronization.
+  An approved Song.lrc is NEVER overwritten. MP3/audio/ID3 stays intact.
+  More accurate future synchronization requires independent validation.
+
+USER PROFILES: %APPDATA%\LRCBulkFinder\profiles.json
+LOCALE: Greek filenames and UTF-8 are supported.
+DATABASE: reuses the already-downloaded huge LRCLIB SQLite; NOT bundled.
+THE 13 CLI OPTION 5 PROMPTS remain as in v2.3.0:
+  1=5, folder, Greek Y, installed local AI Y only if present,
+  MusicBrainz Y, FULL, provider order D (or S/C), provider
+  recovery N (or Y for night), recursive Y, cached NO_MATCH Y,
+  songs 20/A, exact fallback Y, search after preview Y.
+No new questions in the classic CLI; its incremental index is
+a GUI-profile toggle so existing scripts and CLI remain compatible.
+
+CODE SIGNING: standalone community EXEs are not digitally signed and may
+display SmartScreen warnings. Verify official GitHub SHA and malware scan
+before making a per-app decision. Do not disable Defender globally.
