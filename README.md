@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.1.19 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.1.20 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -15,6 +15,10 @@ LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music librarie
 Lyrics are saved alongside the MP3 with the same base filename, making them compatible with many portable music players and car stereos that support synchronized LRC text.
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
+
+## What's new in v2.1.20: offline-first full folder pipeline
+
+**New menu Option 5** performs three distinct, ordered stages: **Round 1** scans your existing large LRCLIB SQLite snapshot for **all selected eligible songs offline** (zero HTTP/MusicBrainz), **Round 2** searches only songs still lacking verified `.lrc` against chosen online providers (no duplicate local SQLite lookup), and **Round 3** retries only the particular provider/song pairs that genuinely timed out in Round 2. The original MP3/ID3, existing `.lrc` and candidate safety guarantees remain. A valid local snapshot is required; no silent online-only fallback. Existing **Option 4** remains offline-only, as before. Full prompts in [`HOW_TO_START_V2_1_20.txt`](HOW_TO_START_V2_1_20.txt).
 
 ## ✨ Highlights
 
