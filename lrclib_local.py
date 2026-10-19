@@ -74,7 +74,7 @@ class LocalLRCLIB:
                     'AND t.artist_name_lower=? '
                     'AND l.synced_lyrics IS NOT NULL LIMIT 100')
         with closing(self._connect()) as conn:
-            for title,artist in list(variants)[:2]:
+            for title,artist in list(dict.fromkeys(variants))[:6]:
                 title=str(title or '').strip().lower()
                 artist=str(artist or '').strip().lower()
                 if len(title)<3 or len(artist)<2:continue
