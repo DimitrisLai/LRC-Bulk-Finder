@@ -1,0 +1,126 @@
+name: Read-only v2.3.0 published-release readiness audit
+
+on:
+  push:
+    branches: ['audit/v2.3.0-release-readiness']
+    paths:
+      - '.github/workflows/audit-v2.3.0-readiness.yml'
+      - 'AUDIT_V230_RELEASE.py'
+      - 'AUDIT_V230_WINDOWS.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published-zip-cross-platform:
+    name: Published ZIP ${{ matrix.os }} Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.10', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install test libraries
+        run: python -m pip install mutagen Unidecode syncedlyrics pypdf
+      - name: Download published original ZIP and manual
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p verified
+          gh release download v2.3.0 --repo DimitrisLai/LRC-Bulk-Finder --pattern 'LRC_Bulk_Finder_Public_v2_3_0_GitHub_Release_Windows.zip' --dir verified
+          gh release download v2.3.0 --repo DimitrisLai/LRC-Bulk-Finder --pattern 'LRC_Bulk_Finder_v2_3_0_Complete_User_Manual_EN.pdf' --dir verified
+      - name: Verify real published SHA256, ZIP safety, and manual structure
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,zipfile
+          from pathlib import Path,PurePosixPath
+          from pypdf import PdfReader
+          checks={
+          'LRC_Bulk_Finder_Public_v2_3_0_GitHub_Release_Windows.zip':'e663a3918ca6e1309cb32db59a0d499fef3863846060cc6b92db1faf55b674c1',
+          'LRC_Bulk_Finder_v2_3_0_Complete_User_Manual_EN.pdf':'62aa3cc0b94b4532921e7008cfabe54f378bb891fc03b532e3e4249203e69eec'}
+          for name,expect in checks.items():
+              actual=hashlib.sha256((Path('verified')/name).read_bytes()).hexdigest()
+              assert actual==expect,(name,actual,expect)
+              print('PASS SHA256',name)
+          pdf=PdfReader(Path('verified')/'LRC_Bulk_Finder_v2_3_0_Complete_User_Manual_EN.pdf')
+          assert len(pdf.pages)==27
+          keywords={'WINDOWS CONTROL CENTER','DAILY WORKFLOW','SEARCH PERFORMANCE',
+                    'STABILITY AND ACCURACY','THREE-STAGE WORKFLOW'}
+          doc='\n'.join((p.extract_text() or '') for p in pdf.pages[:6])
+          assert all(word in doc for word in keywords),[x for x in keywords if x not in doc]
+          for n,page in enumerate(pdf.pages):
+              assert abs(float(page.mediabox.width)-595.2756)<3
+              assert abs(float(page.mediabox.height)-841.8898)<3
+              assert (page.extract_text() or '').strip(),n
+          print('PASS PDF: 27 text-searchable A4 pages, critical sections found')
+          zip_path=Path('verified')/'LRC_Bulk_Finder_Public_v2_3_0_GitHub_Release_Windows.zip'
+          with zipfile.ZipFile(zip_path) as source:
+              assert source.testzip() is None
+              names=source.namelist()
+              assert len(names)==len(set(names))
+              assert all('..' not in PurePosixPath(x).parts and not
+                         PurePosixPath(x).is_absolute() for x in names)
+              root='LRC_Bulk_Finder_v2_3_0/'
+              launchers=('START_HERE.cmd','OPEN_CONTROL_CENTER.cmd','Run_LRC_Finder.cmd',
+                         'Start_LRC_Finder.bat','Run_Diagnostics.cmd',
+                         'SETUP_GREEK_AI.cmd','SETUP_LRCLIB_DATABASE.cmd',
+                         'SETUP_LRCLIB_DATABASE_FROM_FILE.cmd',
+                         'CLEANUP_LRCLIB_DATABASE.cmd','CONNECT_EXISTING_LRCLIB_DATABASE.cmd')
+              required=launchers+('LRC_Bulk_Finder.py','LRC_Control_Center.py',
+                   'search_profiles.py','progress_eta.py','run_saved_profile.py',
+                   'review_candidates_gui.py','runtime_paths.py',
+                   'Greek_Artists.csv','Greek_Lexicon.sqlite3','search_checkpoint.py')
+              assert all(root+x in names for x in required)
+              assert not any('lrclib-db-dump-' in x or x.endswith('/LRCLIB_LOCAL_DB.txt')
+                             for x in names)
+              source.extractall('release_unpacked')
+              print('PASS ZIP:',len(names),'members; all 10 launchers and core files present')
+          PY
+      - name: Compile exact published source
+        shell: bash
+        run: python -m compileall -q release_unpacked
+      - name: Run existing FULL regression suite from published archive
+        shell: bash
+        run: |
+          cd release_unpacked/LRC_Bulk_Finder_v2_3_0
+          python -m unittest discover -p 'TEST_*.py' -v
+      - name: Independent end-to-end and safety tests against published archive
+        shell: bash
+        run: python AUDIT_V230_RELEASE.py -v
+
+  standalone-windows:
+    name: Published standalone Windows GUI, worker and live widgets
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install test dependencies
+        run: python -m pip install mutagen Unidecode syncedlyrics
+      - name: Download both published ZIPs
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force verified | Out-Null
+          gh release download v2.3.0 --repo DimitrisLai/LRC-Bulk-Finder --pattern "LRC_Bulk_Finder_Public_v2_3_0_GitHub_Release_Windows.zip" --dir verified
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          gh release download v2.3.0 --repo DimitrisLai/LRC-Bulk-Finder --pattern "LRC_Bulk_Finder_v2_3_0_Standalone_Windows_GUI.zip" --dir verified
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify standalone ZIP and extract packages
+        shell: pwsh
+        run: |
+          python -c "import hashlib,zipfile,pathlib; p=pathlib.Path('verified/LRC_Bulk_Finder_v2_3_0_Standalone_Windows_GUI.zip'); assert hashlib.sha256(p.read_bytes()).hexdigest()=='bf927e6534c719e8d2a00dc63194c848878781c9640fcdaaba8f0a964b7c4694'; z=zipfile.ZipFile(p); assert z.testzip() is None; names=z.namelist(); assert len(names)==len(set(names)); required=['LRC_Control_Center.exe','LRC_Bulk_Finder_Worker.exe','Greek_Artists.csv','Greek_Words.csv','Greek_Lexicon.sqlite3','LRCLIB_CONTACT.txt','README_STANDALONE_EXE_V2_3.txt']; assert all(x in names for x in required); z.extractall('standalone_unpacked'); print('PASS: verified published EXE package')"
+          python -c "import zipfile;zipfile.ZipFile('verified/LRC_Bulk_Finder_Public_v2_3_0_GitHub_Release_Windows.zip').extractall('release_unpacked')"
+      - name: Run real EXE worker and live Windows GUI widget tests
+        shell: pwsh
+        run: python AUDIT_V230_WINDOWS.py -v
