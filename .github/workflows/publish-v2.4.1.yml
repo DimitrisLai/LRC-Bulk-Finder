@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "PUBLISH_PAUSED_UNTIL_REGRESSION_PASS"
+      - ".github/workflows/publish-v2.4.1.yml"
   workflow_dispatch:
 
 permissions:
