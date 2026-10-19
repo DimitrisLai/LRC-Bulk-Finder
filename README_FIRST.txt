@@ -1,3 +1,27 @@
+LRC BULK FINDER v2.4.1 — RELIABLE STOP AND LIVE COUNTERS
+PUBLIC BETA. Complete Windows ZIP or optional separate EXE bundle.
+
+OPEN_CONTROL_CENTER.cmd — Windows GUI, Greek/Night/offline presets.
+START_HERE.cmd — unchanged classic 5-mode console.
+NEW Stop search safely: cooperative Windows GUI → worker signal via a
+unique stop file (not broken Ctrl+Break). Existing completed checkpoints
+and reports survive. After 8 seconds, confirmed Force STOP as last resort.
+NEW five counters on Live progress:
+  LRC found (stage), Candidates (stage), Not found (stage);
+  LRC found (ALL stages), Candidates (ALL stages).
+Three current-stage counts reset at the END of each stage; two totals
+remain until another search starts. Network timeouts are NOT NO_MATCH.
+
+Full v2.4.1 instructions: HOW_TO_START_V2_4_1.txt.
+Full v2.4 feature guide: HOW_TO_START_V2_4.txt.
+Release notes: RELEASE_NOTES_V2_4_1.md.
+
+Audio metadata and installed .lrc files are never modified. All the
+previous v2.4 Greek profiles, installed optional G2G AI and LRCLIB
+download setup, seven audio formats and experimental Sync Lab remain.
+
+—— ORIGINAL v2.4.0 PACKAGE DESCRIPTION ——
+
 LRC BULK FINDER v2.4.0 — WINDOWS GUI + COMPLETE CLI
 Created by Dimitris L. — PUBLIC BETA
 
