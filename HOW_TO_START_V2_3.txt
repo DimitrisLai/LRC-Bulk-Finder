@@ -1,0 +1,100 @@
+LRC BULK FINDER v2.3.0 - WINDOWS COMPLETE GUIDE
+Created by Dimitris L. | Public Beta | Python 3.10+ CLI + Tkinter GUI
+
+START
+  START_HERE.cmd         - original interactive 5-mode CLI (UNCHANGED).
+  OPEN_CONTROL_CENTER.cmd - new Windows GUI with saved search profiles.
+  Run_Diagnostics.cmd    - dependency diagnostics.
+  CONNECT_EXISTING_LRCLIB_DATABASE.cmd - reconnect large SQLite database.
+
+THE NEW CONTROL CENTER
+1) Double-click OPEN_CONTROL_CENTER.cmd.
+2) In "Saved searches", choose a friendly profile name and MP3 folder.
+3) Pick a search action:
+   5 = Local LRCLIB all eligible tracks -> online misses -> genuine timeouts.
+   1 = Normal search, local SQLite if configured, then online providers.
+   4 = Entirely offline SQLite search, NO online providers / MusicBrainz.
+4) Pick Greeklish, local AI (ONLY when installed), MusicBrainz, FULL/FAST,
+   provider order D/S/C, recursive folders, history, recovery, max songs,
+   exact-signature fallback and automatic search after preview.
+5) Press Save or "Save profile and START SEARCH".
+6) View the live output/progress bar in the Live progress tab. THIS ROUND
+   ETA is estimated after three newly processed (not checkpoint-restored)
+   songs. It does NOT claim the whole multi-round run will finish at that
+   time. Interrupted searches resume completed work from JSONL checkpoints.
+7) In "Candidate review", click Refresh candidates, pick one .candidate.lrc,
+   preview its timed text and optionally open the matching MP3 in your
+   system's default audio player.
+8) To promote ONE primary candidate, select it and explicitly confirm.
+   The .lrc is visibly marked [00:00.00] candidate: it is UNVERIFIED.
+   Any .candidate.2/.3 alternatives shift forward according to the
+   unchanged legacy promotion rules. The GUI NEVER overwrites a .lrc
+   or changes original MP3/ID3 metadata.
+
+SAVED PROFILE LOCATION
+  Windows: %APPDATA%\LRCBulkFinder\profiles.json
+  Other systems: ~/.config/LRCBulkFinder/profiles.json
+  Profiles are atomic JSON saves under YOUR local user account.
+  Export/backup this file if you want to carry preferences across PCs.
+  The program does not upload profile contents.
+  The separate large LRCLIB SQLite is NOT bundled or re-downloaded.
+  Custom FULL order must include all 12 selected providers exactly once;
+  custom FAST order must include all 5. Invalid profiles are rejected.
+
+GUI AUTO-SEARCH SAFETY
+  Profiles drive the EXISTING Python search engine in a subprocess.
+  The runner refuses UNKNOWN prompts rather than guessing an unsafe
+  answer. Normal START_HERE.cmd remains unchanged for interactive use.
+  Stop button sends an interrupt so the engine can write summary reports.
+  If hard-terminated, completed per-song checkpoints still remain.
+  Do NOT run two scans against the same folder simultaneously.
+  Option 2 bulk promotion is NOT an automatic profile option.
+
+LIVE ETA
+  Progress line example:
+  PROGRESS ROUND 2: 48/250 (19.2%) | elapsed 16m 18s |
+  THIS ROUND ETA: 1h 12m | timed samples: 48
+  Estimate is for the CURRENT stage and responds to real provider speed.
+  Checkpoint-replayed songs count as completed but not as timing samples.
+  First three newly processed songs show "calculating".
+  Option 4 offline-only uses the same honest per-stage estimate.
+
+THE EXACT 13 INTERACTIVE OPTION 5 SETTINGS (NO GUI)
+ 1. Main action [1/2/3/4/5]:                  5
+ 2. MP3 folder dialog / pasted folder:       your music folder
+    If asked, enter existing LRCLIB SQLite .sqlite3 path
+ 3. Greeklish / Greek folder? [y/N]:         Y
+ 4. Use installed LOCAL G2G AI? [y/N]:       Y only if already installed
+ 5. MusicBrainz extra metadata? [Y/n]:      Y
+ 6. FAST or FULL? [F/full]:                  full
+ 7. Provider order [D/s/c]:                 D for first test; S after stats
+    IF C: another question asks ALL selected provider names comma-separated
+ 8. Wait for provider recovery? [Y/n]:      N for quicker unattended run
+ 9. Include subfolders? [Y/n]:              Y
+10. Skip cached prior NO_MATCH? [Y/n]:       N for deliberately fresh test
+11. How many missing songs? [20 or A]:      20 first, A for full collection
+12. LRCLIB exact-signature HTTP fallback?:  Y
+13. After Greek preview auto SEARCH?:       Y
+
+OTHER 5-MODE MENU OPTIONS
+ 1 — Normal search (same choices above, no mandatory local DB)
+ 2 — Bulk-promote primary review candidates as MARKED LRC (explicit consent)
+ 3 — LRCLIB catch-up ONLY for documented unavailable coverage
+ 4 — OFFLINE ONLY; Greek? local AI? recursive? 20/A? start? (no HTTP)
+ 5 — Whole-folder offline first / online remaining / timeout-only retry
+
+WINDOWS STANDALONE EXE
+  A separate optional EXE package may be offered. When available it
+  contains BOTH LRC_Control_Center.exe AND LRC_Bulk_Finder_Worker.exe;
+  always keep them in the same folder, along with the supplied CSV/SQLite
+  assets and LRCLIB_CONTACT.txt. Local transformer-based AI models are
+  NOT shipped inside an EXE. Use the Python launcher if you depend on the
+  installed local G2G AI and its external model environment.
+
+UPGRADING FROM v2.2
+  Unzip the FULL v2.3 Windows ZIP in a NEW folder, keep v2.2 intact.
+  Reconnect your huge LRCLIB database with its CMD tool; never redownload.
+  Copy personally edited Greek_Aliases.csv/Greek_Words.csv if used.
+  Existing MP3 and LRC files are unaffected.
+  A NEW v2.3 checkpoint filename means old checkpoints aren't migrated,
+  but already verified .lrc sidecars are still automatically skipped.
