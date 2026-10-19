@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.2.0 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.3.0 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -15,6 +15,17 @@ LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music librarie
 Lyrics are saved alongside the MP3 with the same base filename, making them compatible with many portable music players and car stereos that support synchronized LRC text.
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
+
+## What's new in v2.3.0: Windows Control Center and saved profiles
+
+**New `OPEN_CONTROL_CENTER.cmd`** launches the standard-library Tkinter GUI; `START_HERE.cmd` still runs the original five-mode console. Three tabs: **Saved searches**, **Live progress**, and **Candidate review**.
+
+- **Profiles:** save named folders and the complete Option 1/4/5 search settings locally under `%APPDATA%\LRCBulkFinder\profiles.json`. All saved answers are validated; unknown prompts fail closed, and provider CUSTOM lists cannot omit a route. No personal music files are uploaded.
+- **Per-round ETA:** every completed song/stage prints a clear progress percentage, elapsed time, and **THIS ROUND** estimated remaining time after three uncached songs. Resume-replayed songs do not skew estimates. The GUI streams logs and shows a live progress bar.
+- **Review candidates:** browse numbered `.candidate.lrc`, preview lyrics, open a matching MP3 in your external player, and explicitly confirm installing a single *primary* candidate as an LRC marked `[00:00.00] candidate`. The GUI never automatically declares uncertain lyrics verified, never overwrites existing LRCs or modifies MP3/ID3. Numbered alternatives retain the existing shift rules.
+- **Optional standalone GUI EXE:** a separately built, verified EXE+worker package may be published for Windows. The complete Python/CMD ZIP remains supported, particularly for heavy optional local G2G AI models.
+
+[Complete v2.3 user instructions](HOW_TO_START_V2_3.txt) · [Release notes](RELEASE_NOTES_V2_3.md) · [Test audit](TEST_AUDIT_V2_3.md)
 
 ## What's new in v2.2.0: Search performance
 
