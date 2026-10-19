@@ -75,9 +75,9 @@ class WindowsGuiV24Tests(unittest.TestCase):
                 self.assertTrue(marker.is_file(), "Stop button must send an IPC marker")
                 self.assertEqual(marker.read_text(encoding="utf-8"),"STOP\n")
                 self.assertTrue(gui.stop_requested)
-                self.assertEqual(gui.stop_button.cget("state"),"disabled")
+                self.assertEqual(str(gui.stop_button.cget("state")),"disabled")
                 gui._enable_force_stop(child)
-                self.assertEqual(gui.stop_button.cget("state"),"normal")
+                self.assertEqual(str(gui.stop_button.cget("state")),"normal")
                 self.assertIn("Force STOP",gui.stop_button.cget("text"))
                 with mock.patch("tkinter.messagebox.askyesno",return_value=True):
                     gui._stop()
