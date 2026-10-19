@@ -6,6 +6,7 @@ This is NOT audio alignment, AI transcription or validated synchronization.
 from __future__ import annotations
 import re
 from pathlib import Path
+from incremental_library import AUDIO_EXTENSIONS
 
 MAX_TEXT_BYTES=150_000
 MAX_LINES=500
@@ -53,6 +54,12 @@ def draft_lrc(lines,timestamps):
 
 def candidate_output_path(audio_file):
     p=Path(audio_file)
+    if p.suffix.casefold() not in AUDIO_EXTENSIONS:
+        raise ValueError("Unsupported audio format")
+    others=[p.with_suffix(ext) for ext in AUDIO_EXTENSIONS
+            if ext!=p.suffix.casefold() and p.with_suffix(ext).exists()]
+    if others:
+        raise FileExistsError("Several audio files share the same LRC stem; choose unique filenames")
     if p.with_suffix(".lrc").exists():
         raise FileExistsError("Existing .lrc is protected")
     base=p.with_suffix(".candidate.lrc")
@@ -66,11 +73,24 @@ def save_unverified_draft(audio_file,text,lines,times):
     p=Path(audio_file)
     if not p.is_file():raise FileNotFoundError("Audio file is missing")
     expected=draft_lrc(lines,times)
-    if text.strip()!=expected.strip():
-        # The save function accepts the precise user-edited LRC only when
-        # it remains explicitly marked as an unverified candidate.
-        if not text.startswith("[00:00.00] candidate\n"):
-            raise ValueError("Unverified marker must remain at the beginning")
+    # Even edited drafts must preserve the candidate marker and contain
+    # exactly as many valid, strictly increasing timestamped lines.
+    parts=[row.strip() for row in text.splitlines() if row.strip()]
+    if not parts or parts[0]!="[00:00.00] candidate":
+        raise ValueError("Do not remove the unverified candidate marker")
+    if len(parts)!=len(lines)+1:
+        raise ValueError("Candidate draft must contain exactly one timestamp per lyric line")
+    stamps=[]
+    for row in parts[1:]:
+        match=TIMECODE.match(row)
+        if not match or not row[match.end():].strip():
+            raise ValueError("Every lyric line needs a valid timestamp and text")
+        minutes=int(match.group(1));seconds=int(match.group(2))
+        if seconds>59:raise ValueError("Invalid seconds in timestamp")
+        fraction=match.group(3) or "0"
+        stamps.append(minutes*60+seconds+int(fraction)/(10**len(fraction)))
+    if any(second<=first for first,second in zip(stamps,stamps[1:])):
+        raise ValueError("Timestamps must be strictly increasing")
     target=candidate_output_path(p)
     with target.open("x",encoding="utf-8",newline="\n") as stream:
         stream.write(text.rstrip()+"\n")
