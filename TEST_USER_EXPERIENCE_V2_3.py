@@ -181,8 +181,11 @@ class UXV23Tests(unittest.TestCase):
                              "[00:02.00] Existing lyrics")
 
     def test_15_progress_eta_respects_unfinished_and_replayed_tracks(self):
-        times=iter([0,1,2,3,4,5,6])
-        progress=RoundProgress(6,2,clock=lambda:next(times))
+        ticks=[0]
+        def fake_clock():
+            ticks[0]+=1
+            return ticks[0]
+        progress=RoundProgress(6,2,clock=fake_clock)
         self.assertIsNone(progress.status()["remaining"])
         progress.complete(10)
         progress.complete(20)
