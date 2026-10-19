@@ -96,7 +96,7 @@ class StabilityTests(unittest.TestCase):
 
     @staticmethod
     def run_stage(folder,offline,online):
-        answers=iter(["5","n","n","full","n","n","n","a","n"])
+        answers=iter(["5","n","n","full","d","n","n","n","a","n"])
         with mock.patch("builtins.input",side_effect=lambda _:next(answers)), \
              mock.patch.object(app,"select_folder",return_value=folder), \
              mock.patch.object(app,"ensure_local_lrclib_config",return_value=True), \
