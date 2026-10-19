@@ -465,8 +465,14 @@ def load_greek_words():
 
 
 def _capitalize_first_letter(text):
-    """Capitalize a word while preserving leading years, separators and tags."""
-    return re.sub(r'[Α-Ωα-ωάέήίόύώϊϋΐΰ]',lambda m:m.group(0).upper(),text,count=1)
+    """Capitalize only when the FIRST alphabetic character is Greek.
+
+    Keep English-first mixed phrases such as 'Sexy κορίτσια' intact.
+    Years like '2002 νύχτες' still get '2002 Νύχτες'.
+    """
+    first=re.search(r'[A-Za-zΑ-Ωα-ωΆΈΉΊΌΎΏάέήίόύώϊϋΐΰ]',text)
+    if not first or re.fullmatch(r'[A-Za-z]',first.group(0)):return text
+    return text[:first.start()]+first.group(0).upper()+text[first.end():]
 
 
 _PRESERVE_ENGLISH_TITLE_WORDS={'sexy','baby','love','dance','party','summer',
@@ -765,7 +771,7 @@ def precompute_greek_plan(title,artist,manager=None):
     # Αλκινοως, Συνοικίες). Never promote an unverified artist spelling
     # to a search query. Unknown artist names stay in their original Latin
     # script until approved in Greek_Artists.csv or Greek_Aliases.csv.
-    if not artist_alias and manager and safe_to_convert_artist(original_artist):
+    if not artist_alias and manager and original_artist:
         artist_flag='SKIP_UNVERIFIED_ARTIST_G2G'
     if not title_alias and base!=original_title:
         title_alias=base;title_kind='CLEANED_TITLE'
