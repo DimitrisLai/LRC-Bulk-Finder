@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.1.17 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.1.18 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -79,17 +79,17 @@ Already have a large `.sqlite3` snapshot installed?
 
 A large LRCLIB database is **never bundled** inside this GitHub repository or its Windows ZIP. Official snapshots can use **hundreds of GiB of disk space**; confirm disk capacity before installing one.
 
-### Greeklish accuracy in v2.1.17 - dictionary first, AI second
+### Greeklish accuracy in v2.1.18 - expanded dictionary + local SQLite
 
 The app uses **three levels of confidence**, in this order:
 
 1. **Manual aliases** in `Greek_Aliases.csv` - reviewed full-title/artist spellings you explicitly provided.
-2. **Curated accented word dictionary** in `Greek_Words.csv` - used only when the entire base title is recognized, before AI. Examples: `Fonazo → Φωνάζω`, `Den Ise Erotas Esi → Δεν είσαι έρωτας εσύ`, `Esy Horeveis Kai Ego Pethaino → Εσύ χορεύεις και εγώ πεθαίνω`.
+2. **Curated accented word dictionaries** in `Greek_Words_Expanded.csv` (public additions) and `Greek_Words.csv` (editable overrides), optionally indexed into the small `Greek_Lexicon.sqlite3` - used only when the entire base title is recognized, before AI. Examples: `Fonazo → Φωνάζω`, `Den Ise Erotas Esi → Δεν είσαι έρωτας εσύ`, `Esy Horeveis Kai Ego Pethaino → Εσύ χορεύεις και εγώ πεθαίνω`.
 3. **Optional installed local AUEB G2G AI** - only for otherwise unresolved plausible Greeklish, marked as an AI suggestion needing review. Known words in aligned model output can be corrected from the dictionary, including older cached predictions.
 
 **English protection:** Titles such as `Best of Times` will not be phonetically transliterated to fake Greek. Artist brands such as `2002 GR` and mixed international artist credits are left alone unless you supply a manual alias.
 
-**Important:** Greeklish-to-Greek is inherently ambiguous; the small curated dictionary cannot resolve thousands of unknown songs perfectly. No AI output is evidence of the correct recording/remix. Original title+artist searches always run first, and strict version/duration checks still control automatic `.lrc` saving.
+**Important:** Greeklish-to-Greek is inherently ambiguous; the expanded curated dictionary cannot resolve every unknown title perfectly. No AI output is evidence of the correct recording/remix. Original title+artist searches always run first, and strict version/duration checks still control automatic `.lrc` saving.
 
 The CSV `LRC_G2G_AI_Review_v2_1_15.csv` includes the original text, Greek alternatives, origin, AI output, and review flags. (This historical filename is retained for compatibility.) Copy any personal edits to `Greek_Aliases.csv` when installing into a new program directory; do not replace them with the empty example file.
 
@@ -100,6 +100,17 @@ type,greeklish,greek
 title,Den Ise Erotas Esi,Δεν είσαι έρωτας εσύ
 title,Fonazo,Φωνάζω
 ```
+
+#### Public Greek vocabulary database (new in v2.1.18)
+
+- **950 additional common Greeklish spellings** were curated from recurring words in a large Greek music example list, without distributing its private full-song filenames or Windows directory paths.
+- The public SQLite file **`Greek_Lexicon.sqlite3`** is generated from both CSV sources and contains just word mappings (roughly 1,000 distinct entries). It is tiny, local, read-only and entirely separate from the gigantic LRCLIB lyrics SQLite database.
+- `Greek_Words.csv` remains the highest-priority **per-word customization**. `Greek_Aliases.csv` remains the highest-priority **full-title and artist customization**.
+- To rebuild the small database after editing a CSV: `python BUILD_GREEK_LEXICON_DB.py`. If it is missing, corrupted, or older than the CSV files, the app falls back to those CSV files automatically.
+- Known dictionary words can also correct *aligned tokens* in the optional AI suggestion when the complete title includes unfamiliar Greeklish. This still does not prove song identity.
+- No MP3/ID3, existing LRC files, or artist names are renamed or rewritten. Your separate private alias list should be reviewed before importing.
+
+**Why not automatically trust every phrase?** Words such as `pote` (ποτέ / πότε), `ton` (τον / των), `i` (η / ή / οι) and `kaneis` (κάνεις / κανείς) need context. Google can use contextual search and indexed song titles; a standalone word-to-word database cannot always infer them. Use a reviewed full-title alias for these cases.
 
 Option 2's verified-working `[00:00.00] candidate` marker and numbered candidate rotation are **unchanged**.
 
