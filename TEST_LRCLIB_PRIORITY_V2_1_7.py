@@ -9,6 +9,7 @@ class RecoveryTests(unittest.TestCase):
         app.blocked.clear();app.errors.clear();app.next_available.clear()
         app.LRCLIB_503_STREAK=0;app.LRCLIB_503_RETRY_AT=0.0
         app.HISTORY_ENABLED=False;app.MB_ENABLED=False;app.ACTIVE_PROVIDERS=None
+        app.COMPLETE_FIRST_PASS=False
     def test_provider_first_in_all_modes(self):
         self.assertEqual(app.PROVIDERS[0], 'LRCLIB')
         self.assertEqual(app.FAST_PROVIDERS[0], 'LRCLIB')
