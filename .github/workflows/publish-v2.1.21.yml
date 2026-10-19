@@ -164,11 +164,56 @@ jobs:
           assert Path(greek_font).is_file() and Path(greek_bold).is_file()
           pdfmetrics.registerFont(TTFont('DejaVu',greek_font))
           pdfmetrics.registerFont(TTFont('DejaVu-Bold',greek_bold))
+          # v2.1.21 stability, accuracy and resume guide.
+          c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
+          c.setFillColor(navy);c.rect(0,height-149,width,149,stroke=0,fill=1)
+          c.setFillColor(teal);c.setFont('Helvetica-Bold',11)
+          c.drawString(46,height-47,'v2.1.21    /    STABILITY AND ACCURACY')
+          c.setFillColor(HexColor('#FFFFFF'));c.setFont('Helvetica-Bold',24)
+          c.drawString(46,height-95,'Accurate matching. Safe resuming.')
+          y=height-173
+          y=para('This update improves <b>Greek title and artist coverage</b> in '
+                 'your existing offline LRCLIB SQLite, preserves previous '
+                 'review candidates and adds a <b>per-song restart checkpoint</b> '
+                 'for search Options 1 and 5. Your MP3s remain untouched.',
+                 46,y,502,10.5,16)-29
+          steps=[
+            ('01','MORE GREEK OFFLINE COMBINATIONS','Up to six distinct title/artist'
+             ' search pairs, including approved Greek title plus approved Greek artist.'),
+            ('02','KEEP PREVIOUS CANDIDATES','A later provider NO_MATCH or timeout-only'
+             ' retry cannot erase an earlier saved candidate and review status.'),
+            ('03','PER-SONG RESUME CHECKPOINT','After each completed song and stage,'
+             ' a JSONL entry is saved. Restart with the SAME settings to reuse work.'),
+            ('04','INVALIDATE STALE ENTRIES','Changed song size/time, search options,'
+             ' dictionaries or downloaded LRCLIB snapshot invalidate old work.'),
+          ]
+          for number,title,desc in steps:
+              c.setFillColor(cloud);c.roundRect(46,y-76,503,80,9,stroke=0,fill=1)
+              c.setFillColor(teal);c.circle(70,y-17,16,stroke=0,fill=1)
+              c.setFillColor(navy);c.setFont('Helvetica-Bold',11)
+              c.drawCentredString(70,y-21,number)
+              c.setFillColor(navy);c.setFont('Helvetica-Bold',11)
+              c.drawString(101,y-15,title)
+              para(desc,101,y-23,431,9.1,14)
+              y-=93
+          y-=4
+          c.setFillColor(pale);c.roundRect(46,y-78,503,84,9,stroke=0,fill=1)
+          para('<b>CHECKPOINT FILE</b><br/>'
+               'LRC_Run_Checkpoint_v2_1_21.jsonl<br/>'
+               'In your chosen music folder. To restart completely fresh,'
+               ' rename or move this file BEFORE the scan.'
+               ' Do not run two copies in the same folder.',
+               61,y-5,472,9.4,16)
+          c.setFillColor(subtle);c.setFont('Helvetica',8.5)
+          c.drawString(46,49,'Option 4 stays offline-only; Option 2 candidate promotion stays unchanged.')
+          c.drawString(46,34,'All settings: HOW_TO_START_V2_1_21.txt | Test audit: TEST_AUDIT_V2_1_21.md')
+          c.showPage()
+
           # v2.1.21 full-folder offline-first guide with every prompt in order.
           c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
           c.setFillColor(navy);c.rect(0,height-144,width,144,stroke=0,fill=1)
           c.setFillColor(teal);c.setFont('Helvetica-Bold',11)
-          c.drawString(46,height-49,'NEW IN v2.1.21    /    THREE-STAGE WORKFLOW')
+          c.drawString(46,height-49,'INTRODUCED IN v2.1.20    /    THREE-STAGE WORKFLOW')
           c.setFillColor(HexColor('#FFFFFF'));c.setFont('Helvetica-Bold',25)
           c.drawString(46,height-94,'Offline first. Every song.')
           y=height-171
@@ -407,28 +452,30 @@ jobs:
           writer=PdfWriter()
           for page in PdfReader(buf).pages:writer.add_page(page)
           for page in old.pages:writer.add_page(page)
-          assert len(writer.pages)==23
+          assert len(writer.pages)==24
           writer.add_metadata({
               '/Title':'LRC Bulk Finder v2.1.21 - Complete User Manual',
               '/Author':'Dimitris L.',
               '/Subject':'Complete Greek offline search; persistent review and safe resume'
           })
           writer.add_outline_item('v2.1.21 cover',0)
-          writer.add_outline_item('Option 5 offline-first',1)
-          writer.add_outline_item('Greek artist corrections',2)
-          writer.add_outline_item('Greeklish word spelling',3)
-          writer.add_outline_item('Greek lexicon and SQLite',4)
-          writer.add_outline_item('Option 2 marked candidate promotion',5)
-          writer.add_outline_item('Core application reference (v2.1.15)',6)
+          writer.add_outline_item('v2.1.21 stability and safe resume',1)
+          writer.add_outline_item('Option 5 offline-first',2)
+          writer.add_outline_item('Greek artist corrections',3)
+          writer.add_outline_item('Greeklish word spelling',4)
+          writer.add_outline_item('Greek lexicon and SQLite',5)
+          writer.add_outline_item('Option 2 marked candidate promotion',6)
+          writer.add_outline_item('Core application reference (v2.1.15)',7)
           with pdf_path.open('wb') as dest:writer.write(dest)
           checked=PdfReader(str(pdf_path))
-          assert len(checked.pages)==23
-          assert 'THREE-STAGE WORKFLOW' in (checked.pages[1].extract_text() or '')
-          assert 'Γιώργος Αλκαίος' in (checked.pages[2].extract_text() or '')
-          assert 'Φωνάζω' in (checked.pages[3].extract_text() or '')
-          assert 'Greek_Lexicon.sqlite3' in (checked.pages[4].extract_text() or '')
-          assert '[00:00.00] candidate' in (checked.pages[5].extract_text() or '')
-          print('PASS PDF: 23 pages; full Option5 settings, verified artists, Greek lexicon, Option2')
+          assert len(checked.pages)==24
+          assert 'STABILITY AND ACCURACY' in (checked.pages[1].extract_text() or '')
+          assert 'THREE-STAGE WORKFLOW' in (checked.pages[2].extract_text() or '')
+          assert 'Γιώργος Αλκαίος' in (checked.pages[3].extract_text() or '')
+          assert 'Φωνάζω' in (checked.pages[4].extract_text() or '')
+          assert 'Greek_Lexicon.sqlite3' in (checked.pages[5].extract_text() or '')
+          assert '[00:00.00] candidate' in (checked.pages[6].extract_text() or '')
+          print('PASS PDF: 24 pages; full Option5 settings, safe checkpointing, Greek fixes, Option2')
           for path in (zip_path,pdf_path):
               print('SHA256',path.name,sha256(path.read_bytes()).hexdigest())
           PY
