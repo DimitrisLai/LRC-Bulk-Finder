@@ -9,6 +9,7 @@ from lrclib_local import LocalLRCLIB, load_local_config
 from search_checkpoint import SearchCheckpoint, checkpoint_signature
 from search_performance import MusicBrainzDiskCache, ProviderPerformance, choose_provider_order
 from progress_eta import RoundProgress
+from runtime_paths import program_folder
 import hashlib
 import sqlite3
 import shutil
@@ -426,7 +427,7 @@ def load_greek_words():
     Neither this database nor the CSV sources contain music library paths.
     """
     from contextlib import closing
-    root=Path(__file__).resolve().parent
+    root=program_folder()
     db_path=root/'Greek_Lexicon.sqlite3'
     fingerprints={}
     for name in ('Greek_Words_Expanded.csv','Greek_Words.csv'):
@@ -1944,14 +1945,14 @@ def run_lrclib_catchup(folder):
         else:
             print('No LRCLIB catch-up queue yet. Run SEARCH first to create it.')
             return
-    configure_local_lrclib(Path(__file__).resolve().parent)
+    configure_local_lrclib(program_folder())
     global LRCLIB_ONLINE_FALLBACK
     if LOCAL_LRCLIB is not None:
         LRCLIB_ONLINE_FALLBACK=(input('After OFFLINE misses, contact the online LRCLIB API? [y/N]: ').strip().lower()=='y')
         print('LRCLIB catch-up mode:', 'LOCAL + ONLINE' if LRCLIB_ONLINE_FALLBACK else 'OFFLINE ONLY (no HTTP)',flush=True)
     else:
         LRCLIB_ONLINE_FALLBACK=True
-    if LRCLIB_ONLINE_FALLBACK and not configure_lrclib_contact(Path(__file__).resolve().parent):return
+    if LRCLIB_ONLINE_FALLBACK and not configure_lrclib_contact(program_folder()):return
     if LRCLIB_ONLINE_FALLBACK:
         load_provider_cooldowns(folder/'LRC_Provider_Cooldowns.json')
     if LRCLIB_ONLINE_FALLBACK and 'LRCLIB' in blocked:
@@ -2238,7 +2239,7 @@ def main():
         run_lrclib_catchup(folder)
         return
     if action=='4':
-        if not ensure_local_lrclib_config(Path(__file__).resolve().parent):
+        if not ensure_local_lrclib_config(program_folder()):
             return
         run_offline_lrclib_folder(folder)
         return
@@ -2248,14 +2249,14 @@ def main():
         return
     staged_mode=action=='5'
     if staged_mode:
-        if not ensure_local_lrclib_config(Path(__file__).resolve().parent):
+        if not ensure_local_lrclib_config(program_folder()):
             print('Offline-first requires the downloaded LRCLIB SQLite file. No online-only fallback.')
             return
         print('STAGED SEARCH: 1/3 offline for all; 2/3 online for misses; 3/3 timeouts only.')
     else:
-        configure_local_lrclib(Path(__file__).resolve().parent)
+        configure_local_lrclib(program_folder())
     load_provider_cooldowns(folder/'LRC_Provider_Cooldowns.json')
-    configure_lrclib_contact(Path(__file__).resolve().parent)
+    configure_lrclib_contact(program_folder())
     global MB_ENABLED,GREEK_MODE,ACTIVE_PROVIDERS,G2G_ENABLED,G2G_TOOL,HISTORY_ENABLED,COMPLETE_FIRST_PASS,MB_DISK_CACHE
     GREEK_MODE=input('Greeklish / Greek folder? [y/N]: ').strip().lower()=='y'
     G2G_ENABLED=GREEK_MODE and input('Use your installed LOCAL G2G AI model? [y/N]: ').strip().lower()=='y'
@@ -2392,7 +2393,7 @@ def main():
     lrclib_attempt_log=[]
     # Resume safely only if settings, dictionaries, local DB and MP3 timestamps
     # still match the prior run. A truncated JSONL tail is safely ignored.
-    config_dir=Path(__file__).resolve().parent
+    config_dir=program_folder()
     checkpoint_config=checkpoint_signature(VERSION,{
         'mode':'staged' if staged_mode else 'normal',
         'greek':GREEK_MODE,'local_ai':G2G_ENABLED,'musicbrainz':MB_ENABLED,
