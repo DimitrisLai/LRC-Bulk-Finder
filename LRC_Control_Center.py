@@ -13,6 +13,8 @@ import time
 import webbrowser
 import sys
 import threading
+import tempfile
+import shutil
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog,messagebox,scrolledtext,ttk
@@ -30,11 +32,13 @@ from runtime_paths import program_folder
 class ControlCenter(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LRC Bulk Finder v2.4 — Control Center")
+        self.title("LRC Bulk Finder v2.4.1 — Control Center")
         self.geometry("1140x910")
         self.minsize(970,770)
         self.process=None
         self.reader=None
+        self.stop_directory=None
+        self.stop_path=None
         self.messages=queue.Queue()
         self.review_rows={}
         self.loaded_profiles={}
@@ -190,6 +194,25 @@ class ControlCenter(tk.Tk):
         self.bar=ttk.Progressbar(self.run_tab,maximum=100,length=500)
         self.bar.pack(fill="x",pady=10)
         ttk.Label(self.run_tab,textvariable=self.progress_text).pack(anchor="w",pady=(0,12))
+        counters=ttk.LabelFrame(self.run_tab,text="This stage / All stages",padding=10)
+        counters.pack(fill="x",pady=(0,12))
+        self.counter_vars={}
+        for index,(key,label) in enumerate((
+            ("found","LRC found (stage)"),
+            ("candidate","Candidates (stage)"),
+            ("not_found","Not found (stage)"),
+            ("total_found","LRC found (ALL stages)"),
+            ("total_candidate","Candidates (ALL stages)"))):
+            widget=ttk.Frame(counters)
+            widget.grid(row=0,column=index,sticky="ew",padx=7)
+            counters.grid_columnconfigure(index,weight=1)
+            value=tk.StringVar(value="0")
+            self.counter_vars[key]=value
+            ttk.Label(widget,textvariable=value,font=("Segoe UI",20,"bold")).pack()
+            ttk.Label(widget,text=label,wraplength=145,justify="center").pack()
+        ttk.Label(self.run_tab,text="Stage numbers reset to 0 at each round; ALL-stages totals remain. "
+                  "Timed-out/errored requests are not falsely counted as confirmed 'not found'.",
+                  style="Hint.TLabel").pack(anchor="w",pady=(0,8))
         controls=ttk.Frame(self.run_tab)
         controls.pack(fill="x")
         self.stop_button=ttk.Button(controls,text="Stop / save finished checkpoints",state="disabled",command=self._stop)
@@ -372,15 +395,22 @@ class ControlCenter(tk.Tk):
             cmd=[sys.executable,"-u",str(Path(__file__).with_name("run_saved_profile.py")),
                  "--profile",self.name.get()]
         try:
+            self._cleanup_stop_marker()
+            self.stop_directory=Path(tempfile.mkdtemp(prefix="LRC_Stop_"))
+            self.stop_path=self.stop_directory/"stop.request"
+            environment=dict(os.environ)
+            environment["LRC_STOP_FILE"]=str(self.stop_path)
             creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if os.name=="nt" else 0)
             self.process=subprocess.Popen(cmd,stdout=subprocess.PIPE,
                stderr=subprocess.STDOUT,stdin=subprocess.DEVNULL,
                encoding="utf-8",errors="replace",bufsize=1,
-               cwd=str(Path(__file__).resolve().parent),creationflags=creationflags)
+               cwd=str(program_folder()),creationflags=creationflags,env=environment)
         except OSError as error:
+            self._cleanup_stop_marker()
             messagebox.showerror("Cannot start search",str(error))
             return
         self._clear_log()
+        for value in self.counter_vars.values():value.set("0")
         self.notebook.select(self.run_tab)
         self.stop_button.configure(state="normal")
         self.phase.set("Starting "+self.name.get()+"...")
@@ -407,6 +437,7 @@ class ControlCenter(tk.Tk):
                     self.phase.set(f"Search finished. Exit code: {data}")
                     self.stop_button.configure(state="disabled")
                     self.process=None
+                    self._cleanup_stop_marker()
                     self._refresh_review()
                 elif kind=="error":
                     self._line("Control Center reader error: "+data)
@@ -414,6 +445,16 @@ class ControlCenter(tk.Tk):
         self.after(110,self._poll)
 
     def _line(self,line):
+        status=re.fullmatch(
+            r"STAGE COUNTERS: stage=(\\w+) found=(\\d+) candidate=(\\d+) "
+            r"not_found=(\\d+) total_found=(\\d+) total_candidate=(\\d+)",
+            line.strip())
+        if status:
+            stage,found,candidate,not_found,total_found,total_candidate=status.groups()
+            for key,number in (
+                ("found",found),("candidate",candidate),("not_found",not_found),
+                ("total_found",total_found),("total_candidate",total_candidate)):
+                self.counter_vars[key].set(number)
         self.log.configure(state="normal")
         self.log.insert("end",line+"\n")
         # Bound memory for multi-day searches.
@@ -440,13 +481,24 @@ class ControlCenter(tk.Tk):
             "The current in-flight request may be repeated when resuming."):
             return
         try:
-            if os.name=="nt":
-                process.send_signal(signal.CTRL_BREAK_EVENT)
-            else:
-                process.send_signal(signal.SIGINT)
-            self.phase.set("Stopping; requesting safe checkpoint/report finalization...")
-        except (OSError,ValueError):
-            self.phase.set("Stop request could not be delivered; see log")
+            # A windowed standalone EXE may have no console, so Ctrl+Break
+            # often does absolutely nothing. File-based IPC works on both.
+            if self.stop_path is None:
+                raise OSError("No stop channel was created for this search")
+            self.stop_path.write_text("STOP\\n",encoding="utf-8")
+            self.stop_button.configure(state="disabled")
+            self.phase.set("STOP REQUESTED — finishing current bounded request and saving checkpoints...")
+            self._line("STOP REQUESTED: the worker will preserve completed search results.")
+        except OSError as error:
+            messagebox.showerror("Stop request failed",str(error))
+
+    def _cleanup_stop_marker(self):
+        directory=self.stop_directory
+        self.stop_directory=None
+        self.stop_path=None
+        if directory:
+            try:shutil.rmtree(directory)
+            except OSError:pass
 
     def _clear_log(self):
         self.log.configure(state="normal")
