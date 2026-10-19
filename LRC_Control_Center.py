@@ -39,6 +39,7 @@ class ControlCenter(tk.Tk):
         self.reader=None
         self.stop_directory=None
         self.stop_path=None
+        self.stop_requested=False
         self.messages=queue.Queue()
         self.review_rows={}
         self.loaded_profiles={}
@@ -215,7 +216,7 @@ class ControlCenter(tk.Tk):
                   style="Hint.TLabel").pack(anchor="w",pady=(0,8))
         controls=ttk.Frame(self.run_tab)
         controls.pack(fill="x")
-        self.stop_button=ttk.Button(controls,text="Stop / save finished checkpoints",state="disabled",command=self._stop)
+        self.stop_button=ttk.Button(controls,text="Stop search safely",state="disabled",command=self._stop)
         self.stop_button.pack(side="left")
         ttk.Button(controls,text="Clear displayed log",command=self._clear_log).pack(side="left",padx=10)
         self.log=scrolledtext.ScrolledText(self.run_tab,wrap="word",height=24,font=("Consolas",9))
@@ -410,6 +411,8 @@ class ControlCenter(tk.Tk):
             messagebox.showerror("Cannot start search",str(error))
             return
         self._clear_log()
+        self.stop_requested=False
+        self.stop_button.configure(text="Stop search safely")
         for value in self.counter_vars.values():value.set("0")
         self.notebook.select(self.run_tab)
         self.stop_button.configure(state="normal")
@@ -434,7 +437,9 @@ class ControlCenter(tk.Tk):
                 kind,data=self.messages.get_nowait()
                 if kind=="line":self._line(data)
                 elif kind=="ended":
-                    self.phase.set(f"Search finished. Exit code: {data}")
+                    self.phase.set(("Stopped by user; completed checkpoints preserved"
+                                    if self.stop_requested else
+                                    f"Search finished. Exit code: {data}"))
                     self.stop_button.configure(state="disabled")
                     self.process=None
                     self._cleanup_stop_marker()
@@ -476,21 +481,39 @@ class ControlCenter(tk.Tk):
     def _stop(self):
         process=self.process
         if process is None or process.poll() is not None:return
+        if self.stop_requested:
+            if not messagebox.askyesno("FORCE stop?",
+                "The worker has not exited yet. Force stop now?\n\n"
+                "Only completed checkpoints survive. The current track and "
+                "final report might not be saved. Resuming will retry that work."):
+                return
+            try:
+                process.kill()
+                self.phase.set("Force-stop requested — waiting for process exit...")
+            except OSError as error:
+                messagebox.showerror("Force stop failed",str(error))
+            return
         if not messagebox.askyesno("Stop current search",
-            "Stop the search? Completed tracks have durable checkpoints.\n"
-            "The current in-flight request may be repeated when resuming."):
+            "Ask the worker to stop gracefully after the current bounded request?\n"
+            "Completed songs and reports will be preserved."):
             return
         try:
-            # A windowed standalone EXE may have no console, so Ctrl+Break
-            # often does absolutely nothing. File-based IPC works on both.
+            # File-based IPC works in windowed frozen EXEs without a console.
             if self.stop_path is None:
                 raise OSError("No stop channel was created for this search")
             self.stop_path.write_text("STOP\n",encoding="utf-8")
-            self.stop_button.configure(state="disabled")
-            self.phase.set("STOP REQUESTED — finishing current bounded request and saving checkpoints...")
-            self._line("STOP REQUESTED: the worker will preserve completed search results.")
+            self.stop_requested=True
+            self.stop_button.configure(state="disabled",text="Waiting for safe stop...")
+            self.phase.set("STOP REQUESTED — completing bounded request and saving checkpoints...")
+            self._line("STOP REQUESTED: worker will finish the current request safely.")
+            self.after(8000,lambda:self._enable_force_stop(process))
         except OSError as error:
             messagebox.showerror("Stop request failed",str(error))
+
+    def _enable_force_stop(self,process):
+        if self.process is process and process.poll() is None and self.stop_requested:
+            self.stop_button.configure(state="normal",text="Force STOP (last resort)")
+            self._line("Worker still running: use Force STOP only if it cannot finish safely.")
 
     def _cleanup_stop_marker(self):
         directory=self.stop_directory
