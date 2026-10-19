@@ -7,6 +7,7 @@ from __future__ import annotations
 from contextlib import closing
 from pathlib import Path
 import sqlite3
+from stop_control import check_stop
 
 AUDIO_EXTENSIONS=frozenset({".mp3",".flac",".m4a",".mp4",".ogg",".opus",".wav"})
 
@@ -46,6 +47,7 @@ class IncrementalLibrary:
     def inventory(self,paths):
         self._inventoried=set()
         for p in paths:
+            check_stop()
             path=Path(p)
             try:stat=path.stat()
             except OSError:continue
