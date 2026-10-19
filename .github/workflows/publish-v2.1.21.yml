@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "PUBLISH_PAUSED_UNTIL_INSPECTED"
+      - ".github/workflows/publish-v2.1.21.yml"
   workflow_dispatch:
 
 permissions:
