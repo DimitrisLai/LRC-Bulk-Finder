@@ -29,7 +29,9 @@ class WindowsGuiV24Tests(unittest.TestCase):
                     self.assertTrue(gui.boolvars["incremental"].get())
                     self.assertEqual(gui.limit.get(),"a")
                     self.assertEqual(gui.action.get(),"5")
-                    self.assertTrue(gui._save())
+                    with mock.patch("tkinter.messagebox.showerror") as error_dialog:
+                        self.assertTrue(gui._save())
+                        error_dialog.assert_not_called()
                     gui._refresh_profiles()
                     self.assertIn("Greek Night Search — Maximum Coverage",gui.loaded_profiles)
                     gui.preset_name.set("Greek OFFLINE ONLY")
