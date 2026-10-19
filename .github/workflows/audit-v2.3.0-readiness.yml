@@ -7,6 +7,7 @@ on:
       - '.github/workflows/audit-v2.3.0-readiness.yml'
       - 'AUDIT_V230_RELEASE.py'
       - 'AUDIT_V230_WINDOWS.py'
+      - 'AUDIT_V230_STRESS.py'
   workflow_dispatch:
 
 permissions:
@@ -95,6 +96,10 @@ jobs:
       - name: Independent end-to-end and safety tests against published archive
         shell: bash
         run: python AUDIT_V230_RELEASE.py -v
+      - name: Stress 3353 MP3s and no-repeat resume
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        shell: bash
+        run: python AUDIT_V230_STRESS.py -v
 
   standalone-windows:
     name: Published standalone Windows GUI, worker and live widgets
