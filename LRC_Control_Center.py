@@ -250,10 +250,21 @@ class ControlCenter(tk.Tk):
                     creationflags=subprocess.CREATE_NEW_CONSOLE)
             except OSError as error:
                 messagebox.showerror("Setup launcher",str(error))
+        elif sys.platform=="win32" and getattr(sys,"frozen",False) and script=="SETUP_LRCLIB_DATABASE.cmd":
+            if not messagebox.askyesno("Download LRCLIB SQLite",
+                "Open the official LRCLIB downloader in a separate console? "
+                "You will choose the destination and confirm before large downloads."):
+                return
+            worker=program_folder()/"LRC_Bulk_Finder_Worker.exe"
+            if not worker.is_file():
+                messagebox.showerror("Missing worker","Cannot find LRC_Bulk_Finder_Worker.exe")
+                return
+            subprocess.Popen([str(worker),"--setup-lrclib"],cwd=str(program_folder()),
+                             creationflags=subprocess.CREATE_NEW_CONSOLE)
         else:
             if messagebox.askyesno("Python package required",
-                "The setup CMD scripts are included in the complete Python Windows ZIP, "
-                "not the standalone EXE. Open the official release page to download it?"):
+                "The optional local Greek AI requires Python and its external model. "
+                "Open the official GitHub releases to obtain the complete setup ZIP?"):
                 webbrowser.open("https://github.com/DimitrisLai/LRC-Bulk-Finder/releases")
 
     def _browse_music(self):
