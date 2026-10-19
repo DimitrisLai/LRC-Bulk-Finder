@@ -52,16 +52,16 @@ class StagedPipelineTests(unittest.TestCase):
             answers=iter(['5','n','n','full','n','n','n','a','y'])
             def answer(_prompt=''):
                 return next(answers)
-            with mock.patch('builtins.input',side_effect=answer),\\
-                 mock.patch.object(app,'select_folder',return_value=folder),\\
-                 mock.patch.object(app,'ensure_local_lrclib_config',return_value=True),\\
-                 mock.patch.object(app,'load_provider_cooldowns'),\\
-                 mock.patch.object(app,'configure_lrclib_contact',return_value=True),\\
-                 mock.patch.object(app,'show_provider_availability'),\\
-                 mock.patch.object(app,'song_info',side_effect=original),\\
-                 mock.patch.object(app,'local_lrclib_search',side_effect=fake_offline),\\
-                 mock.patch.object(app,'search_song',side_effect=fake_online),\\
-                 mock.patch.object(app,'save_hit',side_effect=save),\\
+            with mock.patch('builtins.input',side_effect=answer),\
+                 mock.patch.object(app,'select_folder',return_value=folder),\
+                 mock.patch.object(app,'ensure_local_lrclib_config',return_value=True),\
+                 mock.patch.object(app,'load_provider_cooldowns'),\
+                 mock.patch.object(app,'configure_lrclib_contact',return_value=True),\
+                 mock.patch.object(app,'show_provider_availability'),\
+                 mock.patch.object(app,'song_info',side_effect=original),\
+                 mock.patch.object(app,'local_lrclib_search',side_effect=fake_offline),\
+                 mock.patch.object(app,'search_song',side_effect=fake_online),\
+                 mock.patch.object(app,'save_hit',side_effect=save),\
                  redirect_stdout(io.StringIO()):
                  app.main()
             self.assertEqual(events[:3],[('offline','A'),('offline','B'),('offline','C')])
@@ -77,17 +77,17 @@ class StagedPipelineTests(unittest.TestCase):
 
     def test_missing_database_never_falls_back_to_online(self):
         with tempfile.TemporaryDirectory() as tmp:
-            with mock.patch('builtins.input',return_value='5'),\\
-                 mock.patch.object(app,'select_folder',return_value=Path(tmp)),\\
-                 mock.patch.object(app,'ensure_local_lrclib_config',return_value=False),\\
-                 mock.patch.object(app,'search_song',side_effect=AssertionError('NO NETWORK')),\\
+            with mock.patch('builtins.input',return_value='5'),\
+                 mock.patch.object(app,'select_folder',return_value=Path(tmp)),\
+                 mock.patch.object(app,'ensure_local_lrclib_config',return_value=False),\
+                 mock.patch.object(app,'search_song',side_effect=AssertionError('NO NETWORK')),\
                  redirect_stdout(io.StringIO()):
                  app.main()
             self.assertFalse(app.STAGED_ONLINE_MODE)
 
     def test_original_online_lrclib_local_lookup_disabled_only_during_stage(self):
-        with mock.patch.object(app,'LOCAL_LRCLIB',object()),\\
-             mock.patch.object(app,'local_lrclib_search',side_effect=AssertionError('LOCAL REPEATED')),\\
+        with mock.patch.object(app,'LOCAL_LRCLIB',object()),\
+             mock.patch.object(app,'local_lrclib_search',side_effect=AssertionError('LOCAL REPEATED')),\
              mock.patch.object(app,'direct_json',return_value=[]) as http:
             app.STAGED_ONLINE_MODE=True
             app.GREEK_MODE=False
@@ -97,10 +97,10 @@ class StagedPipelineTests(unittest.TestCase):
 
     def test_option4_still_available(self):
         with tempfile.TemporaryDirectory() as tmp:
-            with mock.patch('builtins.input',return_value='4'),\\
-                 mock.patch.object(app,'select_folder',return_value=Path(tmp)),\\
-                 mock.patch.object(app,'ensure_local_lrclib_config',return_value=True),\\
-                 mock.patch.object(app,'run_offline_lrclib_folder') as func,\\
+            with mock.patch('builtins.input',return_value='4'),\
+                 mock.patch.object(app,'select_folder',return_value=Path(tmp)),\
+                 mock.patch.object(app,'ensure_local_lrclib_config',return_value=True),\
+                 mock.patch.object(app,'run_offline_lrclib_folder') as func,\
                  redirect_stdout(io.StringIO()):
                 app.main()
             func.assert_called_once()
