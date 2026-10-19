@@ -1,0 +1,305 @@
+name: Publish LRC Bulk Finder v2.1.17 Public Beta
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-v2.1.17.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-v2.1.17
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'DimitrisLai/LRC-Bulk-Finder'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out versioned source
+        uses: actions/checkout@v4
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install test and manual dependencies
+        run: python -m pip install --disable-pip-version-check mutagen Unidecode reportlab pypdf
+      - name: Run regression tests before publishing
+        run: python -m unittest -v TEST_OFFLINE_FOLDER_V2_1_15 TEST_CONNECT_EXISTING_DB_V2_1_15 TEST_PACKAGE_OFFLINE TEST_SAFETY_V2_1_4 TEST_CANDIDATE_PROMOTION_V2_1_16 TEST_CANDIDATE_SIDECARS_V2_1_8 TEST_GREEK_TITLE_QUALITY_V2_1_17
+      - name: Build checked Windows ZIP and updated PDF manual
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          python - <<'PY'
+          from io import BytesIO
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          from hashlib import sha256
+          import subprocess
+          from reportlab.pdfgen import canvas
+          from reportlab.lib.colors import HexColor
+          from reportlab.lib.pagesizes import A4
+          from reportlab.lib.styles import ParagraphStyle
+          from reportlab.platypus import Paragraph
+          from pypdf import PdfReader, PdfWriter
+
+          version='2.1.17'
+          prefix='LRC_Bulk_Finder_v2_1_17/'
+          out=Path('dist')
+          zip_path=out/'LRC_Bulk_Finder_Public_v2_1_17_GitHub_Release_Windows.zip'
+          pdf_path=out/'LRC_Bulk_Finder_v2_1_17_Complete_User_Manual_EN.pdf'
+
+          paths=subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          excluded=('downloads/','docs/', '.github/workflows/publish-v2.1.17.yml')
+          files=[Path(x) for x in paths if x and Path(x).is_file() and
+                 not x.startswith(excluded) and not x.lower().endswith(('.zip','.pdf'))]
+          with ZipFile(zip_path,'w',ZIP_DEFLATED,compresslevel=8) as z:
+              for path in sorted(files):
+                  z.write(path,prefix+path.as_posix())
+          with ZipFile(zip_path) as z:
+              assert z.testzip() is None
+              members=set(z.namelist())
+              assert len(members)==len(z.namelist())
+              launchers=['START_HERE.cmd','CONNECT_EXISTING_LRCLIB_DATABASE.cmd',
+                         'SETUP_LRCLIB_DATABASE.cmd','SETUP_LRCLIB_DATABASE_FROM_FILE.cmd',
+                         'CLEANUP_LRCLIB_DATABASE.cmd','SETUP_GREEK_AI.cmd',
+                         'Run_Diagnostics.cmd','Run_LRC_Finder.cmd','Start_LRC_Finder.bat']
+              required=launchers+['LICENSE','README.md','LRC_Bulk_Finder.py',
+                  'TEST_CANDIDATE_PROMOTION_V2_1_16.py',
+                  'TEST_CANDIDATE_SIDECARS_V2_1_8.py','TEST_GREEK_TITLE_QUALITY_V2_1_17.py',
+                  'Greek_Words.csv','g2g_integration.py','CONTRIBUTING.md','SECURITY.md',
+                  'HOW_TO_START_V2_1_16.txt','RELEASE_NOTES_V2_1_16.md']
+              assert all(prefix+p in members for p in required)
+              source=z.read(prefix+'LRC_Bulk_Finder.py')
+              assert b"VERSION = '2.1.17'" in source
+              assert b'[00:00.00] candidate' in source
+              assert b'def _shift_promotion_alternatives' in source
+              assert b'patch_known_greek_words' in source
+              assert b'def safe_to_convert_artist' in source
+              assert 'Copyright (c) 2026 Dimitris L.' in z.read(prefix+'LICENSE').decode()
+              assert not any('lrclib-db-dump-' in m or 'LRCLIB_LOCAL_DB.txt' in m
+                             for m in members)
+              print('PASS ZIP: version 2.1.17; Greeklexicon, marker, license and launchers')
+
+          navy=HexColor('#10223E'); teal=HexColor('#19BFCA')
+          dark=HexColor('#25364B'); subtle=HexColor('#57677C')
+          pale=HexColor('#E9F7F8'); cloud=HexColor('#F2F5FA')
+          width,height=A4
+          buf=BytesIO()
+          c=canvas.Canvas(buf,pagesize=A4)
+          c.setTitle('LRC Bulk Finder v2.1.17 - Complete User Manual')
+          def para(text,x,y,w,size=10.5,leading=15,color=dark,bold=False):
+              font='Helvetica-Bold' if bold else 'Helvetica'
+              style=ParagraphStyle('custom',fontName=font,fontSize=size,
+                                   leading=leading,textColor=color)
+              p=Paragraph(text,style)
+              _,h=p.wrap(w,1000)
+              p.drawOn(c,x,y-h)
+              return y-h
+          def pill(text,x,y,w):
+              c.setFillColor(teal);c.roundRect(x,y,w,27,13.5,stroke=0,fill=1)
+              c.setFillColor(navy);c.setFont('Helvetica-Bold',10)
+              c.drawCentredString(x+w/2,y+9,text)
+
+          # Full-bleed publication-quality update cover
+          c.setFillColor(navy);c.rect(0,0,width,height,stroke=0,fill=1)
+          c.setFillColor(HexColor('#173A56'))
+          c.circle(550,675,205,stroke=0,fill=1)
+          c.setStrokeColor(teal);c.setLineWidth(3)
+          c.circle(550,675,140,stroke=1,fill=0)
+          c.setFillColor(teal);c.rect(52,height-80,36,4,stroke=0,fill=1)
+          c.setFont('Helvetica-Bold',12);c.drawString(99,height-82,'USER GUIDE  /  WINDOWS EDITION')
+          c.setFillColor(HexColor('#FFFFFF'))
+          c.setFont('Helvetica-Bold',47);c.drawString(52,590,'LRC BULK')
+          c.drawString(52,530,'FINDER')
+          c.setFillColor(teal);c.setFont('Helvetica-Bold',25)
+          c.drawString(52,473,'v2.1.17')
+          c.setFillColor(HexColor('#D8E7F0'));c.setFont('Helvetica',15)
+          c.drawString(52,414,'Dictionary-first Greeklish quality')
+          c.drawString(52,389,'Accented dictionary before AI')
+          c.setStrokeColor(HexColor('#3B5A77'));c.setLineWidth(1)
+          c.line(52,346,540,346)
+          c.setFillColor(HexColor('#EAF6F9'));c.setFont('Helvetica-Bold',12)
+          c.drawString(52,309,'NEW IN THIS EDITION')
+          c.setFont('Helvetica',12)
+          c.drawString(52,279,'Correct Greek accents before AI guesses')
+          c.drawString(52,253,'Keep English titles and artist credits intact')
+          c.drawString(52,227,'Working Option 2 remains unchanged')
+          pill('PUBLIC BETA',52,138,132)
+          c.setFillColor(HexColor('#C4D2E3'));c.setFont('Helvetica',10)
+          c.drawString(52,89,'Created by Dimitris L.  |  October 2026')
+          c.drawString(52,68,'Update pages first; earlier v2.1.15 core guide follows as reference.')
+          c.showPage()
+
+          # v2.1.17 language quality overview; DejaVu supports accented Greek.
+          from reportlab.pdfbase import pdfmetrics
+          from reportlab.pdfbase.ttfonts import TTFont
+          greek_font='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+          greek_bold='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+          assert Path(greek_font).is_file() and Path(greek_bold).is_file()
+          pdfmetrics.registerFont(TTFont('DejaVu',greek_font))
+          pdfmetrics.registerFont(TTFont('DejaVu-Bold',greek_bold))
+          c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
+          c.setFillColor(navy);c.rect(0,height-136,width,136,stroke=0,fill=1)
+          c.setFillColor(teal);c.setFont('Helvetica-Bold',11)
+          c.drawString(46,height-46,'RELEASE UPDATE   /   GREEKLISH v2.1.17')
+          c.setFillColor(HexColor('#FFFFFF'));c.setFont('Helvetica-Bold',25)
+          c.drawString(46,height-89,'Greeklish that makes sense')
+          y=height-165
+          y=para('The previous release could prefer AI text over a known correct accented word. '
+                 'This edition checks <b>manual aliases, then the accented word dictionary, '
+                 'then optional local AI.</b> Original song metadata is never changed.',
+                 46,y,503,10.5,16)-29
+          c.setFillColor(pale);c.roundRect(46,y-44,503,48,10,stroke=0,fill=1)
+          c.setFillColor(navy);c.setFont('Helvetica-Bold',11)
+          c.drawString(61,y-14,'EXAMPLE CORRECTIONS')
+          c.setFont('Helvetica',9)
+          c.drawString(61,y-32,'LEFT = original Greeklish   /   RIGHT = accented Greek alternative')
+          y-=72
+          examples=[
+            ('Fonazo','Φωνάζω'),
+            ('Den Ise Erotas Esi','Δεν είσαι έρωτας εσύ'),
+            ('Esy Horeveis Kai Ego Pethaino','Εσύ χορεύεις και εγώ πεθαίνω'),
+            ('Fevgis Ke Hanese','Φεύγεις και χάνεσαι'),
+            ('2002 Nyhtes','2002 Νύχτες'),
+            ('Avrio','Αύριο'),
+          ]
+          for i,(left,right) in enumerate(examples):
+              top=y-i*57
+              if i%2==0:
+                  c.setFillColor(cloud);c.roundRect(46,top-45,503,53,7,stroke=0,fill=1)
+              c.setFillColor(subtle);c.setFont('Helvetica',9)
+              c.drawString(60,top-12,left)
+              c.setFillColor(navy);c.setFont('DejaVu',10.2)
+              c.drawString(60,top-32,right)
+          c.setFillColor(pale);c.roundRect(46,117,503,88,10,stroke=0,fill=1)
+          y2=192
+          para('<b>English remains English.</b> "Best of Times" is not converted into '
+               'nonsense Greek. The mixed artist credit "2002 GR" stays untouched. '
+               'Recording labels such as "2025 Remastered" are preserved.',61,y2,475,9.5,14)
+          c.setFillColor(navy);c.setFont('Helvetica-Bold',9)
+          c.drawString(46,87,'For more corrections: edit Greek_Aliases.csv and Greek_Words.csv')
+          c.setFillColor(subtle);c.setFont('Helvetica',8.5)
+          c.drawString(46,67,'AI results remain unverified suggestions; listen before approving candidate lyrics.')
+          c.drawString(46,44,'Full instructions: HOW_TO_START_V2_1_17.txt in the Windows ZIP.')
+          c.showPage()
+
+          # New updated instructions - front of legacy manual
+          c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
+          c.setFillColor(navy);c.rect(0,height-126,width,126,stroke=0,fill=1)
+          c.setFillColor(teal);c.setFont('Helvetica-Bold',11)
+          c.drawString(46,height-47,'RELEASE UPDATE   /   v2.1.17')
+          c.setFillColor(HexColor('#FFFFFF'));c.setFont('Helvetica-Bold',27)
+          c.drawString(46,height-91,'Option 2: bulk candidate review')
+          y=height-153
+          y=para('Option 2 now makes unverified synchronized lyrics playable while leaving a '
+                 '<b>visible warning</b> at the beginning. The first available '
+                 '<b>Song.candidate.lrc</b> is installed as <b>Song.lrc</b> after confirmation.',46,y,503,11,17)-16
+          c.setFillColor(cloud);c.roundRect(46,y-163,503,153,12,stroke=0,fill=1)
+          c.setFillColor(dark);c.setFont('Helvetica-Bold',12)
+          c.drawString(64,y-35,'BEFORE');c.drawString(317,y-35,'AFTER')
+          c.setStrokeColor(HexColor('#D1DAE5'));c.line(296,y-47,296,y-140)
+          c.setFont('Courier',10)
+          before=['Song.mp3','Song.candidate.lrc','Song.candidate.2.lrc',
+                  'Song.candidate.3.lrc','Song.candidate.4.lrc']
+          after=['Song.mp3','Song.lrc  *marked*','Song.candidate.lrc',
+                 'Song.candidate.2.lrc','Song.candidate.3.lrc']
+          for i,(l,r) in enumerate(zip(before,after)):
+              c.drawString(64,y-58-i*19,l)
+              c.drawString(315,y-58-i*19,r)
+          y-=198
+          c.setFillColor(teal);c.roundRect(46,y-74,503,75,10,stroke=0,fill=1)
+          c.setFillColor(navy);c.setFont('Helvetica-Bold',11)
+          c.drawString(64,y-23,'WHAT THE MUSIC PLAYER SEES')
+          c.setFont('Courier-Bold',12)
+          c.drawString(64,y-48,'[00:00.00] candidate')
+          c.setFont('Courier',10)
+          c.drawString(285,y-48,'[00:05.00] First lyric...')
+          y-=105
+          for number,title,desc in [
+              ('01','SELECT','Choose Option 2, select the music folder and choose subfolders.'),
+              ('02','CONFIRM','Approve the bulk operation only after checking the preview.'),
+              ('03','LISTEN','Play a track; the 00:00 candidate marker means lyrics may be wrong.'),
+              ('04','KEEP OR RETRY','If correct, delete only the marker line. If wrong, delete Song.lrc and run Option 2 again.')
+          ]:
+              c.setFillColor(teal);c.circle(61,y-4,14,stroke=0,fill=1)
+              c.setFillColor(navy);c.setFont('Helvetica-Bold',10)
+              c.drawCentredString(61,y-8,number)
+              c.setFillColor(dark);c.setFont('Helvetica-Bold',10)
+              c.drawString(86,y+3,title)
+              para(desc,86,y-3,453,9.5,13)
+              y-=50 if number!='04' else 62
+          c.setFillColor(pale);c.roundRect(46,61,503,69,10,stroke=0,fill=1)
+          para('<b>NEVER OVERWRITTEN:</b> Existing .lrc files, MP3 audio, and ID3 tags. '
+               'Option 2 remains offline and skips untimed candidates. '
+               'Review the CSV report if an alternative cannot be shifted.',61,119,475,9.5,14)
+          c.setFillColor(subtle);c.setFont('Helvetica',8.5)
+          c.drawString(46,43,'New v2.1.17 behavior supersedes older Option 2 guidance on later reference pages.')
+          c.showPage()
+          c.save()
+
+          legacy=Path('docs/LRC_Bulk_Finder_v2_1_15_Complete_User_Manual_EN.pdf')
+          assert legacy.is_file(), 'Reference manual missing'
+          old=PdfReader(str(legacy))
+          assert len(old.pages)==17, f'Unexpected existing manual page count: {len(old.pages)}'
+          writer=PdfWriter()
+          for page in PdfReader(buf).pages:writer.add_page(page)
+          for page in old.pages:writer.add_page(page)
+          assert len(writer.pages)==20
+          writer.add_metadata({
+              '/Title':'LRC Bulk Finder v2.1.17 - Complete User Manual',
+              '/Author':'Dimitris L.',
+              '/Subject':'Greeklish dictionary-first corrections; Option 2; v2.1.15 core reference'
+          })
+          writer.add_outline_item('v2.1.17 cover',0)
+          writer.add_outline_item('v2.1.17 Greeklish quality',1)
+          writer.add_outline_item('Option 2 marked candidate promotion',2)
+          writer.add_outline_item('Core application reference (v2.1.15)',3)
+          with pdf_path.open('wb') as dest:writer.write(dest)
+          checked=PdfReader(str(pdf_path))
+          assert len(checked.pages)==20
+          assert 'Φωνάζω' in (checked.pages[1].extract_text() or '')
+          assert '[00:00.00] candidate' in (checked.pages[2].extract_text() or '')
+          print('PASS PDF: 20 pages; v2.1.17 Greek guide + Option 2 + 17 core pages')
+          for path in (zip_path,pdf_path):
+              print('SHA256',path.name,sha256(path.read_bytes()).hexdigest())
+          PY
+
+      - name: Publish v2.1.17 as a separate prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v2.1.17 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v2.1.17 dist/*.zip dist/*.pdf --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create v2.1.17 dist/*.zip dist/*.pdf \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "LRC Bulk Finder v2.1.17 - Greeklish Quality Update" \
+              --notes-file RELEASE_NOTES_V2_1_16.md --prerelease
+          fi
+      - name: Download assets back and verify identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p downloaded
+          gh release download v2.1.17 --repo "$GITHUB_REPOSITORY" \
+            --pattern "*.zip" --pattern "*.pdf" --dir downloaded
+          for file in dist/*; do cmp "$file" "downloaded/$(basename "$file")"; done
+          unzip -t dist/*.zip >/dev/null
+          echo "PASS: Publicly published ZIP and PDF match the tested local assets"
+      - name: Save same Windows ZIP in repository downloads
+        run: |
+          set -euo pipefail
+          cp dist/*.zip downloads/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f downloads/LRC_Bulk_Finder_Public_v2_1_17_GitHub_Release_Windows.zip
+          git commit -m "chore(downloads): add verified v2.1.17 Windows offline backup"
+          git push
