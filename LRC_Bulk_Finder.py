@@ -2356,22 +2356,29 @@ def main():
     states={};rows=[];reviews=[];provider_rows=[];http_rows=[];saved=0
     lrclib_attempt_log=[]
     pending=list(missing)
+    offline_reviewed=set()  # keep earlier offline review state through online stage
     retry_by_song={}  # MP3 -> ONLY the actual timed-out providers
     completed_by_song={}  # help classify later-round failure accurately
     interrupted=False
     try:
         for rnd in (1,2,3):
             ROUND=rnd
+            offline_stage=staged_mode and rnd==1
+            STAGED_ONLINE_MODE=staged_mode and rnd>=2
             current=[p for p in pending if not p.with_suffix('.lrc').exists()]
             pending=[]
             if not current:break
-            print(f'\n===== ROUND {rnd}/3 | {len(current)} songs | wait {rnd}x =====',flush=True)
+            phase=('OFFLINE SQLITE ONLY; NO INTERNET' if offline_stage else
+                   'ONLINE FOR LOCAL MISSES' if staged_mode and rnd==2 else
+                   'TIMED-OUT PROVIDERS ONLY' if staged_mode else f'wait {rnd}x')
+            print(f'\n===== ROUND {rnd}/3 | {len(current)} songs | {phase} =====',flush=True)
             for index,path in enumerate(current,1):
                 print(f'[{index}/{len(current)}] {path.name}',flush=True)
                 review=CandidateReview();status='TIMEOUT';detail='';calls=[];hit=None
                 new_retry=set();call_timings=[];call_traces=[]
-                target_providers=retry_by_song.pop(path,None) if rnd>1 else None
-                if rnd>1:
+                retry_phase=(rnd==3) if staged_mode else (rnd>1)
+                target_providers=retry_by_song.pop(path,None) if retry_phase else None
+                if retry_phase:
                     print('    Retry ONLY:',', '.join(sorted(target_providers or [])),flush=True)
                 try:
                     title,artist,album,duration=metadata_cache.get(path) or song_info(path)
@@ -2382,9 +2389,48 @@ def main():
                     if not title or not artist:
                         status='NOT_FOUND';detail='No artist/title tags and no Artist - Title filename'
                     else:
-                        hit,status,detail,calls=search_song(
-                            title,artist,album,duration,review,
-                            only_providers=target_providers,retry_targets=new_retry,timings=call_timings,request_traces=call_traces)
+                        if offline_stage:
+                            # Stage 1 guarantees local lookup for every eligible
+                            # recording before a single online provider call.
+                            # This bypasses search_song (and MusicBrainz).
+                            started=time.monotonic()
+                            events=[]
+                            global ACTIVE_HTTP_TRACE
+                            ACTIVE_HTTP_TRACE=events
+                            try:
+                                hit=local_lrclib_search(title,artist,duration,review)
+                            finally:
+                                ACTIVE_HTTP_TRACE=None
+                            call_timings.append(('LRCLIB_LOCAL',time.monotonic()-started))
+                            call_traces.append(events)
+                            local_error=next((e.get('detail','') for e in events
+                                              if e.get('status')=='LOCAL_DB_ERROR'),None)
+                            if local_error:
+                                status='SERVER_ERROR'
+                                detail='Local LRCLIB SQLite error: '+str(local_error)
+                                calls=['LRCLIB_LOCAL=ERROR']
+                            elif hit:
+                                status='SAVED'
+                                detail='Verified OFFLINE LRCLIB match'
+                                calls=['LRCLIB_LOCAL=SAVED']
+                            elif review.items:
+                                status='REVIEW_AVAILABLE'
+                                detail='Unverified offline candidates for review'
+                                calls=['LRCLIB_LOCAL=REVIEW_AVAILABLE']
+                                offline_reviewed.add(path)
+                            else:
+                                status='NOT_FOUND'
+                                detail='No verified synchronized lyrics in local SQLite'
+                                calls=['LRCLIB_LOCAL=NO_MATCH']
+                        else:
+                            hit,status,detail,calls=search_song(
+                                title,artist,album,duration,review,
+                                only_providers=target_providers,retry_targets=new_retry,
+                                timings=call_timings,request_traces=call_traces)
+                            if staged_mode and path in offline_reviewed and not hit and status in (
+                                    'NOT_FOUND','NOT_FOUND_PARTIAL'):
+                                status='REVIEW_PARTIAL'
+                                detail+='; offline review candidates still available'
                         if hit:
                             try:save_hit(path,hit);saved+=1
                             except FileExistsError:status='EXISTS';detail='LRC appeared during the run'
@@ -2432,13 +2478,19 @@ def main():
                                 else 'no HTTP call recorded')
                         http_rows.append([str(path),rnd,prov,'', 'NOT_OBSERVED',reason,0])
                 print(f'  {status}: {detail}',flush=True)
-                if status=='TIMEOUT' and new_retry:pending.append(path)
+                if offline_stage and not path.with_suffix('.lrc').exists():
+                    pending.append(path)
+                elif not offline_stage and status=='TIMEOUT' and new_retry and rnd<3:
+                    pending.append(path)
             if interrupted:break
-            print(f'Round {rnd} finished; {len(pending)} songs with specific timed-out provider(s) eligible.',flush=True)
+            suffix=('song(s) to check online next.' if offline_stage else
+                    'song(s) with timed-out providers eligible for a retry.')
+            print(f'Round {rnd} finished; {len(pending)} {suffix}',flush=True)
             if pending and all(x in blocked for x in PROVIDERS):
                 print('All providers disabled; no reason to repeat immediately.',flush=True)
                 break
     finally:
+        STAGED_ONLINE_MODE=False
         for path in missing:
             if path.with_suffix('.lrc').exists():states[path]=('SAVED','LRC present')
             elif path not in states:states[path]=('INTERRUPTED','Not attempted because run was interrupted')
@@ -2452,8 +2504,9 @@ def main():
         coverage_path=folder/f'LRC_First_Attempt_Coverage_v{VERSION.replace(".", "_")}.csv'
         first_round={(Path(path),source):(result,int(request_count),summary)
                      for path,rnd,source,result,_queries,_seconds,summary,request_count in provider_rows
-                     if rnd==1}
-        source_order=tuple(ACTIVE_PROVIDERS or PROVIDERS)
+                     if (rnd==1 and (not staged_mode or source=='LRCLIB_LOCAL')) or
+                        (staged_mode and rnd==2 and source!='LRCLIB_LOCAL')}
+        source_order=(('LRCLIB_LOCAL',) if staged_mode else ())+tuple(ACTIVE_PROVIDERS or PROVIDERS)
         coverage_counts=Counter()
         with coverage_path.open('w',encoding='utf-8-sig',newline='') as cov:
             writer=csv.writer(cov)
@@ -2468,7 +2521,7 @@ def main():
                         result='';requests=0;summary=''
                     else:
                         result,requests,summary=item
-                        if 'LOCAL_DB_LOOKUP' in summary and not any(x in summary for x in ('HTTP 2','HTTP 3','HTTP 4','HTTP 5')):
+                        if source=='LRCLIB_LOCAL' or ('LOCAL_DB_LOOKUP' in summary and not any(x in summary for x in ('HTTP 2','HTTP 3','HTTP 4','HTTP 5'))):
                             category='OFFLINE_SQLITE_LOOKUP'
                         elif requests>0:category='REQUEST_SENT'
                         elif result.startswith('CACHED_NO_MATCH'):category='ALREADY_SEARCHED_HISTORY'
