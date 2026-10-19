@@ -11,6 +11,7 @@ The app can use its CSV files directly if SQLite is absent or corrupt.
 from __future__ import annotations
 import argparse
 import csv
+from contextlib import closing
 import hashlib
 import os
 import re
@@ -55,7 +56,7 @@ def build(root: Path | None = None, output: Path | None = None):
                                          dir=output.parent,delete=False) as temp:
             handle = Path(temp.name)
         # Use a fresh file, not a WAL snapshot or an in-place user mutation.
-        with sqlite3.connect(handle) as db:
+        with closing(sqlite3.connect(handle)) as db, db:
             db.execute(f'PRAGMA application_id={APPLICATION_ID}')
             db.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
             db.execute('CREATE TABLE words (greeklish TEXT PRIMARY KEY,'
