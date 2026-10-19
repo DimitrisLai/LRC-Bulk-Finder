@@ -169,6 +169,56 @@ jobs:
           assert Path(greek_font).is_file() and Path(greek_bold).is_file()
           pdfmetrics.registerFont(TTFont('DejaVu',greek_font))
           pdfmetrics.registerFont(TTFont('DejaVu-Bold',greek_bold))
+          # NEW v2.2.0: one visually distinct search performance page.
+          c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
+          c.setFillColor(navy);c.rect(0,height-151,width,151,stroke=0,fill=1)
+          c.setFillColor(teal);c.setFont('Helvetica-Bold',11)
+          c.drawString(46,height-47,'NEW IN v2.2.0   /   SEARCH PERFORMANCE')
+          c.setFillColor(HexColor('#FFFFFF'));c.setFont('Helvetica-Bold',24)
+          c.drawString(46,height-97,'Smarter searches. Less repeated work.')
+          y=height-170
+          y=para('The verified-only matching safeguards remain unchanged. '
+                 'Version 2.2 improves which provider is searched first, '
+                 'reduces repeated MusicBrainz requests, measures actual '
+                 'saves and protects interrupted search progress.',
+                 46,y,500,10.5,16)-25
+          steps=[
+              ('01','PERSISTENT MUSICBRAINZ CACHE',
+               'Successful title/artist suggestions last 30 days; completed '
+               'NO_MATCH lasts 7 days. Duration and Greek mode are part of '
+               'the key; HTTP errors never poison the cache.'),
+              ('02','PROVIDER ORDER: D / S / C',
+               'D = original ordering. S = SMART based on verified saves '
+               'per elapsed second (at least 10 observations). C = '
+               'custom order containing all selected providers.'),
+              ('03','REAL VERIFIED-SAVE STATISTICS',
+               'CSV report separates saved, candidate review, no match '
+               'and provider errors. Cached or skipped routes are not '
+               'counted as completed search attempts.'),
+              ('04','DURABLE CRASH RECOVERY',
+               'Every completed song/stage is fsynced. A truncated '
+               'checkpoint tail is repaired before recording new work; '
+               'resumed stages do not double count in statistics.')
+          ]
+          for number,title,desc in steps:
+              c.setFillColor(cloud);c.roundRect(46,y-79,503,83,9,stroke=0,fill=1)
+              c.setFillColor(teal);c.circle(70,y-18,16,stroke=0,fill=1)
+              c.setFillColor(navy);c.setFont('Helvetica-Bold',11)
+              c.drawCentredString(70,y-22,number)
+              c.setFont('Helvetica-Bold',11);c.drawString(101,y-16,title)
+              para(desc,101,y-27,426,9.1,13.5)
+              y-=93
+          c.setFillColor(pale);c.roundRect(46,83,503,68,9,stroke=0,fill=1)
+          para('<b>NEW QUESTION AFTER FAST/FULL</b><br/>'
+               'Provider order? [D/s/c]  -  Use <b>D</b> for exactly '
+               'the previous default order. SMART never silently drops '
+               'providers. CUSTOM requires every chosen name exactly once.',
+               61,138,469,9.4,15)
+          c.setFillColor(subtle);c.setFont('Helvetica',8.2)
+          c.drawString(46,53,'Full settings and cache files: HOW_TO_START_V2_2.txt')
+          c.drawString(46,37,'All original MP3s, existing LRCs and candidate review protections remain.')
+          c.showPage()
+
           # v2.2.0 stability, accuracy and resume guide.
           c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
           c.setFillColor(navy);c.rect(0,height-149,width,149,stroke=0,fill=1)
@@ -457,30 +507,32 @@ jobs:
           writer=PdfWriter()
           for page in PdfReader(buf).pages:writer.add_page(page)
           for page in old.pages:writer.add_page(page)
-          assert len(writer.pages)==24
+          assert len(writer.pages)==25
           writer.add_metadata({
               '/Title':'LRC Bulk Finder v2.2.0 - Complete User Manual',
               '/Author':'Dimitris L.',
               '/Subject':'Persistent MusicBrainz cache, provider ordering, verified provider statistics and recovery'
           })
           writer.add_outline_item('v2.2.0 cover',0)
-          writer.add_outline_item('v2.2.0 stability and safe resume',1)
-          writer.add_outline_item('Option 5 offline-first',2)
-          writer.add_outline_item('Greek artist corrections',3)
-          writer.add_outline_item('Greeklish word spelling',4)
-          writer.add_outline_item('Greek lexicon and SQLite',5)
-          writer.add_outline_item('Option 2 marked candidate promotion',6)
-          writer.add_outline_item('Core application reference (v2.1.15)',7)
+          writer.add_outline_item('v2.2.0 performance and provider ordering',1)
+          writer.add_outline_item('Stability and safe resume',2)
+          writer.add_outline_item('Option 5 offline-first',3)
+          writer.add_outline_item('Greek artist corrections',4)
+          writer.add_outline_item('Greeklish word spelling',5)
+          writer.add_outline_item('Greek lexicon and SQLite',6)
+          writer.add_outline_item('Option 2 marked candidate promotion',7)
+          writer.add_outline_item('Core application reference (v2.1.15)',8)
           with pdf_path.open('wb') as dest:writer.write(dest)
           checked=PdfReader(str(pdf_path))
-          assert len(checked.pages)==24
-          assert 'STABILITY AND ACCURACY' in (checked.pages[1].extract_text() or '')
-          assert 'THREE-STAGE WORKFLOW' in (checked.pages[2].extract_text() or '')
-          assert 'Γιώργος Αλκαίος' in (checked.pages[3].extract_text() or '')
-          assert 'Φωνάζω' in (checked.pages[4].extract_text() or '')
-          assert 'Greek_Lexicon.sqlite3' in (checked.pages[5].extract_text() or '')
-          assert '[00:00.00] candidate' in (checked.pages[6].extract_text() or '')
-          print('PASS PDF: 24 pages; full Option5 settings, safe checkpointing, Greek fixes, Option2')
+          assert len(checked.pages)==25
+          assert 'SEARCH PERFORMANCE' in (checked.pages[1].extract_text() or '')
+          assert 'STABILITY AND ACCURACY' in (checked.pages[2].extract_text() or '')
+          assert 'THREE-STAGE WORKFLOW' in (checked.pages[3].extract_text() or '')
+          assert 'Γιώργος Αλκαίος' in (checked.pages[4].extract_text() or '')
+          assert 'Φωνάζω' in (checked.pages[5].extract_text() or '')
+          assert 'Greek_Lexicon.sqlite3' in (checked.pages[6].extract_text() or '')
+          assert '[00:00.00] candidate' in (checked.pages[7].extract_text() or '')
+          print('PASS PDF: 25 pages; v2.2 caches, performance, provider priority, staged search, Greek guide')
           for path in (zip_path,pdf_path):
               print('SHA256',path.name,sha256(path.read_bytes()).hexdigest())
           PY
