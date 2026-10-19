@@ -2392,7 +2392,9 @@ def main():
     checkpoint_config=checkpoint_signature(VERSION,{
         'mode':'staged' if staged_mode else 'normal',
         'greek':GREEK_MODE,'local_ai':G2G_ENABLED,'musicbrainz':MB_ENABLED,
-        'providers':list(ACTIVE_PROVIDERS),'recovery_wait':COMPLETE_FIRST_PASS,
+        'providers':sorted(ACTIVE_PROVIDERS),'recovery_wait':COMPLETE_FIRST_PASS,
+        # Completed source coverage remains valid if only its order changes.
+        'provider_order_mode':order_label,
         'history':HISTORY_ENABLED,'provider_order':order_label,
         'lrclib_exact':LRCLIB_EXACT_FALLBACK,
         'online_lrclib':LRCLIB_ONLINE_FALLBACK,
@@ -2443,7 +2445,7 @@ def main():
                     provider_rows.extend(stage_old_provider_rows)
                     http_rows.extend(previous.get('http_rows',[]))
                     provider_performance.record_rows(
-                        stage_old_provider_rows,checkpoint_config,path.stat().st_mtime_ns)
+                        stage_old_provider_rows,checkpoint_config+checkpoint.run_id,path.stat().st_mtime_ns)
                     if previous.get('reviewed'):
                         reviewed_by_song.add(path)
                     if previous['status']=='TIMEOUT':
@@ -2576,7 +2578,7 @@ def main():
                 # Only real per-provider completed outcomes count. Cached,
                 # skipped and 401/429 circuit responses do not boost scores.
                 provider_performance.record_rows(
-                    provider_rows[provider_start:],checkpoint_config,
+                    provider_rows[provider_start:],checkpoint_config+checkpoint.run_id,
                     path.stat().st_mtime_ns)
                 print(f'  {status}: {detail}',flush=True)
                 if offline_stage and not path.with_suffix('.lrc').exists():
