@@ -446,8 +446,8 @@ class ControlCenter(tk.Tk):
 
     def _line(self,line):
         status=re.fullmatch(
-            r"STAGE COUNTERS: stage=(\\w+) found=(\\d+) candidate=(\\d+) "
-            r"not_found=(\\d+) total_found=(\\d+) total_candidate=(\\d+)",
+            r"STAGE COUNTERS: stage=(\w+) found=(\d+) candidate=(\d+) "
+            r"not_found=(\d+) total_found=(\d+) total_candidate=(\d+)",
             line.strip())
         if status:
             stage,found,candidate,not_found,total_found,total_candidate=status.groups()
@@ -485,7 +485,7 @@ class ControlCenter(tk.Tk):
             # often does absolutely nothing. File-based IPC works on both.
             if self.stop_path is None:
                 raise OSError("No stop channel was created for this search")
-            self.stop_path.write_text("STOP\\n",encoding="utf-8")
+            self.stop_path.write_text("STOP\n",encoding="utf-8")
             self.stop_button.configure(state="disabled")
             self.phase.set("STOP REQUESTED — finishing current bounded request and saving checkpoints...")
             self._line("STOP REQUESTED: the worker will preserve completed search results.")
