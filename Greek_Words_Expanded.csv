@@ -1,4 +1,4 @@
-greeklish,greek
+﻿greeklish,greek
 ach,αχ
 adi,άδειο
 adia,άδεια
@@ -60,6 +60,7 @@ anteho,αντέχω
 antekso,αντέξω
 anthropoi,άνθρωποι
 anthropos,άνθρωπος
+antidrasi,αντίδραση
 antres,άντρες
 apla,απλά
 aplos,απλός
@@ -123,6 +124,7 @@ dino,δίνω
 dio,δύο
 dipsao,διψάω
 diskola,δύσκολα
+ditikes,δυτικές
 dixe,δείξε
 dixi,δείξει
 do,δω
@@ -136,6 +138,7 @@ dromous,δρόμους
 dyo,δύο
 dyskola,δύσκολα
 dyskoloi,δύσκολοι
+dytikes,δυτικές
 ean,εάν
 eche,έχε
 echis,έχεις
@@ -536,6 +539,7 @@ meres,μέρες
 mesa,μέσα
 mesanichta,μεσάνυχτα
 mesanychta,μεσάνυχτα
+mesanyxta,μεσάνυχτα
 mesi,μέση
 metho,μεθώ
 methyso,μεθύσω
@@ -731,7 +735,9 @@ roza,ρόζα
 san,σαν
 sas,σας
 savato,Σάββατο
+savatou,Σαββάτου
 savvato,Σάββατο
+savvatou,Σαββάτου
 se,σε
 sena,σένα
 sighorese,συγχώρεσε
@@ -749,6 +755,7 @@ sinehia,συνέχεια
 sinehizei,συνεχίζει
 sinehizete,συνεχίζεται
 sinexia,συνέχεια
+sinikies,συνοικίες
 sintrimia,συντρίμμια
 sirmatoplegma,συρματόπλεγμα
 skeftomai,σκέφτομαι
@@ -791,6 +798,8 @@ sychnotita,συχνότητα
 syghorese,συγχώρεσε
 syhnotita,συχνότητα
 synantisi,συνάντηση
+synikies,συνοικίες
+synoikies,συνοικίες
 syrmatoplegma,συρματόπλεγμα
 ta,τα
 taksidevo,ταξιδεύω
