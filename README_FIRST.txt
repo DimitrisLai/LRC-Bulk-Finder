@@ -1,3 +1,18 @@
+LRC BULK FINDER v2.1.17 - START HERE
+Created by Dimitris L. - PUBLIC BETA
+
+GREEKLISH QUALITY UPDATE
+The accented Greek_Words.csv dictionary now takes priority over local G2G AI.
+Known examples: Fonazo -> Φωνάζω, Den Ise Erotas Esi -> Δεν είσαι έρωτας εσύ.
+English titles like Best of Times remain English; 2002 GR artist label stays.
+Manual Greek_Aliases.csv still takes first priority over both dictionary and AI.
+The original MP3 tags and audio are never rewritten.
+
+NEW VERSION GUIDE: HOW_TO_START_V2_1_17.txt
+RELEASE NOTES: RELEASE_NOTES_V2_1_17.md
+
+---- PREVIOUS RELEASE INSTRUCTIONS ----
+
 LRC BULK FINDER v2.1.16 — START HERE
 Created by Dimitris L. — PUBLIC BETA
 
