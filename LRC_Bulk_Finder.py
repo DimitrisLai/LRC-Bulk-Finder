@@ -2521,7 +2521,7 @@ def main():
                     progress.complete(0,checkpoint=True)
                     print(f'    CHECKPOINT: {previous["status"]} (no repeat requests)',flush=True)
                     print('  '+progress.line(),flush=True)
-                    print(stage_counts.add(path,previous['status'],reviewed=bool(previous.get('reviewed'))),flush=True)
+                    print(stage_counts.add(path,previous['status'],reviewed=bool(previous.get('review_rows'))),flush=True)
                     continue
                 review=CandidateReview();status='TIMEOUT';detail='';calls=[];hit=None
                 new_retry=set();call_timings=[];call_traces=[]
@@ -2654,7 +2654,7 @@ def main():
                 progress.complete(time.monotonic()-track_started)
                 print(f'  {status}: {detail}',flush=True)
                 print('  '+progress.line(),flush=True)
-                print(stage_counts.add(path,status,reviewed=path in reviewed_by_song),flush=True)
+                print(stage_counts.add(path,status,reviewed=bool(review.items)),flush=True)
                 if offline_stage and not path.with_suffix('.lrc').exists():
                     pending.append(path)
                 elif not offline_stage and status=='TIMEOUT' and new_retry and rnd<3:
