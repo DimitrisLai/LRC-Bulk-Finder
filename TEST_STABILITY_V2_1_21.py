@@ -11,7 +11,7 @@ import sys
 import tempfile
 import types
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, closing
 from pathlib import Path
 from unittest import mock
 sys.modules.setdefault("syncedlyrics",types.SimpleNamespace(search=lambda *a,**kw:None))
@@ -58,7 +58,7 @@ class StabilityTests(unittest.TestCase):
     def test_real_sqlite_finds_only_third_greek_variant(self):
         with tempfile.TemporaryDirectory() as tmp:
             db=Path(tmp)/"lyrics.sqlite3"
-            with sqlite3.connect(db) as con:
+            with closing(sqlite3.connect(db)) as con, con:
                 con.executescript("""
                 CREATE TABLE tracks (id INTEGER PRIMARY KEY,name TEXT,name_lower TEXT,
                     artist_name TEXT,artist_name_lower TEXT,duration REAL,last_lyrics_id INTEGER);
