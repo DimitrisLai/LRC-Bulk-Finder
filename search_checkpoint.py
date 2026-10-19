@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import uuid
 from pathlib import Path
 
 
@@ -37,6 +38,7 @@ class SearchCheckpoint:
     def __init__(self, folder, version, signature):
         self.path=Path(folder)/('LRC_Run_Checkpoint_v'+version.replace('.','_')+'.jsonl')
         self.signature=signature
+        self.run_id=uuid.uuid4().hex  # stable on restart; new after journal reset
         self.entries={}
         self.loaded=0
         self.invalid_lines=0
@@ -53,6 +55,8 @@ class SearchCheckpoint:
                             stage=int(record['round'])
                             if stage not in (1,2,3):continue
                             self.entries[(path,stage)]=record
+                            if isinstance(record.get('run_id'),str):
+                                self.run_id=record['run_id']
                         except (ValueError,KeyError,TypeError,AttributeError):
                             self.invalid_lines+=1
                             continue  # tolerate truncated/interrupted JSONL lines
@@ -114,7 +118,8 @@ class SearchCheckpoint:
         path=Path(song).resolve()
         stat=path.stat()
         record={
-            'schema':1,'signature':self.signature,'path':str(path),
+            'schema':1,'signature':self.signature,'run_id':self.run_id,
+            'path':str(path),
             'round':int(stage),'file_size':stat.st_size,
             'file_mtime_ns':stat.st_mtime_ns,
             'status':status,'detail':detail,
