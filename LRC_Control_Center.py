@@ -258,6 +258,12 @@ class ControlCenter(tk.Tk):
         if not Path(profile["folder"]).is_dir():
             messagebox.showerror("Missing folder","Selected MP3 folder does not exist.")
             return
+        if getattr(sys,"frozen",False) and profile["local_ai"]:
+            messagebox.showerror("Optional local AI requires Python build",
+                "The standalone EXE does not contain the external G2G transformer "
+                "model or its Python dependencies. For local AI, run "
+                "OPEN_CONTROL_CENTER.cmd from the complete Python Windows ZIP.")
+            return
         if profile["action"] in ("4","5") and not profile["database"].strip():
             # If already configured by the standard application, this is OK.
             configured=program_folder()/"LRCLIB_LOCAL_DB.txt"
