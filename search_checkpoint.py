@@ -7,6 +7,7 @@ song size + nanosecond modification time and identical search configuration.
 from __future__ import annotations
 import hashlib
 import json
+import os
 from pathlib import Path
 
 
@@ -38,6 +39,7 @@ class SearchCheckpoint:
         self.signature=signature
         self.entries={}
         self.loaded=0
+        self.invalid_lines=0
         if self.path.is_file():
             try:
                 with self.path.open(encoding='utf-8') as source:
@@ -52,7 +54,8 @@ class SearchCheckpoint:
                             if stage not in (1,2,3):continue
                             self.entries[(path,stage)]=record
                         except (ValueError,KeyError,TypeError,AttributeError):
-                            continue  # tolerate truncated final lines
+                            self.invalid_lines+=1
+                            continue  # tolerate truncated/interrupted JSONL lines
                 self.loaded=len(self.entries)
             except OSError as error:
                 print('Warning: cannot load search checkpoint:',error)
@@ -74,6 +77,38 @@ class SearchCheckpoint:
             return None
         return record
 
+    def _repair_incomplete_tail(self):
+        """Do not append to half-written JSON that would corrupt the next event.
+
+        Keep intact newline-delimited records. The interrupted final fragment
+        is discarded only when it cannot parse; valid no-newline JSON is kept.
+        """
+        if not self.path.is_file():
+            return
+        with self.path.open("rb+") as stream:
+            stream.seek(0,os.SEEK_END)
+            size=stream.tell()
+            if not size:
+                return
+            stream.seek(-1,os.SEEK_END)
+            if stream.read(1)==b"\n":
+                return
+            chunk=min(size,1024*1024)
+            stream.seek(-chunk,os.SEEK_END)
+            tail=stream.read(chunk)
+            cut=tail.rfind(b"\n")
+            last=tail[cut+1:]
+            try:
+                json.loads(last.decode("utf-8"))
+            except (ValueError,UnicodeError):
+                if cut<0 and size>chunk:
+                    # Oversize final line: don't risk wiping valid history.
+                    raise OSError("checkpoint has an oversized unterminated line")
+                stream.truncate(size-len(last))
+            else:
+                stream.seek(0,os.SEEK_END)
+                stream.write(b"\n")
+
     def save(self, song, stage, status, detail, retry_targets, reviewed,
              row, review_rows, provider_rows, http_rows):
         path=Path(song).resolve()
@@ -88,8 +123,11 @@ class SearchCheckpoint:
             'provider_rows':provider_rows,'http_rows':http_rows,
         }
         try:
+            self._repair_incomplete_tail()
             with self.path.open('a',encoding='utf-8',newline='\n') as output:
                 output.write(json.dumps(record,ensure_ascii=False,separators=(',',':'))+'\n')
+                output.flush()
+                os.fsync(output.fileno())
         except OSError as error:
             print('WARNING: per-song checkpoint write failed:',error)
             return False
