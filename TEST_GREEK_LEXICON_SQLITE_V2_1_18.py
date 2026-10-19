@@ -1,5 +1,6 @@
 """Offline quality, privacy and failure-safety tests for Greek lexicon SQLite."""
 import hashlib
+from contextlib import closing
 import shutil
 import sqlite3
 import tempfile
@@ -35,7 +36,7 @@ class GreekLexiconSQLiteTests(unittest.TestCase):
         self.assertGreaterEqual(count,1000)
         self.assertLess(sql.stat().st_size,2_000_000)
         self.assertEqual(sql.read_bytes()[:16],b'SQLite format 3\x00')
-        with sqlite3.connect(sql) as connection:
+        with closing(sqlite3.connect(sql)) as connection:
             self.assertEqual(connection.execute('PRAGMA quick_check').fetchone()[0],'ok')
             self.assertEqual(connection.execute('PRAGMA application_id').fetchone()[0],
                              builder.APPLICATION_ID)
