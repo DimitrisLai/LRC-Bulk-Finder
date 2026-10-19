@@ -97,7 +97,7 @@ jobs:
               assert 'Copyright (c) 2026 Dimitris L.' in z.read(prefix+'LICENSE').decode()
               assert not any('lrclib-db-dump-' in m or 'LRCLIB_LOCAL_DB.txt' in m
                              for m in members)
-              print('PASS ZIP: v2.1.20 includes approved artist names, SQLite, tests and launchers')
+              print('PASS ZIP: v2.1.20 full staged search, artist lexicon, SQLite and launchers')
 
           navy=HexColor('#10223E'); teal=HexColor('#19BFCA')
           dark=HexColor('#25364B'); subtle=HexColor('#57677C')
@@ -404,7 +404,7 @@ jobs:
           writer.add_metadata({
               '/Title':'LRC Bulk Finder v2.1.20 - Complete User Manual',
               '/Author':'Dimitris L.',
-              '/Subject':'Greeklish public SQLite lexicon; Greek spelling fixes; Option 2 reference'
+              '/Subject':'Offline-first whole-folder search; online fallback; timeout-only retries'
           })
           writer.add_outline_item('v2.1.20 cover',0)
           writer.add_outline_item('Option 5 offline-first',1)
