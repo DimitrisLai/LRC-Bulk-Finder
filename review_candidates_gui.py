@@ -38,7 +38,7 @@ def list_review_candidates(folder,recursive=True):
             "has_mp3":mp3.is_file(),
             "has_lrc":installed.is_file()
         })
-    return sorted(found,key=lambda d:(str(d["path"]).casefold(),d["index"]))
+    return sorted(found,key=lambda d:(str(d["mp3"]).casefold(),d["index"]))
 
 
 def preview_candidate(path,max_bytes=160_000):
