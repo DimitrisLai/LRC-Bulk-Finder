@@ -14,7 +14,7 @@ from pathlib import Path
 
 class FrozenStopSmoke(unittest.TestCase):
     def test_real_frozen_worker_acknowledges_stop_marker(self):
-        executable=Path(sys.argv[1]).resolve()
+        executable=Path(os.environ['LRC_SMOKE_EXE']).resolve()
         self.assertTrue(executable.is_file(),executable)
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)
@@ -41,6 +41,6 @@ class FrozenStopSmoke(unittest.TestCase):
 if __name__=="__main__":
     if len(sys.argv)!=2:
         raise SystemExit("Usage: python TEST_V2_4_1_FROZEN_SMOKE.py path/to/LRC_Bulk_Finder_Worker.exe")
-    exe=sys.argv[1]
-    sys.argv=[sys.argv[0],exe]
+    os.environ['LRC_SMOKE_EXE']=sys.argv[1]
+    sys.argv=[sys.argv[0]]
     unittest.main(verbosity=2)
