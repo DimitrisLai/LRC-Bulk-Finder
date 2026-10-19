@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.4.0 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.4.1 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -15,6 +15,14 @@ LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music librarie
 Lyrics are saved alongside the MP3 with the same base filename, making them compatible with many portable music players and car stereos that support synchronized LRC text.
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
+
+## v2.4.1 — working Windows Stop button and five search counters
+
+The Control Center now sends a **cooperative stop request** to the search worker. This also works with the frozen Windows GUI, which may have no console for Ctrl+Break. Press **Stop search safely** to finish the bounded current request, preserve completed checkpoints and write reports. If it cannot exit within eight seconds, the GUI offers a **Force STOP (last resort)** action requiring separate confirmation.
+
+The Live Progress tab shows **LRC found / Candidates / Not found** for the active stage and separate cumulative **LRC found (ALL stages) / Candidates (ALL stages)**. The first three return to **0 immediately after each stage finishes**, while both cumulative totals remain. Timeouts and server errors are *not* falsely described as confirmed no-matches.
+
+[Detailed v2.4.1 instructions](HOW_TO_START_V2_4_1.txt) · [Release notes](RELEASE_NOTES_V2_4_1.md)
 
 ## What's new in v2.4.0: ready-made profiles, incrementally scanned libraries and experimental timing assistance
 
