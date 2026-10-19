@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""LRC Bulk Finder v2.1.19. See README for provider/API limitations.
+"""LRC Bulk Finder v2.1.21. See README for provider/API limitations.
 Reads audio ID3 metadata; writes ONLY sidecar .lrc and reports, never audio tags.
 Created by Dimitris L. (project credit; third-party services credited separately).
 """
 from __future__ import annotations
 import csv
 from lrclib_local import LocalLRCLIB, load_local_config
+from search_checkpoint import SearchCheckpoint, checkpoint_signature
 import hashlib
 import sqlite3
 import shutil
@@ -37,8 +38,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.1.20'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.19',
+VERSION = '2.1.21'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.21',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -1405,7 +1406,7 @@ def local_lrclib_search(title, artist, duration, review):
         return None
     started=time.monotonic()
     try:
-        candidates=LOCAL_LRCLIB.search(query_variants(title,artist)[:2],duration)
+        candidates=LOCAL_LRCLIB.search(query_variants(title,artist)[:6],duration)
         if ACTIVE_HTTP_TRACE is not None:
             ACTIVE_HTTP_TRACE.append({'provider':'LRCLIB','endpoint':'local LRCLIB SQLite (no network)',
                 'status':'LOCAL_DB_LOOKUP','detail':f'{len(candidates)} candidates (no HTTP request)',
