@@ -6,6 +6,7 @@ Promotion delegates to the existing conservative production implementation.
 from __future__ import annotations
 import re
 from pathlib import Path
+from incremental_library import AUDIO_EXTENSIONS
 
 _CANDIDATE_PATTERN=re.compile(r"^(?P<stem>.+)\.candidate(?:\.(?P<index>[2-9]\d*))?\.lrc$",re.IGNORECASE)
 
@@ -28,14 +29,17 @@ def list_review_candidates(folder,recursive=True):
         if not match:
             continue
         stem=match.group("stem")
-        mp3=file.with_name(stem+".mp3")
+        matches=[file.with_name(stem+ext) for ext in AUDIO_EXTENSIONS
+                 if file.with_name(stem+ext).is_file()]
+        mp3=matches[0] if len(matches)==1 else file.with_name(stem+".mp3")
         installed=file.with_name(stem+".lrc")
         found.append({
             "path":file,
             "mp3":mp3,
             "installed":installed,
             "index":int(match.group("index") or 1),
-            "has_mp3":mp3.is_file(),
+            "has_mp3":len(matches)==1,
+            "ambiguous":len(matches)>1,
             "has_lrc":installed.is_file()
         })
     return sorted(found,key=lambda d:(str(d["mp3"]).casefold(),d["index"]))
