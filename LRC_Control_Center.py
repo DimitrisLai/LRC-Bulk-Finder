@@ -19,6 +19,7 @@ from search_profiles import (DEFAULT,PROVIDER_FAST,PROVIDER_FULL,load_profiles,
                              save_profiles,validate_profile)
 from review_candidates_gui import (list_review_candidates,preview_candidate,
                                    explicitly_promote)
+from runtime_paths import program_folder
 
 
 class ControlCenter(tk.Tk):
@@ -259,12 +260,21 @@ class ControlCenter(tk.Tk):
             return
         if profile["action"] in ("4","5") and not profile["database"].strip():
             # If already configured by the standard application, this is OK.
-            configured=Path(__file__).with_name("LRCLIB_LOCAL_DB.txt")
+            configured=program_folder()/"LRCLIB_LOCAL_DB.txt"
             if not configured.is_file():
                 messagebox.showerror("Missing database","Option 4/5 requires your existing LRCLIB SQLite database. Choose it above.")
                 return
-        cmd=[sys.executable,"-u",str(Path(__file__).with_name("run_saved_profile.py")),
-             "--profile",self.name.get()]
+        if getattr(sys,"frozen",False):
+            worker=program_folder()/"LRC_Bulk_Finder_Worker.exe"
+            if not worker.is_file():
+                messagebox.showerror("Missing worker",
+                    "The standalone GUI requires LRC_Bulk_Finder_Worker.exe "
+                    "in the same folder. Extract the complete EXE ZIP.")
+                return
+            cmd=[str(worker),"--profile",self.name.get()]
+        else:
+            cmd=[sys.executable,"-u",str(Path(__file__).with_name("run_saved_profile.py")),
+                 "--profile",self.name.get()]
         try:
             creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if os.name=="nt" else 0)
             self.process=subprocess.Popen(cmd,stdout=subprocess.PIPE,
