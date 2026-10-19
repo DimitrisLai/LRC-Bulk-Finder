@@ -20,8 +20,9 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 from lrclib_local import LocalLRCLIB, load_local_config
+from runtime_paths import program_folder
 
-BASE = Path(__file__).resolve().parent
+BASE = program_folder()
 INDEX = 'https://lrclib.net/db-dumps'
 # JSON listing used by independently maintained LRCLIB client pylrclib.
 # We only construct download URLs on the LRCLIB-controlled hostname below.
