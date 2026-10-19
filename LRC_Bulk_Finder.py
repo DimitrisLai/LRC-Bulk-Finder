@@ -2356,8 +2356,25 @@ def main():
     http_details_path=folder/'LRC_HTTP_Diagnostics_v2_1_15.csv' 
     states={};rows=[];reviews=[];provider_rows=[];http_rows=[];saved=0
     lrclib_attempt_log=[]
+    # Resume safely only if settings, dictionaries, local DB and MP3 timestamps
+    # still match the prior run. A truncated JSONL tail is safely ignored.
+    config_dir=Path(__file__).resolve().parent
+    checkpoint_config=checkpoint_signature(VERSION,{
+        'mode':'staged' if staged_mode else 'normal',
+        'greek':GREEK_MODE,'local_ai':G2G_ENABLED,'musicbrainz':MB_ENABLED,
+        'providers':list(ACTIVE_PROVIDERS),'recovery_wait':COMPLETE_FIRST_PASS,
+        'history':HISTORY_ENABLED,'lrclib_exact':LRCLIB_EXACT_FALLBACK,
+        'online_lrclib':LRCLIB_ONLINE_FALLBACK,
+    },[config_dir/n for n in ('Greek_Aliases.csv','Greek_Artists.csv',
+                            'Greek_Words.csv','Greek_Words_Expanded.csv',
+                            'LRCLIB_LOCAL_DB.txt')],
+      LOCAL_LRCLIB.path if LOCAL_LRCLIB is not None else None)
+    checkpoint=SearchCheckpoint(folder,VERSION,checkpoint_config)
+    if checkpoint.loaded:
+        print(f'Resumable checkpoint: {checkpoint.loaded} matching song/stage entries; '
+              'completed unchanged work will be reused. File: {checkpoint.path}',flush=True)
     pending=list(missing)
-    offline_reviewed=set()  # keep earlier offline review state through online stage
+    reviewed_by_song=set()  # review presence must survive every later timeout
     retry_by_song={}  # MP3 -> ONLY the actual timed-out providers
     completed_by_song={}  # help classify later-round failure accurately
     interrupted=False
@@ -2375,8 +2392,29 @@ def main():
             print(f'\n===== ROUND {rnd}/3 | {len(current)} songs | {phase} =====',flush=True)
             for index,path in enumerate(current,1):
                 print(f'[{index}/{len(current)}] {path.name}',flush=True)
+                previous=checkpoint.get(path,rnd)
+                if previous:
+                    # A completed stage is not re-run on a restarted session.
+                    # Replay its exact results into this run's final reports.
+                    states[path]=(previous['status'],previous.get('detail',''))
+                    row=previous.get('row')
+                    if row:rows.append(row)
+                    reviews.extend(previous.get('review_rows',[]))
+                    provider_rows.extend(previous.get('provider_rows',[]))
+                    http_rows.extend(previous.get('http_rows',[]))
+                    if previous.get('reviewed'):
+                        reviewed_by_song.add(path)
+                    if previous['status']=='TIMEOUT':
+                        retry_by_song[path]=set(previous.get('retry_targets',[]))
+                    if offline_stage or (previous['status']=='TIMEOUT'
+                                         and previous.get('retry_targets') and rnd<3):
+                        pending.append(path)
+                    print(f'    CHECKPOINT: {previous["status"]} (no repeat requests)',flush=True)
+                    continue
                 review=CandidateReview();status='TIMEOUT';detail='';calls=[];hit=None
                 new_retry=set();call_timings=[];call_traces=[]
+                provider_start=len(provider_rows)
+                http_start=len(http_rows)
                 retry_phase=(rnd==3) if staged_mode else (rnd>1)
                 target_providers=retry_by_song.pop(path,None) if retry_phase else None
                 if retry_phase:
@@ -2418,7 +2456,7 @@ def main():
                                 status='REVIEW_AVAILABLE'
                                 detail='Unverified offline candidates for review'
                                 calls=['LRCLIB_LOCAL=REVIEW_AVAILABLE']
-                                offline_reviewed.add(path)
+                                reviewed_by_song.add(path)
                             else:
                                 status='NOT_FOUND'
                                 detail='No verified synchronized lyrics in local SQLite'
@@ -2428,10 +2466,12 @@ def main():
                                 title,artist,album,duration,review,
                                 only_providers=target_providers,retry_targets=new_retry,
                                 timings=call_timings,request_traces=call_traces)
-                            if staged_mode and path in offline_reviewed and not hit and status in (
+                            # Existing candidates from any previous stage remain
+                            # review-worthy even if another provider says NO_MATCH.
+                            if not hit and path in reviewed_by_song and status in (
                                     'NOT_FOUND','NOT_FOUND_PARTIAL'):
                                 status='REVIEW_PARTIAL'
-                                detail+='; offline review candidates still available'
+                                detail+='; earlier round candidate(s) still require review'
                         if hit:
                             try:save_hit(path,hit);saved+=1
                             except FileExistsError:status='EXISTS';detail='LRC appeared during the run'
@@ -2444,6 +2484,11 @@ def main():
                     break
                 except Exception as ex:
                     status='SERVER_ERROR';detail=f'Unexpected error {type(ex).__name__}: {str(ex)[:120]}'
+                if review.items:
+                    reviewed_by_song.add(path)
+                if status in {'NOT_FOUND','NOT_FOUND_PARTIAL'} and path in reviewed_by_song:
+                    status='REVIEW_PARTIAL'
+                    detail+='; candidate(s) from an earlier or current round need review'
                 previous_completed=completed_by_song.get(path,set())
                 now_completed={x.split('=',1)[0] for x in calls if x.endswith('=NO_MATCH')}
                 completed_by_song[path]=previous_completed | now_completed
@@ -2454,8 +2499,11 @@ def main():
                 lrclib_attempt_log.append((path,tuple(calls)))
                 if status=='TIMEOUT' and new_retry:
                     retry_by_song[path]=new_retry
-                reviews.extend(export_review_candidates(path,rnd,review))
-                rows.append([str(path),rnd,status,detail,hit.provider if hit else '', ' | '.join(calls), hit.search_variation if hit else ''])
+                stage_reviews=export_review_candidates(path,rnd,review)
+                reviews.extend(stage_reviews)
+                stage_row=[str(path),rnd,status,detail,hit.provider if hit else '',
+                           ' | '.join(calls),hit.search_variation if hit else '']
+                rows.append(stage_row)
                 for call_index,outcome in enumerate(calls):
                     prov,result=(outcome.split('=',1)+[''])[:2]
                     try:
@@ -2478,6 +2526,11 @@ def main():
                                 else 'HTTP status hidden by third-party library' if prov in LIBRARY_MANAGED_SOURCES
                                 else 'no HTTP call recorded')
                         http_rows.append([str(path),rnd,prov,'', 'NOT_OBSERVED',reason,0])
+                # Durable append per completed song, BEFORE advancing to the
+                # next track; old stage rows are replayed from this same file.
+                checkpoint.save(path,rnd,status,detail,new_retry,
+                    path in reviewed_by_song,stage_row,stage_reviews,
+                    provider_rows[provider_start:],http_rows[http_start:])
                 print(f'  {status}: {detail}',flush=True)
                 if offline_stage and not path.with_suffix('.lrc').exists():
                     pending.append(path)
@@ -2577,6 +2630,7 @@ def main():
         print('NEW source statistics:',stats_path)
         print('Provider coverage (request sent vs unavailable):',coverage_path)
         print('LRCLIB catch-up queue (option 3, never automatic):',lrclib_pending,'song(s)')
+        print('Per-song resumable checkpoint:',checkpoint.path)
         print('Saved by provider:',', '.join(f'{source}: {statistics[source]["SAVED"]}' for source in PROVIDERS if statistics[source]['SAVED']) or 'none')
         try:
             run_id=datetime.now().strftime('%Y%m%d_%H%M%S')
