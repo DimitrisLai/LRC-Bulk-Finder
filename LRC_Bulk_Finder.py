@@ -2343,6 +2343,7 @@ def main():
     # Tag-only LIVE also counts, even if the file is named without the word.
     missing=[]; live_skipped=[]; already_have=0; metadata_cache={}
     for track in all_mp3:
+        check_stop()
         if is_live_track(track.stem):
             live_skipped.append(track)
             continue
@@ -2386,6 +2387,7 @@ def main():
         print('\nPreparing Greek search variants BEFORE contacting lyrics providers...',flush=True)
         try:
             for index,path in enumerate(missing,1):
+                check_stop()
                 try:
                     title,artist,album,duration=metadata_cache.get(path) or song_info(path)
                     detail=precompute_greek_plan(title,artist,G2G_TOOL)
