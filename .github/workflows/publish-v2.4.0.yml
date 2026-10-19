@@ -181,6 +181,96 @@ jobs:
           assert Path(greek_font).is_file() and Path(greek_bold).is_file()
           pdfmetrics.registerFont(TTFont('DejaVu',greek_font))
           pdfmetrics.registerFont(TTFont('DejaVu-Bold',greek_bold))
+          # v2.4.0 new illustrated preset and setup page.
+          c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
+          c.setFillColor(navy);c.rect(0,height-148,width,148,stroke=0,fill=1)
+          c.setFillColor(teal);c.setFont('Helvetica-Bold',11)
+          c.drawString(46,height-48,'NEW v2.4.0   /   BUILT-IN PROFILES')
+          c.setFillColor(HexColor('#FFFFFF'));c.setFont('Helvetica-Bold',24)
+          c.drawString(46,height-95,'Greek searches, ready to go.')
+          y=height-166
+          y=para('Choose a built-in preset at the top of the Control Center '
+                 'and click <b>Apply preset</b>. It updates all search toggles '
+                 'without overwriting your individually saved profiles. '
+                 '<b>Hover over a configuration</b> for a short explanation.',
+                 46,y,502,10.4,15.5)-24
+          options=[
+              ('GREEK FULL - OFFLINE FIRST','Local database for every song; full online sources only for misses.'),
+              ('GREEK NIGHT - MAXIMUM COVERAGE','FULL sources and provider recovery waiting; may run for hours.'),
+              ('GREEK QUICK TEST - 20','A controlled 20-song full-provider check with fresh NO_MATCH attempts.'),
+              ('GREEK OFFLINE ONLY','Downloaded LRCLIB SQLite; zero MusicBrainz or online calls.'),
+              ('GREEK LOCAL AI - FULL','Optional separate transformer model for spelling suggestions.'),
+              ('INTERNATIONAL FAST - 20','Fast English/international non-Greek test with five sources.')
+          ]
+          for i,(heading,description) in enumerate(options):
+              c.setFillColor(cloud if i%2==0 else pale)
+              c.roundRect(46,y-63,503,68,8,stroke=0,fill=1)
+              c.setFillColor(navy);c.setFont('Helvetica-Bold',10.7)
+              c.drawString(61,y-13,heading)
+              para(description,61,y-25,470,9.2,14)
+              y-=79
+          c.setFillColor(pale);c.roundRect(46,95,503,92,9,stroke=0,fill=1)
+          para('<b>INSTALLATION CONTROLS</b><br/>'
+               'Download / set up LRCLIB database: optional official SQLite '
+               'snapshot with explicit destination and download consent.<br/>'
+               'Download / set up Greek G2G AI: optional separate Python '
+               'environment and heavyweight language model.',
+               61,172,468,9.1,14)
+          c.setFillColor(subtle);c.setFont('Helvetica',8.1)
+          c.drawString(46,53,'Night Search is a search preset, NOT a Windows schedule or background service.')
+          c.drawString(46,37,'Standalone EXE can download LRCLIB; local G2G requires the complete Python package.')
+          c.showPage()
+
+          # v2.4.0 new format, incremental and experimental Sync Lab guide.
+          c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
+          c.setFillColor(navy);c.rect(0,height-152,width,152,stroke=0,fill=1)
+          c.setFillColor(teal);c.setFont('Helvetica-Bold',11)
+          c.drawString(46,height-49,'NEW v2.4.0   /   LIBRARY AND SYNC LAB')
+          c.setFillColor(HexColor('#FFFFFF'));c.setFont('Helvetica-Bold',23)
+          c.drawString(46,height-95,'More formats. Safer repeat scans.')
+          y=height-174
+          y=para('Read-only audio support: <b>MP3, FLAC, M4A, MP4, OGG, '
+                 'OPUS and WAV</b>. Lyric output is always a separate .lrc '
+                 'or clearly marked review candidate. Original audio tags '
+                 'and bytes are never changed.',
+                 46,y,502,10.4,16)-29
+          blocks=[
+              ('01','INCREMENTAL LIBRARY TRACKING',
+               'A local SQLite index remembers read-only metadata, audio '
+               'size/mtime and existing LRC sidecar status. Changed or '
+               'new audio is re-read; unchanged metadata can be reused.'),
+              ('02','PROTECT SIDE-CAR NAME COLLISIONS',
+               'If Song.mp3 and Song.flac are both in one folder, neither '
+               'is automatically assigned the ambiguous Song.lrc. '
+               'Rename files to distinguish recording formats.'),
+              ('03','EXPERIMENTAL SYNC LAB',
+               'Paste or import your own unsynchronized lyric lines. '
+               'Estimate rough timings using track duration or manually '
+               'tap each new lyric while listening in an external player.'),
+              ('04','EXPLICIT UNVERIFIED CANDIDATE',
+               'Edit the draft and confirm saving. It becomes only '
+               'Song.candidate.lrc with [00:00.00] candidate at the top. '
+               'NEVER an automatically verified synchronized recording.')
+          ]
+          for number,heading,description in blocks:
+              c.setFillColor(cloud);c.roundRect(46,y-91,503,97,9,stroke=0,fill=1)
+              c.setFillColor(teal);c.circle(70,y-18,16,stroke=0,fill=1)
+              c.setFillColor(navy);c.setFont('Helvetica-Bold',11)
+              c.drawCentredString(70,y-22,number)
+              c.drawString(102,y-16,heading)
+              para(description,102,y-31,430,9.1,14)
+              y-=109
+          c.setFillColor(pale);c.roundRect(46,99,503,77,9,stroke=0,fill=1)
+          para('<b>NOT AUDIO ALIGNMENT</b><br/>'
+               'The timing helper is an experimental drafting aid only. '
+               'You must listen and review. Existing approved LRC files '
+               'and source audio are never overwritten.',
+               61,162,474,9.4,15)
+          c.setFillColor(subtle);c.setFont('Helvetica',8.6)
+          c.drawString(46,51,'No acoustic fingerprints, no automatic lyric transcription, no unsafe LRC promotion.')
+          c.drawString(46,34,'More details: HOW_TO_START_V2_4.txt included with your Windows ZIP.')
+          c.showPage()
+
           # v2.4.0: native Windows Control Center overview.
           c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
           c.setFillColor(navy);c.rect(0,height-152,width,152,stroke=0,fill=1)
@@ -608,36 +698,40 @@ jobs:
           writer=PdfWriter()
           for page in PdfReader(buf).pages:writer.add_page(page)
           for page in old.pages:writer.add_page(page)
-          assert len(writer.pages)==27
+          assert len(writer.pages)==29
           writer.add_metadata({
               '/Title':'LRC Bulk Finder v2.4.0 - Complete User Manual',
               '/Author':'Dimitris L.',
               '/Subject':'Greek Night presets, tooltips, download buttons, incremental index, seven formats and experimental timing'
           })
           writer.add_outline_item('v2.4.0 cover',0)
-          writer.add_outline_item('Windows Control Center - profiles and ETA',1)
-          writer.add_outline_item('Review interface and safe daily workflow',2)
-          writer.add_outline_item('Provider performance',3)
-          writer.add_outline_item('Stability and safe resume',4)
-          writer.add_outline_item('Option 5 offline-first',5)
-          writer.add_outline_item('Greek artist corrections',6)
-          writer.add_outline_item('Greeklish word spelling',7)
-          writer.add_outline_item('Greek lexicon and SQLite',8)
-          writer.add_outline_item('Option 2 marked candidate promotion',9)
-          writer.add_outline_item('Core application reference (v2.1.15)',10)
+          writer.add_outline_item('Ready-made Greek and Night presets',1)
+          writer.add_outline_item('Incremental audio index and Sync Lab',2)
+          writer.add_outline_item('Windows Control Center - profiles and ETA',3)
+          writer.add_outline_item('Review interface and safe daily workflow',4)
+          writer.add_outline_item('Provider performance',5)
+          writer.add_outline_item('Stability and safe resume',6)
+          writer.add_outline_item('Option 5 offline-first',7)
+          writer.add_outline_item('Greek artist corrections',8)
+          writer.add_outline_item('Greeklish word spelling',9)
+          writer.add_outline_item('Greek lexicon and SQLite',10)
+          writer.add_outline_item('Option 2 marked candidate promotion',11)
+          writer.add_outline_item('Core application reference (v2.1.15)',12)
           with pdf_path.open('wb') as dest:writer.write(dest)
           checked=PdfReader(str(pdf_path))
-          assert len(checked.pages)==27
-          assert 'WINDOWS CONTROL CENTER' in (checked.pages[1].extract_text() or '')
-          assert 'DAILY WORKFLOW' in (checked.pages[2].extract_text() or '')
-          assert 'SEARCH PERFORMANCE' in (checked.pages[3].extract_text() or '')
-          assert 'STABILITY AND ACCURACY' in (checked.pages[4].extract_text() or '')
-          assert 'THREE-STAGE WORKFLOW' in (checked.pages[5].extract_text() or '')
-          assert 'Γιώργος Αλκαίος' in (checked.pages[6].extract_text() or '')
-          assert 'Φωνάζω' in (checked.pages[7].extract_text() or '')
-          assert 'Greek_Lexicon.sqlite3' in (checked.pages[8].extract_text() or '')
-          assert '[00:00.00] candidate' in (checked.pages[9].extract_text() or '')
-          print('PASS PDF: 27 pages; native GUI, saved settings, per-round ETA, candidate review plus preserved legacy guide')
+          assert len(checked.pages)==29
+          assert 'BUILT-IN PROFILES' in (checked.pages[1].extract_text() or '')
+          assert 'LIBRARY AND SYNC LAB' in (checked.pages[2].extract_text() or '')
+          assert 'WINDOWS CONTROL CENTER' in (checked.pages[3].extract_text() or '')
+          assert 'DAILY WORKFLOW' in (checked.pages[4].extract_text() or '')
+          assert 'SEARCH PERFORMANCE' in (checked.pages[5].extract_text() or '')
+          assert 'STABILITY AND ACCURACY' in (checked.pages[6].extract_text() or '')
+          assert 'THREE-STAGE WORKFLOW' in (checked.pages[7].extract_text() or '')
+          assert 'Γιώργος Αλκαίος' in (checked.pages[8].extract_text() or '')
+          assert 'Φωνάζω' in (checked.pages[9].extract_text() or '')
+          assert 'Greek_Lexicon.sqlite3' in (checked.pages[10].extract_text() or '')
+          assert '[00:00.00] candidate' in (checked.pages[11].extract_text() or '')
+          print('PASS PDF: 29 pages; Greek/Night presets, tooltips, downloads, incremental audio and experimental Sync Lab')
           for path in (zip_path,pdf_path):
               print('SHA256',path.name,sha256(path.read_bytes()).hexdigest())
           PY
