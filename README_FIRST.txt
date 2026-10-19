@@ -1,3 +1,20 @@
+LRC BULK FINDER v2.1.20 - START HERE
+Created by Dimitris L. - PUBLIC BETA
+
+NEW OPTION 5: 1) OFFLINE LRCLIB across ALL files first,
+2) ONLINE selected providers only for remaining files,
+3) ONLY timed-out provider/song retries (once).
+No network during Stage 1, and no double local DB checks in Stage 2.
+DB must be configured or Option 5 exits safely.
+Option 4 remains 100% offline-only (no MusicBrainz or HTTP).
+
+FULL ORDERED PROMPTS: HOW_TO_START_V2_1_20.txt
+Keep the existing [00:00.00] candidate behavior unchanged.
+Your large LRCLIB SQLite database is reused from its existing disk location;
+it is NOT copied into this program ZIP.
+
+---- PREVIOUS RELEASE NOTES ----
+
 LRC BULK FINDER v2.1.19 - START HERE
 Created by Dimitris L. - PUBLIC BETA
 
