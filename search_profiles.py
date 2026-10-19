@@ -18,7 +18,7 @@ DEFAULT={
     "recovery_wait":False,"recursive":True,"history":True,"limit":"20",
     "exact_fallback":True,"auto_search":True,"database":"","incremental":True,
 }
-NAMES_RE=re.compile(r"^[\w][\w ._-]{0,39}$",re.UNICODE)
+NAMES_RE=re.compile(r"^[\w][\w ._–—-]{0,63}$",re.UNICODE)
 PROVIDER_FAST=("LRCLIB","SyncLRC","NetEase","Unison","LrcAPI")
 PROVIDER_FULL=("LRCLIB","SyncLRC","Unison","BetterKuGou","BetterTTML","YouLyTTML",
                "LrcAPI","LiriQo","NetEase","Musixmatch","Megalobiz","Tencent")
@@ -90,7 +90,7 @@ def save_profiles(profiles,path=None):
     cleaned={}
     for name,data in profiles.items():
         if not isinstance(name,str) or not NAMES_RE.fullmatch(name):
-            raise ValueError("Profile names must be 1–40 characters: letters, numbers, spaces, underscores, hyphens or dots")
+            raise ValueError("Profile names must be 1–64 characters: letters, numbers, spaces, underscores, hyphens/dashes or dots")
         cleaned[name]=validate_profile(data)
     destination.parent.mkdir(parents=True,exist_ok=True)
     payload=json.dumps({"schema":1,"profiles":cleaned},indent=2,ensure_ascii=False)
