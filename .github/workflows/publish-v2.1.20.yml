@@ -82,6 +82,10 @@ jobs:
               assert all(prefix+p in members for p in required)
               source=z.read(prefix+'LRC_Bulk_Finder.py')
               assert b"VERSION = '2.1.20'" in source
+              # Confirm this is a launch-ready Windows package, not a code-only ZIP.
+              assert b'call "%~dp0Run_LRC_Finder.cmd"' in z.read(prefix+'START_HERE.cmd')
+              assert b'LRC_Bulk_Finder.py' in z.read(prefix+'Run_LRC_Finder.cmd')
+              assert b'START_HERE.cmd' in z.read(prefix+'Start_LRC_Finder.bat')
               assert b'[00:00.00] candidate' in source
               assert b'def _shift_promotion_alternatives' in source
               assert b'patch_known_greek_words' in source
