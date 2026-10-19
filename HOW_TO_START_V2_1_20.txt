@@ -1,0 +1,76 @@
+LRC BULK FINDER v2.1.20 - ALL OPTIONS / THREE-STAGE SEARCH
+Created by Dimitris L. | Windows Public Beta
+
+WHAT IS NEW:
+Option 5 performs an entire OFFLINE LRCLIB scan for ALL eligible MP3s
+before sending ANY online lyrics/MusicBrainz requests.
+Then it runs full selected online providers only for still-missing .lrc.
+Finally it retries ONLY exact provider/song pairs that truly TIMED OUT.
+It never automatically re-runs completed NO_MATCH providers.
+
+USING JUST YOUR DOWNLOADED LRCLIB DB:
+- Choose OPTION 4. Requires only the existing extracted LARGE LRCLIB SQLite.
+- This sends ZERO HTTP requests (also no MusicBrainz requests).
+- If the DB path is unknown, paste it when requested. The original file
+  is reused READ-ONLY, not downloaded, modified or duplicated.
+- The small Greek_Lexicon.sqlite3 is a DIFFERENT word dictionary.
+
+ONE-CLICK THREE-STAGE PIPELINE:
+- Choose OPTION 5. It REQUIRES the LARGE local LRCLIB SQLite;
+  if unavailable, it aborts rather than silently searching online.
+- Round 1 = local database scan for ALL eligible songs.
+  Verified matches saved, uncertain candidates kept for manual review.
+  Nothing contacts online providers during this stage.
+- Round 2 = online provider searches ONLY for still-missing .lrc files.
+  Online LRCLIB is a separate optional service; it does not repeat local DB.
+  Other online providers use the chosen FAST/FULL option.
+- Round 3 = retry genuine network TIMEOUTS from Round 2 ONLY,
+  once per original provider/song. Never retry 401, 429, 503, NO_MATCH
+  or other provider failures automatically.
+- ALL original MP3s, ID3 tags and existing .lrc files are unchanged.
+
+EXACT ORDER OF ALL OPTION 5 PROMPTS:
+  1. Choose [1/2/3/4/5] (default 1):                 5
+  2. Select the MP3 folder:                          your full music folder
+     IF large LRCLIB path missing: path to .sqlite3 file (Enter cancels)
+  3. Greeklish / Greek folder? [y/N]:               Y
+  4. Use installed LOCAL G2G AI? [y/N]:             Y if installed, else N
+  5. MusicBrainz extra metadata? [Y/n]:             Y
+  6. FAST or FULL providers? [F/full]:              full
+  7. Wait for temporary recovery? [Y/n]:            N
+  8. Include subfolders? [Y/n]:                     Y
+  9. Skip completed NO_MATCH in last 7 days? [Y/n]: N for fresh version
+ 10. How many missing songs? [20 or A]:             20 first, A for all
+ 11. Optional LRCLIB exact-signature HTTP fallback? Y
+ 12. Auto-SEARCH after Greek preview? [Y/n]:        Y (N = preview only)
+
+EXACT ORDER OF ALL OPTION 4 PROMPTS:
+  1. Choose main action:                            4
+  2. Select MP3 folder:                             any folder
+     IF DB path missing: path to your LARGE .sqlite3 snapshot
+  3. Greeklish / Greek folder? [y/N]:               Y for Greek folders
+  4. Use installed LOCAL G2G AI? [y/N]:             Y if installed
+  5. Include subfolders? [Y/n]:                     Y
+  6. How many eligible songs? [20 or A]:            20 test, A for all
+  7. Start offline-only scan? [y/N]:                 Y
+  No MusicBrainz, search mode or online recovery questions in Option 4.
+
+OTHER MENU ACTIONS:
+  1 = Original SEARCH (per-song local-first then online; up to 3 timeout rounds)
+  2 = Install review candidates with EXACT [00:00.00] candidate marker
+  3 = LRCLIB queued catch-up, only incomplete LRCLIB coverage
+  4 = LOCAL LRCLIB ONLY, whole-folder, zero network
+  5 = STAGED SEARCH, offline ALL songs -> online misses -> timeout retry
+
+UPGRADING FROM v2.1.19:
+1. Download the COMPLETE v2.1.20 Windows ZIP release, not Source code.zip.
+2. Extract to a NEW directory.
+3. Copy your own customized Greek_Aliases.csv / Greek_Words.csv if used.
+4. Copy LRCLIB_LOCAL_DB.txt or select your downloaded SQLite path.
+5. Double click START_HERE.cmd (Python 3.10+ and dependencies).
+
+REPORTS:
+Detailed reports are preserved; new first-attempt coverage CSV includes
+LRCLIB_LOCAL for the complete offline stage plus online round-two attempts.
+Do not confuse SKIPPED/503 with completed NO_MATCH.
+Your whole MP3 inventory is NOT included in this public release.
