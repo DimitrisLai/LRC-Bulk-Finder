@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.1.20 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.1.21 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -15,6 +15,13 @@ LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music librarie
 Lyrics are saved alongside the MP3 with the same base filename, making them compatible with many portable music players and car stereos that support synchronized LRC text.
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
+
+## What's new in v2.1.21: stability, accuracy, checkpoint resume
+
+- **More complete Greek offline matching:** offline LRCLIB now tries up to six approved title/artist combinations, including the Greek-title + approved-Greek-artist pair that was previously excluded from local lookup. Exact recording/version/duration verification is unchanged.
+- **Review candidates survive across all stages:** timeout retries and later NO_MATCH responses cannot misclassify already discovered review candidates as genuinely not found.
+- **Resume large searches:** Option 1 and Option 5 append a per-song/stage record to `LRC_Run_Checkpoint_v2_1_21.jsonl` inside your chosen folder. A restarted scan with identical settings reuses completed unchanged work and reconstructs provider and review reports. Changed MP3 size/mtime, dictionaries, provider settings and local SQLite snapshot invalidate stale stage checkpoints. For a completely fresh run, first rename/move the checkpoint file. Do not run two simultaneous copies on the same folder.
+- **Regression tests:** CI now discovers all 22 test modules on Windows/Linux Python 3.10/3.13, including legacy snapshot setup, cleanup, provider diagnostics and timeout behavior. See [test audit](TEST_AUDIT_V2_1_21.md) and the [new complete instructions](HOW_TO_START_V2_1_21.txt).
 
 ## What's new in v2.1.20: offline-first full folder pipeline
 
@@ -38,7 +45,7 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 1. Download the **Windows ZIP** and **PDF user manual** from [the latest release](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases).
 2. Extract the ZIP completely to a normal folder; don't launch from inside an archive.
 3. Install [Python 3.10 or later](https://www.python.org/downloads/) if necessary. The Windows launcher can install required Python packages through `pip` if they are missing.
-4. Double-click **`START_HERE.cmd`**. Select one of the four menu modes, then follow the questions.
+4. Double-click **`START_HERE.cmd`**. Select one of the five menu modes, then follow the questions.
 5. Test with **20** eligible songs before choosing **A** to scan an entire collection.
 
 ### Main menu
@@ -49,6 +56,7 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 | **2 — MARKED PROMOTION** | Bulk-install the first `.candidate.lrc` for each MP3 as a playable, clearly **UNVERIFIED** `.lrc`, then shift other numbered candidates down. | **No** |
 | **3 — LRCLIB CATCH-UP** | A previous run created a queue of unfinished LRCLIB searches. | Configurable: offline-only or online fallback |
 | **4 — OFFLINE LRCLIB ONLY** | You want to scan **any MP3 directory**, even if no catch-up queue exists, using only your local LRCLIB database. | **No** lyrics/metadata requests |
+| **5 — OFFLINE FIRST / ONLINE FALLBACK** | Scan the whole folder offline first, online only for remaining songs, then retry real network timeouts. Supports persistent per-song/stage restart checkpoints. | **Offline in Round 1; online in Round 2/3 only** |
 
 **Option 3 is not a general-purpose new-folder scanner.** Use **option 4** to search a new folder only against your local LRCLIB snapshot.
 
@@ -136,7 +144,7 @@ Choose Greek mode **Y** when prompted. You may optionally install the local Gree
 
 | Launcher | What it does | Recommended use |
 | --- | --- | --- |
-| **`START_HERE.cmd`** | Opens the four-mode application menu | **Start here for everyday use** |
+| **`START_HERE.cmd`** | Opens the five-mode application menu | **Start here for everyday use** |
 | `CONNECT_EXISTING_LRCLIB_DATABASE.cmd` | Links an already extracted local SQLite snapshot | Reuse an existing database, no new download |
 | `SETUP_LRCLIB_DATABASE.cmd` | Offers an optional automated official snapshot download and setup | First-time **offline database installation**, with enough disk space |
 | `SETUP_LRCLIB_DATABASE_FROM_FILE.cmd` | Imports a separately obtained `.sqlite3` or `.sqlite3.gz` file | Manual database setup |
