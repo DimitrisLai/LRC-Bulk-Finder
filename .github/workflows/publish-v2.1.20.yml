@@ -133,16 +133,16 @@ jobs:
           c.setFillColor(teal);c.setFont('Helvetica-Bold',25)
           c.drawString(52,473,'v2.1.20')
           c.setFillColor(HexColor('#D8E7F0'));c.setFont('Helvetica',15)
-          c.drawString(52,414,'Dictionary-first Greeklish quality')
-          c.drawString(52,389,'Greek names before local AI guesses')
+          c.drawString(52,414,'OFFLINE FIRST: entire folder')
+          c.drawString(52,389,'ONLINE NEXT: misses only')
           c.setStrokeColor(HexColor('#3B5A77'));c.setLineWidth(1)
           c.line(52,346,540,346)
           c.setFillColor(HexColor('#EAF6F9'));c.setFont('Helvetica-Bold',12)
           c.drawString(52,309,'NEW IN THIS EDITION')
           c.setFont('Helvetica',12)
-          c.drawString(52,279,'113 Greek artist/group aliases')
-          c.drawString(52,253,'More than 1,000 accented Greek words')
-          c.drawString(52,227,'Full program, unchanged Option 2')
+          c.drawString(52,279,'Round 1 - offline database for all files')
+          c.drawString(52,253,'Round 2 - online for still-missing files')
+          c.drawString(52,227,'Round 3 - retry only real timeouts')
           pill('PUBLIC BETA',52,138,132)
           c.setFillColor(HexColor('#C4D2E3'));c.setFont('Helvetica',10)
           c.drawString(52,89,'Created by Dimitris L.  |  October 2026')
@@ -157,6 +157,61 @@ jobs:
           assert Path(greek_font).is_file() and Path(greek_bold).is_file()
           pdfmetrics.registerFont(TTFont('DejaVu',greek_font))
           pdfmetrics.registerFont(TTFont('DejaVu-Bold',greek_bold))
+          # v2.1.20 full-folder offline-first guide with every prompt in order.
+          c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
+          c.setFillColor(navy);c.rect(0,height-144,width,144,stroke=0,fill=1)
+          c.setFillColor(teal);c.setFont('Helvetica-Bold',11)
+          c.drawString(46,height-49,'NEW IN v2.1.20    /    THREE-STAGE WORKFLOW')
+          c.setFillColor(HexColor('#FFFFFF'));c.setFont('Helvetica-Bold',25)
+          c.drawString(46,height-94,'Offline first. Every song.')
+          y=height-171
+          y=para('Choose <b>Option 5</b> to scan the WHOLE folder using the '
+                 'LARGE downloaded LRCLIB SQLite file before any MusicBrainz '
+                 'or lyrics-site requests. A missing database stops safely.',
+                 46,y,501,10.6,16)-23
+          for number,title,desc in [
+              ('01','LOCAL SQLITE ONLY','All songs checked offline. Verified LRC saved; candidates kept.'),
+              ('02','ONLINE MISSES','Only unsaved songs searched online; no repeat of local database.'),
+              ('03','TIMEOUT RETRIES','Only actual timed-out provider/song pairs get one more try.')
+          ]:
+              c.setFillColor(pale);c.roundRect(46,y-50,503,57,9,stroke=0,fill=1)
+              c.setFillColor(navy);c.setFont('Helvetica-Bold',16)
+              c.drawString(61,y-17,number)
+              c.setFont('Helvetica-Bold',11);c.drawString(105,y-15,title)
+              para(desc,105,y-23,432,8.5,12)
+              y-=69
+          y-=20
+          c.setFillColor(navy);c.setFont('Helvetica-Bold',12)
+          c.drawString(46,y,'OPTION 5 - ALL SETTINGS, IN THE CORRECT ORDER')
+          y-=26
+          choices=[
+              '1   Choose main menu: 5',
+              '2   Select full MP3 folder / provide existing SQLite path if requested',
+              '3   Greeklish or Greek folder: Y',
+              '4   Local G2G AI: Y only if already installed',
+              '5   MusicBrainz extra artist/title metadata: Y',
+              '6   Provider mode: full (all 12 available routes)',
+              '7   Wait for temporary provider recovery: N',
+              '8   Include subfolders: Y',
+              '9   Skip cached 7-day NO_MATCH: N for fresh testing',
+              '10  How many missing songs: 20 for first test, A for all',
+              '11  LRCLIB exact-signature online fallback: Y',
+              '12  Auto SEARCH after preview: Y'
+          ]
+          for i,line in enumerate(choices):
+              if i%2==0:
+                  c.setFillColor(cloud);c.roundRect(46,y-15,503,21,4,stroke=0,fill=1)
+              c.setFillColor(dark);c.setFont('Helvetica',9.0)
+              c.drawString(57,y-8,line)
+              y-=23
+          c.setFillColor(teal);c.roundRect(46,58,503,61,9,stroke=0,fill=1)
+          para('<b>OFFLINE ONLY:</b> Choose <b>Option 4</b>. It searches '
+               'your same downloaded LRCLIB database without any HTTP or '
+               'MusicBrainz calls.',61,105,473,9.5,15)
+          c.setFillColor(subtle);c.setFont('Helvetica',8)
+          c.drawString(46,40,'Original MP3 files / ID3 tags and existing LRC files remain unchanged.')
+          c.showPage()
+
           # NEW v2.1.20 artist identity quality page.
           c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
           c.setFillColor(navy);c.rect(0,height-146,width,146,stroke=0,fill=1)
@@ -345,26 +400,28 @@ jobs:
           writer=PdfWriter()
           for page in PdfReader(buf).pages:writer.add_page(page)
           for page in old.pages:writer.add_page(page)
-          assert len(writer.pages)==22
+          assert len(writer.pages)==23
           writer.add_metadata({
               '/Title':'LRC Bulk Finder v2.1.20 - Complete User Manual',
               '/Author':'Dimitris L.',
               '/Subject':'Greeklish public SQLite lexicon; Greek spelling fixes; Option 2 reference'
           })
           writer.add_outline_item('v2.1.20 cover',0)
-          writer.add_outline_item('v2.1.20 approved Greek artists',1)
-          writer.add_outline_item('Greeklish word spelling',2)
-          writer.add_outline_item('Greek lexicon and SQLite',3)
-          writer.add_outline_item('Option 2 marked candidate promotion',4)
-          writer.add_outline_item('Core application reference (v2.1.15)',5)
+          writer.add_outline_item('Option 5 offline-first',1)
+          writer.add_outline_item('Greek artist corrections',2)
+          writer.add_outline_item('Greeklish word spelling',3)
+          writer.add_outline_item('Greek lexicon and SQLite',4)
+          writer.add_outline_item('Option 2 marked candidate promotion',5)
+          writer.add_outline_item('Core application reference (v2.1.15)',6)
           with pdf_path.open('wb') as dest:writer.write(dest)
           checked=PdfReader(str(pdf_path))
-          assert len(checked.pages)==22
-          assert 'Γιώργος Αλκαίος' in (checked.pages[1].extract_text() or '')
-          assert 'Φωνάζω' in (checked.pages[2].extract_text() or '')
-          assert 'Greek_Lexicon.sqlite3' in (checked.pages[3].extract_text() or '')
-          assert '[00:00.00] candidate' in (checked.pages[4].extract_text() or '')
-          print('PASS PDF: 22 pages; canonical artist page, word guide, SQLite guide, Option 2')
+          assert len(checked.pages)==23
+          assert 'THREE-STAGE WORKFLOW' in (checked.pages[1].extract_text() or '')
+          assert 'Γιώργος Αλκαίος' in (checked.pages[2].extract_text() or '')
+          assert 'Φωνάζω' in (checked.pages[3].extract_text() or '')
+          assert 'Greek_Lexicon.sqlite3' in (checked.pages[4].extract_text() or '')
+          assert '[00:00.00] candidate' in (checked.pages[5].extract_text() or '')
+          print('PASS PDF: 23 pages; full Option5 settings, verified artists, Greek lexicon, Option2')
           for path in (zip_path,pdf_path):
               print('SHA256',path.name,sha256(path.read_bytes()).hexdigest())
           PY
@@ -380,7 +437,7 @@ jobs:
             gh release create v2.1.20 dist/*.zip dist/*.pdf \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
-              --title "LRC Bulk Finder v2.1.20 - Canonical Greek Artist Names" \
+              --title "LRC Bulk Finder v2.1.20 - Offline First 3-Stage Search" \
               --notes-file RELEASE_NOTES_V2_1_20.md --prerelease
           fi
       - name: Download assets back and verify identity
