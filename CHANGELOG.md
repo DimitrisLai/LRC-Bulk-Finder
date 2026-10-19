@@ -2,6 +2,13 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.1.20 — One-click offline-first, then online misses, then timeouts
+- New Option 5 scans the full selected eligible folder with the existing large LRCLIB database before contacting any online music provider.
+- Round 2 checks only unsaved songs against chosen FAST/FULL online providers, skipping redundant offline DB reads.
+- Round 3 retries only a provider/song pair with an actual network timeout, once; no re-search of NO_MATCH, 401, 429 or 503 outcomes.
+- Offline-only Option 4, the original Option 1, original MP3/ID3, matching strictness, and exact `[00:00.00] candidate` format are retained.
+- Full ordered prompts and dedicated staged offline-first Windows/Linux regression tests added.
+
 ## v2.1.19 — Full artist/group identities, not letter-by-letter conversions
 - Re-analysed a Greek music filename inventory (about 5,686 MP3 files). Added 113 standalone, public artist and group spelling aliases to `Greek_Artists.csv` without shipping music paths or the inventory.
 - Approved artist names take priority; speculative AI artist transliteration is disabled as a search alternative.
