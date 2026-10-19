@@ -37,7 +37,7 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.1.19'
+VERSION = '2.1.20'
 HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.19',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
@@ -71,6 +71,7 @@ PROVIDER_ERROR_STREAK = Counter()
 LOCAL_LRCLIB = None
 LRCLIB_ONLINE_FALLBACK = True
 LRCLIB_503_CIRCUIT_LIMIT = 3  # consecutive overload responses in one run
+STAGED_ONLINE_MODE = False  # Offline-first pipeline: never repeat a completed local pass.
 LRCLIB_EXACT_FALLBACK = False  # Opt-in: existing searches stay unchanged by default.
 LRCLIB_LAST_FINISHED = 0.0  # minimum gap after completion (not just between start times)
 next_available = {}
@@ -1436,7 +1437,7 @@ def provider_lrclib(title,artist,album,duration,review):
     Old implementation could issue 4+ calls/song and trigger 429 immediately.
     A Greek spelling alternative counts as search inside the FIRST round.
     """
-    if LOCAL_LRCLIB is not None:
+    if LOCAL_LRCLIB is not None and not STAGED_ONLINE_MODE:
         local_hit=local_lrclib_search(title,artist,duration,review)
         if local_hit:
             print('      LRCLIB: verified OFFLINE SQLite match (no HTTP request)',flush=True)
@@ -1659,7 +1660,7 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
             request_traces.append([])
             print_provider_state(source,'UNAVAILABLE',reason='optional dependency not installed; request not sent')
             continue
-        if source=='LRCLIB' and source in blocked and LOCAL_LRCLIB is not None:
+        if source=='LRCLIB' and source in blocked and LOCAL_LRCLIB is not None and not STAGED_ONLINE_MODE:
             # A remote 503/429/access restriction does not prevent genuine
             # read-only offline lookups. Never make a network request here.
             started=time.monotonic();trace=[];request_traces.append(trace)
@@ -2173,7 +2174,8 @@ def run_offline_lrclib_folder(folder):
         if interrupted:print('  Rerun option 4 to continue; songs already having .lrc are skipped.',flush=True)
 
 def main():
-    global ROUND
+    global ROUND, STAGED_ONLINE_MODE
+    STAGED_ONLINE_MODE=False
     print(f'\n=== LRC Bulk Finder v{VERSION} | 12 lyrics routes (some aggregate others) ===')
     print('Created by Dimitris L.')
     print('Writes verified .lrc files, nearby .candidate.lrc review files and reports; audio never changed.')
@@ -2200,8 +2202,9 @@ def main():
     print('  2 — INSTALL marked candidates to .lrc + advance alternatives (offline)')
     print('  3 — LRCLIB-only catch-up (only sources skipped or unavailable earlier)')
     print('  4 — OFFLINE LRCLIB ONLY (scan ANY folder; no internet)')
-    action=input('Choose [1/2/3/4] (default 1): ').strip()
-    if action not in {'','1','2','3','4'}:
+    print('  5 — OFFLINE FIRST: whole-folder local scan, online misses, timeout-only retry')
+    action=input('Choose [1/2/3/4/5] (default 1): ').strip()
+    if action not in {'','1','2','3','4','5'}:
         print('Invalid choice; no changes made.')
         return
     if action!='2':
@@ -2222,7 +2225,14 @@ def main():
         recursive=input('Include subfolders? [Y/n]: ').strip().lower()!='n'
         promote_candidates(folder,recursive=recursive)
         return
-    configure_local_lrclib(Path(__file__).resolve().parent)
+    staged_mode=action=='5'
+    if staged_mode:
+        if not ensure_local_lrclib_config(Path(__file__).resolve().parent):
+            print('Offline-first requires the downloaded LRCLIB SQLite file. No online-only fallback.')
+            return
+        print('STAGED SEARCH: 1/3 offline for all; 2/3 online for misses; 3/3 timeouts only.')
+    else:
+        configure_local_lrclib(Path(__file__).resolve().parent)
     load_provider_cooldowns(folder/'LRC_Provider_Cooldowns.json')
     configure_lrclib_contact(Path(__file__).resolve().parent)
     global MB_ENABLED,GREEK_MODE,ACTIVE_PROVIDERS,G2G_ENABLED,G2G_TOOL,HISTORY_ENABLED,COMPLETE_FIRST_PASS
