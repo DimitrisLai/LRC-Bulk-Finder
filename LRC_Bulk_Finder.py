@@ -7,6 +7,7 @@ from __future__ import annotations
 import csv
 from lrclib_local import LocalLRCLIB, load_local_config
 from search_checkpoint import SearchCheckpoint, checkpoint_signature
+from search_performance import MusicBrainzDiskCache, ProviderPerformance, choose_provider_order
 import hashlib
 import sqlite3
 import shutil
@@ -38,8 +39,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.1.21'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.21',
+VERSION = '2.2.0'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.2.0',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -566,6 +567,8 @@ def greeklish_to_greek(s):
 MB_ENABLED=False
 GREEK_MODE=True
 MB_CACHE={}
+MB_CACHE_DURATIONS={}
+MB_DISK_CACHE=None
 MB_CALLS=0
 MB_DISABLED_REASON=None
 
@@ -578,10 +581,19 @@ def musicbrainz_variant(title,artist,duration):
     """
     global MB_CALLS,MB_DISABLED_REASON
     key=(normalize(title),normalize(artist))
-    if key in MB_CACHE:return MB_CACHE[key]
+    duration_key=round(float(duration or 0),1)
+    if key in MB_CACHE and (key not in MB_CACHE_DURATIONS or
+                             MB_CACHE_DURATIONS[key]==duration_key):
+        return MB_CACHE[key]
     MB_CACHE[key]=None
+    MB_CACHE_DURATIONS[key]=duration_key
     if not MB_ENABLED or MB_DISABLED_REASON or not title or not artist:return None
     if GREEK_MODE and any('\u0370'<=c<='\u03ff' for c in title):return None
+    if MB_DISK_CACHE is not None:
+        found,cached=MB_DISK_CACHE.lookup(title,artist,duration,GREEK_MODE)
+        if found:
+            MB_CACHE[key]=cached
+            return cached
     try:
         query='"'+title.replace('"','')+'" '+artist.replace('"','')
         data=direct_json('MusicBrainz','https://musicbrainz.org/ws/2/recording',
@@ -609,6 +621,10 @@ def musicbrainz_variant(title,artist,duration):
                 if normalize(rt)==normalize(title) and normalize(ra)==normalize(artist):continue
             MB_CACHE[key]=(rt,ra)
             break
+        # Persist only completed, successful MusicBrainz responses, including
+        # clean NO_MATCH (shorter TTL). Never persist network failures.
+        if MB_DISK_CACHE is not None:
+            MB_DISK_CACHE.save(title,artist,duration,GREEK_MODE,MB_CACHE[key])
     except ProviderFailure as ex:
         # Optional metadata lookup never stops a lyrics search.
         if any(code in str(ex) for code in ('HTTP 503','HTTP 429','HTTP 502','HTTP 500')):
@@ -2236,14 +2252,28 @@ def main():
         configure_local_lrclib(Path(__file__).resolve().parent)
     load_provider_cooldowns(folder/'LRC_Provider_Cooldowns.json')
     configure_lrclib_contact(Path(__file__).resolve().parent)
-    global MB_ENABLED,GREEK_MODE,ACTIVE_PROVIDERS,G2G_ENABLED,G2G_TOOL,HISTORY_ENABLED,COMPLETE_FIRST_PASS
+    global MB_ENABLED,GREEK_MODE,ACTIVE_PROVIDERS,G2G_ENABLED,G2G_TOOL,HISTORY_ENABLED,COMPLETE_FIRST_PASS,MB_DISK_CACHE
     GREEK_MODE=input('Greeklish / Greek folder? [y/N]: ').strip().lower()=='y'
     G2G_ENABLED=GREEK_MODE and input('Use your installed LOCAL G2G AI model? [y/N]: ').strip().lower()=='y'
     G2G_TOOL=G2GManager() if G2G_ENABLED else None
     MB_ENABLED=input('MusicBrainz extra artist/title metadata for this folder? [Y/n] (optional; slower): ').strip().lower() not in {'n','no'}
+    MB_DISK_CACHE=MusicBrainzDiskCache(folder) if MB_ENABLED else None
     mode=input('Search mode: FAST (5 useful providers) or FULL (all 12)? [F/full]: ').strip().lower()
-    ACTIVE_PROVIDERS=PROVIDERS if mode in {'full','all','12','a'} else FAST_PROVIDERS
-    print('Selected providers:',', '.join(ACTIVE_PROVIDERS))
+    selected_providers=PROVIDERS if mode in {'full','all','12','a'} else FAST_PROVIDERS
+    provider_performance=ProviderPerformance(folder,PROVIDERS)
+    print('Provider order choices: D=DEFAULT (current order), S=SMART (verified-match history), C=CUSTOM (your exact list)')
+    print('Selected provider names:',', '.join(selected_providers))
+    order_choice=input('Provider order? [D/s/c]: ').strip().lower()
+    custom_order=''
+    if order_choice in {'c','custom'}:
+        custom_order=input('List ALL selected providers, comma separated, in your desired order: ').strip()
+    try:
+        ACTIVE_PROVIDERS,order_label=choose_provider_order(
+            selected_providers,order_choice,custom_order,provider_performance)
+    except ValueError as error:
+        print('Invalid provider order:',error,'; using DEFAULT (all selected providers).')
+        ACTIVE_PROVIDERS,order_label=selected_providers,'DEFAULT (invalid selection)'
+    print(f'Provider order: {order_label}; selected:',', '.join(ACTIVE_PROVIDERS))
     show_provider_availability()
     COMPLETE_FIRST_PASS=input('Wait for temporary provider recovery before EACH first attempt? [Y/n] (slower, better coverage): ').strip().lower()!='n'
     print('First-attempt coverage:', 'WAIT for temporary recovery (may take hours if a server stays down)' if COMPLETE_FIRST_PASS else 'SKIP during recovery and record incomplete coverage')
@@ -2363,7 +2393,8 @@ def main():
         'mode':'staged' if staged_mode else 'normal',
         'greek':GREEK_MODE,'local_ai':G2G_ENABLED,'musicbrainz':MB_ENABLED,
         'providers':list(ACTIVE_PROVIDERS),'recovery_wait':COMPLETE_FIRST_PASS,
-        'history':HISTORY_ENABLED,'lrclib_exact':LRCLIB_EXACT_FALLBACK,
+        'history':HISTORY_ENABLED,'provider_order':order_label,
+        'lrclib_exact':LRCLIB_EXACT_FALLBACK,
         'online_lrclib':LRCLIB_ONLINE_FALLBACK,
     },[config_dir/n for n in ('Greek_Aliases.csv','Greek_Artists.csv',
                             'Greek_Words.csv','Greek_Words_Expanded.csv',
@@ -2408,8 +2439,11 @@ def main():
                                 item.split('=',1)[0] for item in prior_calls
                                 if item.endswith('=NO_MATCH')}
                     reviews.extend(previous.get('review_rows',[]))
-                    provider_rows.extend(previous.get('provider_rows',[]))
+                    stage_old_provider_rows=previous.get('provider_rows',[])
+                    provider_rows.extend(stage_old_provider_rows)
                     http_rows.extend(previous.get('http_rows',[]))
+                    provider_performance.record_rows(
+                        stage_old_provider_rows,checkpoint_config,path.stat().st_mtime_ns)
                     if previous.get('reviewed'):
                         reviewed_by_song.add(path)
                     if previous['status']=='TIMEOUT':
@@ -2539,6 +2573,11 @@ def main():
                 checkpoint.save(path,rnd,status,detail,new_retry,
                     path in reviewed_by_song,stage_row,stage_reviews,
                     provider_rows[provider_start:],http_rows[http_start:])
+                # Only real per-provider completed outcomes count. Cached,
+                # skipped and 401/429 circuit responses do not boost scores.
+                provider_performance.record_rows(
+                    provider_rows[provider_start:],checkpoint_config,
+                    path.stat().st_mtime_ns)
                 print(f'  {status}: {detail}',flush=True)
                 if offline_stage and not path.with_suffix('.lrc').exists():
                     pending.append(path)
@@ -2593,6 +2632,12 @@ def main():
                         else:category='NO_HTTP_REQUEST_OBSERVED'
                     coverage_counts[category]+=1
                     writer.writerow([str(path),source,category,result,requests,summary])
+        performance_path=provider_performance.export_csv()
+        print('REAL PROVIDER PERFORMANCE (verified saves, not review candidates):',
+              performance_path)
+        if MB_DISK_CACHE is not None:
+            print(f'MusicBrainz persistent cache: {MB_DISK_CACHE.hits} hits, '
+                  f'{MB_DISK_CACHE.misses} misses; file: {MB_DISK_CACHE.path}')
         print('FIRST-ATTEMPT COVERAGE:')
         for label,count in sorted(coverage_counts.items()):print('  ',label,':',count)
         print('First-attempt coverage detail:',coverage_path)
@@ -2649,7 +2694,8 @@ def main():
                 archive=archive_root/('Run_'+run_id+'_v'+VERSION.replace('.','_')+f'_{count}')
                 count+=1
             archive.mkdir(parents=True)
-            archive_files=[report,reviews_path,providers_path,http_details_path,stats_path,coverage_path,
+            archive_files=[report,reviews_path,providers_path,http_details_path,stats_path,
+                           performance_path,coverage_path,
                            folder/'LRC_Not_Found.txt',folder/'LRC_Timeouts.txt',folder/'LRC_Review_Needed.txt',lrclib_queue_path]
             if GREEK_MODE:archive_files.extend([greek_plan_path,ai_plan_path])
             for file in archive_files:
