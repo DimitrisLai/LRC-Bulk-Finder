@@ -1,3 +1,28 @@
+LRC BULK FINDER v2.4.0 — WINDOWS GUI + COMPLETE CLI
+Created by Dimitris L. — PUBLIC BETA
+
+OPEN_CONTROL_CENTER.cmd: now includes six built-in Greek/night/offline/
+AI/international presets, mouseover help, separate LRCLIB database and
+optional Greek G2G AI download/setup controls.
+LIVE PROGRESS: retains honest THIS ROUND ETA.
+NEW: Incremental SQLite metadata tracking (GUI toggle, default ON).
+NEW: MP3, FLAC, M4A, MP4, OGG, OPUS, WAV.
+NEW: Experimental Sync Lab for user-owned text lyrics: rough estimates
+or tap-to-time, with UNVERIFIED MARKED .candidate.lrc only.
+
+START_HERE.cmd: original full console interface still supported.
+
+GETTING STARTED: HOW_TO_START_V2_4.txt
+CHANGE NOTES: RELEASE_NOTES_V2_4.md
+TEST COVERAGE: TEST_AUDIT_V2_4.md
+
+Requires Python 3.10+ for full CMD/Python distribution.
+Standalone EXE+worker may be released separately after its own tests.
+Large LRCLIB dump and local transformer G2G model are NOT included.
+Never overwrites original audio/ID3 or existing approved .lrc.
+
+---- EARLIER RELEASE NOTES ----
+
 LRC BULK FINDER v2.3.0 - COMPLETE WINDOWS PACKAGE
 Created by Dimitris L. - PUBLIC BETA
 
