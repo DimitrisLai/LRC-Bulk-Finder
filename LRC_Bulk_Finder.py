@@ -9,6 +9,8 @@ from lrclib_local import LocalLRCLIB, load_local_config
 from search_checkpoint import SearchCheckpoint, checkpoint_signature
 from search_performance import MusicBrainzDiskCache, ProviderPerformance, choose_provider_order
 from progress_eta import RoundProgress
+from stop_control import check_stop, interruptible_sleep
+from stage_counters import StageCounters
 from runtime_paths import program_folder
 from incremental_library import AUDIO_EXTENSIONS, safe_audio_files, IncrementalLibrary
 import hashlib
@@ -42,8 +44,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.4.0'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.4.0',
+VERSION = '2.4.1'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.4.1',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -257,7 +259,7 @@ def wait_for_recovery(source, until, description):
     while True:
         remaining=until-time.monotonic()
         if remaining<=0:break
-        time.sleep(min(30.0,remaining))
+        interruptible_sleep(min(30.0,remaining))
 
 
 def transient_recovery_delay(source, streak, hint=None):
@@ -893,7 +895,7 @@ def wait_for(provider):
     # LRCLIB documents a gap *between* sequential requests. The older
     # start-to-start delay could send two long requests back-to-back.
     if provider=='LRCLIB':until=max(until,LRCLIB_LAST_FINISHED+0.5)
-    if until>time.monotonic():time.sleep(until-time.monotonic())
+    if until>time.monotonic():interruptible_sleep(until-time.monotonic())
     next_available[provider]=time.monotonic()+gap
 
 
@@ -2159,6 +2161,8 @@ def run_offline_lrclib_folder(folder):
     counts=Counter();started=time.monotonic()
     processed=0;interrupted=False
     offline_progress=RoundProgress(len(eligible),'OFFLINE')
+    stage_counts=StageCounters()
+    print(stage_counts.start('OFFLINE'),flush=True)
     try:
         with report.open('w',encoding='utf-8-sig',newline='') as outf, review_path.open('w',encoding='utf-8-sig',newline='') as reviewf:
             writer=csv.writer(outf)
@@ -2166,6 +2170,11 @@ def run_offline_lrclib_folder(folder):
             rw=csv.writer(reviewf)
             rw.writerow(['MP3 path','mode','provider','candidate title','candidate artist','rejected because','candidate .lrc path'])
             for i,track in enumerate(eligible,1):
+                try:check_stop()
+                except KeyboardInterrupt:
+                    interrupted=True
+                    print('STOP REQUESTED: offline scan stopped; completed reports preserved.',flush=True)
+                    break
                 print(f'[{i}/{len(eligible)}] {track.name}',flush=True)
                 start=time.monotonic(); review=CandidateReview();outcome='NOT_FOUND';detail='';hit=None
                 try:
@@ -2193,7 +2202,9 @@ def run_offline_lrclib_folder(folder):
                             if local_error:
                                 outcome='ERROR';detail='Offline database lookup failure: '+str(local_error)
                             elif hit:
-                                try:save_hit(track,hit);outcome='SAVED';detail='Verified offline SQLite match'
+                                try:
+                                    check_stop()
+                                    save_hit(track,hit);outcome='SAVED';detail='Verified offline SQLite match'
                                 except FileExistsError:outcome='EXISTS';detail='Already created .lrc during scan'
                             elif review.items:
                                 outcome='REVIEW';detail=f'{len(review.items)} unverified candidate(s)'
@@ -2202,6 +2213,7 @@ def run_offline_lrclib_folder(folder):
                             # distinguish SQLite errors from actual NOT FOUND
                             # when local_lrclib_search records a failed database operation
                             # (errors also print visibly in local_lrclib_search)
+                    check_stop()
                     rows=export_review_candidates(track,'OFFLINE',review)
                     rw.writerows(rows)
                 except KeyboardInterrupt:
@@ -2217,10 +2229,12 @@ def run_offline_lrclib_folder(folder):
                 offline_progress.complete(elapsed)
                 print('  '+outcome+': '+detail+f' | {elapsed:.1f}s',flush=True)
                 print('  '+offline_progress.line(),flush=True)
+                print(stage_counts.add(track,outcome,reviewed=bool(review.items)),flush=True)
     finally:
         if G2G_TOOL:
             G2G_TOOL.flush();G2G_TOOL.release_model()
         print('OFFLINE SCAN SUMMARY (no internet access):',flush=True)
+        print('STAGE FINAL:',stage_counts.line(),flush=True)
         print('  Processed:',processed,'of',len(eligible),flush=True)
         for key in ('SAVED','REVIEW','NO_MATCH','NO_METADATA','LIVE_SKIPPED','EXISTS','ERROR'):
             if counts[key]:print(' ',key,':',counts[key],flush=True)
@@ -2453,6 +2467,7 @@ def main():
     retry_by_song={}  # MP3 -> ONLY the actual timed-out providers
     completed_by_song={}  # help classify later-round failure accurately
     interrupted=False
+    stage_counts=StageCounters()
     try:
         for rnd in (1,2,3):
             ROUND=rnd
@@ -2465,8 +2480,14 @@ def main():
                    'ONLINE FOR LOCAL MISSES' if staged_mode and rnd==2 else
                    'TIMED-OUT PROVIDERS ONLY' if staged_mode else f'wait {rnd}x')
             print(f'\n===== ROUND {rnd}/3 | {len(current)} songs | {phase} =====',flush=True)
+            print(stage_counts.start(rnd),flush=True)
             progress=RoundProgress(len(current),rnd,phase)
             for index,path in enumerate(current,1):
+                try:check_stop()
+                except KeyboardInterrupt:
+                    interrupted=True
+                    print('STOP REQUESTED: stopping after last completed checkpoint.',flush=True)
+                    break
                 track_started=time.monotonic()
                 print(f'[{index}/{len(current)}] {path.name}',flush=True)
                 previous=checkpoint.get(path,rnd)
@@ -2500,6 +2521,7 @@ def main():
                     progress.complete(0,checkpoint=True)
                     print(f'    CHECKPOINT: {previous["status"]} (no repeat requests)',flush=True)
                     print('  '+progress.line(),flush=True)
+                    print(stage_counts.add(path,previous['status'],reviewed=bool(previous.get('reviewed'))),flush=True)
                     continue
                 review=CandidateReview();status='TIMEOUT';detail='';calls=[];hit=None
                 new_retry=set();call_timings=[];call_traces=[]
@@ -2556,6 +2578,7 @@ def main():
                                 title,artist,album,duration,review,
                                 only_providers=target_providers,retry_targets=new_retry,
                                 timings=call_timings,request_traces=call_traces)
+                            check_stop()
                             # Existing candidates from any previous stage remain
                             # review-worthy even if another provider says NO_MATCH.
                             if not hit and path in reviewed_by_song and status in (
@@ -2563,7 +2586,9 @@ def main():
                                 status='REVIEW_PARTIAL'
                                 detail+='; earlier round candidate(s) still require review'
                         if hit:
-                            try:save_hit(path,hit);saved+=1
+                            try:
+                                check_stop()
+                                save_hit(path,hit);saved+=1
                             except FileExistsError:status='EXISTS';detail='LRC appeared during the run'
                             except (OSError,ValueError) as ex:
                                 status='SERVER_ERROR';detail=f'File save failed: {ex}'
@@ -2629,10 +2654,12 @@ def main():
                 progress.complete(time.monotonic()-track_started)
                 print(f'  {status}: {detail}',flush=True)
                 print('  '+progress.line(),flush=True)
+                print(stage_counts.add(path,status,reviewed=path in reviewed_by_song),flush=True)
                 if offline_stage and not path.with_suffix('.lrc').exists():
                     pending.append(path)
                 elif not offline_stage and status=='TIMEOUT' and new_retry and rnd<3:
                     pending.append(path)
+            print('STAGE FINAL:',stage_counts.line(),flush=True)
             if interrupted:break
             suffix=('song(s) to check online next.' if offline_stage else
                     'song(s) with timed-out providers eligible for a retry.')
