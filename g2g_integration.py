@@ -29,7 +29,8 @@ ENGLISH_WORDS = {'the','and','with','you','your','love','baby','summer','greece'
     'last','way','away','ever','no','yes','every','home','good','bad','new',
     'old','just','friend','friends','is','are','we','us','our','in','on','at',
     'for','not','but','what','who','when','where','how','here','there',
-    'music','mix','album','song','songs','work','play','party','dancefloor'}
+    'music','mix','album','song','songs','work','play','party','dancefloor',
+    'sexy'}
 GREEKLISH_WORDS = {'mou','sou','mas','sas','ime','eimai','ise','eisai','ime','kai',
     'gia','gi','ena','mia','den','min','oxi','nai','alla','apo','edo','esi','esy',
     'pou','pos','pote','an','tha','to','ti','ta','na','me','se','stin','sto','stis',
