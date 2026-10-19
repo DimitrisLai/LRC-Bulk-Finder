@@ -22,7 +22,7 @@ class TestFullBatch(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             folder=Path(td);one=folder/'A.mp3';two=folder/'B.mp3'
             one.write_bytes(b'A-ORIGINAL');two.write_bytes(b'B-ORIGINAL')
-            answers=iter(['1','n','n','fast','y','n','n','a','n'])
+            answers=iter(['1','n','n','fast','d','y','n','n','a','n'])
             requested=[]
             def fake_open(req,timeout=10):
                 requested.append(req.full_url)
