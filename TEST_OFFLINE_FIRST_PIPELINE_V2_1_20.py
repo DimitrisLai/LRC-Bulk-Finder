@@ -73,7 +73,7 @@ class StagedPipelineTests(unittest.TestCase):
             self.assertTrue((folder/'A.lrc').is_file())
             self.assertFalse((folder/'B.lrc').exists())
             self.assertFalse(app.STAGED_ONLINE_MODE)
-            self.assertTrue((folder/'LRC_First_Attempt_Coverage_v2_1_20.csv').exists())
+            self.assertTrue((folder/f'LRC_First_Attempt_Coverage_v{app.VERSION.replace(".", "_")}.csv').exists())
 
     def test_missing_database_never_falls_back_to_online(self):
         with tempfile.TemporaryDirectory() as tmp:
