@@ -2,6 +2,14 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.2.0 — Persistent metadata, provider ordering, performance and stronger recovery
+- New persistent duration- and Greek-mode-aware MusicBrainz artist/title spelling cache (30-day positive/7-day clean no-match TTL; never cache provider errors).
+- New provider priority prompt: D=DEFAULT, S=SMART based on independently verified LRC saves per provider seconds (minimum 10 observations), C=CUSTOM exact permutation; FULL/FAST provider sets unchanged.
+- New persistent `LRC_Provider_Performance_v2_2.jsonl` and aggregated `LRC_Provider_Performance_v2_2.csv`: completed outcomes, verified success rate, reviews, errors and seconds per verified save. Never count cached/skipped provider states as successful checks.
+- Resumable v2.2 checkpoints fsync each completed song/stage, repair truncated JSONL tail, and use stable session IDs to deduplicate history on restart without losing genuinely new-run metrics.
+- Retains offline-first Option 5, offline-only Option 4, strict recording verification, candidate LRC marking and original MP3/ID3 protections.
+- Complete Windows package with all 9 launchers, and expanded Windows/Linux test matrix with v2.2 dedicated performance tests.
+
 ## v2.1.21 — Stability, full Greek offline variants, resumable checkpoints
 - Offline LRCLIB uses up to six approved deduplicated search pairs rather than only two, including original song + approved Greek artist and approved Greek title + approved Greek artist.
 - Track candidate review presence across all rounds; later timeout retries cannot turn retained `.candidate.lrc` files into incorrect NOT_FOUND statuses.
