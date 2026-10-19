@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Reproducible, small Greek dictionary generated from editable CSVs
+Greek_Lexicon.sqlite3
+Greek_Lexicon.sqlite3-*
