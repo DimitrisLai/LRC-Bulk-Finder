@@ -36,8 +36,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.1.16'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.16',
+VERSION = '2.1.17'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.17',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -376,22 +376,60 @@ def load_greek_words():
     except (OSError, UnicodeError, csv.Error) as ex:
         print('Cannot load Greek_Words.csv:',ex)
 
-def dictionary_greek_title(title):
-    """Return accented Greek title ONLY when every word is recognized.
+def _capitalize_first_letter(text):
+    """Capitalize a word while preserving leading years, separators and tags."""
+    return re.sub(r'[Α-Ωα-ωάέήίόύώϊϋΐΰ]',lambda m:m.group(0).upper(),text,count=1)
 
-    This does not pretend to be a full Greeklish translator. The user can
-    add accurate spellings to Greek_Words.csv, or full phrases to Greek_Aliases.csv.
+
+def dictionary_greek_title(title):
+    """Translate ONLY fully known Greeklish words; preserve years/punctuation.
+
+    The small curated accented lexicon is deliberately precise, not a blind
+    character-by-character transliterator. Never translate English titles.
     """
-    words=re.findall(r"[a-zA-Z]+",str(title or ''))
-    if not words:return None
-    result=[]
-    for w in words:
-        translated=GREEK_WORDS.get(normalize(w))
-        if not translated:
-            return None
-        result.append(translated)
-    text=' '.join(result)
-    return text[:1].upper()+text[1:] if text else None
+    title=str(title or '')
+    if g2g_english_skip(title,'title'):return None
+    words=re.findall(r'[A-Za-z]+',title)
+    if not words or any(normalize(w) not in GREEK_WORDS for w in words):
+        return None
+    def replace(match):
+        word=GREEK_WORDS[normalize(match.group(0))]
+        # The lexicon's "s" is "σ'"; don't duplicate an existing apostrophe.
+        if word.endswith("'") and match.end()<len(title) and title[match.end()] in "'’":
+            return word[:-1]
+        return word
+    return _capitalize_first_letter(re.sub(r'[A-Za-z]+',replace,title))
+
+
+def patch_known_greek_words(original,proposal):
+    """Correct known Greek words in otherwise reasonable cached/model output.
+
+    Only patch when input/output token counts align; never guess alignments.
+    The original Greeklish tokens, not imperfect AI Greek spellings, select
+    the trusted accented lexicon entries.
+    """
+    source_words=re.findall(r'[A-Za-z]+',str(original or ''))
+    output_pattern=r'[Α-Ωα-ωΆΈΉΊΌΎΏάέήίόύώϊϋΐΰ]+'
+    output_words=re.findall(output_pattern,str(proposal or ''))
+    if not source_words or len(source_words)!=len(output_words):
+        return proposal
+    iterator=iter(source_words)
+    def correct(match):
+        word=next(iterator)
+        return GREEK_WORDS.get(normalize(word),match.group(0))
+    return _capitalize_first_letter(re.sub(output_pattern,correct,proposal))
+
+
+def safe_to_convert_artist(artist):
+    """Do not phoneticize international brands or multi-artist credits.
+
+    Full manually reviewed artist aliases still work, regardless of this
+    conservative default. It prevents e.g. '2002 GR' -> '2002 γρ'.
+    """
+    artist=str(artist or '').strip()
+    if not artist or re.search(r'\d|[,;&/]|\b(?:GR|DJ|MC|EDM|B2B)\b',artist):
+        return False
+    return not g2g_english_skip(artist,'artist')
 
 # Basic phonetic conversion. This is a *search guess*, not a Greek dictionary.
 # Curated aliases and MusicBrainz verified names take precedence.
@@ -612,15 +650,19 @@ def precompute_greek_plan(title,artist,manager=None):
     artist_kind='MANUAL_ARTIST' if artist_alias else ''
     ai_title='';ai_artist='';title_flag='';artist_flag=''
     if not title_alias:
-        if manager:
+        # The curated accent-aware dictionary MUST win over AI guesses.
+        # Previously G2G converted "Fonazo" to "φωναζο" even though the
+        # dictionary already contained the correct "φωνάζω".
+        from_dict=dictionary_greek_title(ai_base) if not G2G_GREEK.search(ai_base) else ''
+        if from_dict:
+            title_alias=from_dict+version_suffix;title_kind='DICTIONARY_TITLE'
+        elif manager and not g2g_english_skip(ai_base,'title'):
             ai_title,title_flag=manager.convert(ai_base,'title')
             if ai_title:
-                title_alias=ai_title+version_suffix;title_kind='AI_TITLE'
-        if not title_alias:
-            from_dict=dictionary_greek_title(ai_base) if not G2G_GREEK.search(ai_base) else ''
-            if from_dict:
-                title_alias=from_dict+version_suffix;title_kind='DICTIONARY_TITLE'
-    if not artist_alias and manager and not g2g_english_skip(base,'title'):
+                corrected=patch_known_greek_words(ai_base,ai_title)
+                title_alias=corrected+version_suffix;title_kind='AI_TITLE'
+                if corrected!=ai_title:title_flag+='; DICTIONARY_WORD_CORRECTIONS'
+    if not artist_alias and manager and safe_to_convert_artist(original_artist) and not g2g_english_skip(base,'title'):
         ai_artist,artist_flag=manager.convert(original_artist,'artist')
         if ai_artist:
             artist_alias=ai_artist;artist_kind='AI_ARTIST'
