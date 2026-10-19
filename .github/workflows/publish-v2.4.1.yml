@@ -180,6 +180,63 @@ jobs:
           c.drawString(52,68,'Update pages first; earlier v2.1.15 core guide follows as reference.')
           c.showPage()
 
+          # v2.4.1 maintenance page: cooperative STOP, live stage counters.
+          c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
+          c.setFillColor(navy);c.rect(0,height-151,width,151,stroke=0,fill=1)
+          c.setFillColor(teal);c.setFont('Helvetica-Bold',10.5)
+          c.drawString(46,height-49,'v2.4.1 / RELIABLE STOP + STAGE COUNTERS')
+          c.setFillColor(HexColor('#FFFFFF'));c.setFont('Helvetica-Bold',24)
+          c.drawString(46,height-95,'Control every long search.')
+          y=height-171
+          y=para('The Windows GUI Stop button now works even in the '
+                 '<b>standalone windowed EXE</b>, where Ctrl+Break could '
+                 'silently fail. A unique local request tells the worker '
+                 'to exit gracefully after its current bounded task.',
+                 46,y,502,10.4,16)-25
+          c.setFillColor(cloud);c.roundRect(46,y-120,503,129,10,stroke=0,fill=1)
+          c.setFillColor(navy);c.setFont('Helvetica-Bold',12)
+          c.drawString(62,y-15,'STOP SEARCH SAFELY')
+          para('Click once and confirm. The worker checks for STOP during '
+               'inventory, Greek preflight, provider recovery waits and '
+               'between songs. Completed JSONL checkpoints and reports '
+               'are preserved where possible. In-flight network requests '
+               'retain their normal timeout.',
+               62,y-31,470,9.6,15)
+          y-=145
+          c.setFillColor(pale);c.roundRect(46,y-85,503,94,10,stroke=0,fill=1)
+          c.setFillColor(navy);c.setFont('Helvetica-Bold',12)
+          c.drawString(62,y-15,'FORCE STOP - LAST RESORT')
+          para('If the worker is still active after 8 seconds, a second '
+               'confirmation enables Force STOP. This can drop unfinished '
+               'current-song progress or final reports. Previously '
+               'committed checkpoints remain safe to resume.',
+               62,y-30,470,9.4,14.5)
+          y-=116
+          c.setFillColor(navy);c.setFont('Helvetica-Bold',12)
+          c.drawString(46,y,'LIVE PROGRESS: FIVE COUNTERS')
+          y-=25
+          rows=[
+              ('CURRENT STAGE','LRC found    /    Candidates    /    Not found'),
+              ('ALL STAGES','Total LRC found    /    Total candidates')
+          ]
+          for label,description in rows:
+              c.setFillColor(cloud);c.roundRect(46,y-57,503,66,8,stroke=0,fill=1)
+              c.setFillColor(teal);c.setFont('Helvetica-Bold',10.1)
+              c.drawString(62,y-15,label)
+              c.setFillColor(navy);c.setFont('Helvetica',10.0)
+              c.drawString(62,y-34,description)
+              y-=80
+          c.setFillColor(pale);c.roundRect(46,100,503,83,10,stroke=0,fill=1)
+          para('<b>Stage reset behavior</b><br/>'
+               'The first THREE reset to zero immediately when a stage '
+               'ends. The last TWO stay cumulative for the entire current '
+               'run. Server errors and timeouts are not confirmed misses.',
+               62,169,469,9.5,15)
+          c.setFillColor(subtle);c.setFont('Helvetica',8.3)
+          c.drawString(46,59,'Your existing MP3/audio/ID3, approved LRCs and review candidates are protected.')
+          c.drawString(46,42,'Detailed walkthrough: HOW_TO_START_V2_4_1.txt in the Windows ZIP.')
+          c.showPage()
+
           # v2.4.1 language quality overview; DejaVu supports accented Greek.
           from reportlab.pdfbase import pdfmetrics
           from reportlab.pdfbase.ttfonts import TTFont
@@ -705,40 +762,42 @@ jobs:
           writer=PdfWriter()
           for page in PdfReader(buf).pages:writer.add_page(page)
           for page in old.pages:writer.add_page(page)
-          assert len(writer.pages)==29
+          assert len(writer.pages)==30
           writer.add_metadata({
               '/Title':'LRC Bulk Finder v2.4.1 - Complete User Manual',
               '/Author':'Dimitris L.',
               '/Subject':'Greek Night presets, tooltips, download buttons, incremental index, seven formats and experimental timing'
           })
           writer.add_outline_item('v2.4.1 cover',0)
-          writer.add_outline_item('Ready-made Greek and Night presets',1)
-          writer.add_outline_item('Incremental audio index and Sync Lab',2)
-          writer.add_outline_item('Windows Control Center - profiles and ETA',3)
-          writer.add_outline_item('Review interface and safe daily workflow',4)
-          writer.add_outline_item('Provider performance',5)
-          writer.add_outline_item('Stability and safe resume',6)
-          writer.add_outline_item('Option 5 offline-first',7)
-          writer.add_outline_item('Greek artist corrections',8)
-          writer.add_outline_item('Greeklish word spelling',9)
-          writer.add_outline_item('Greek lexicon and SQLite',10)
-          writer.add_outline_item('Option 2 marked candidate promotion',11)
-          writer.add_outline_item('Core application reference (v2.1.15)',12)
+          writer.add_outline_item('Reliable Stop and five stage counters',1)
+          writer.add_outline_item('Ready-made Greek and Night presets',2)
+          writer.add_outline_item('Incremental audio index and Sync Lab',3)
+          writer.add_outline_item('Windows Control Center - profiles and ETA',4)
+          writer.add_outline_item('Review interface and safe daily workflow',5)
+          writer.add_outline_item('Provider performance',6)
+          writer.add_outline_item('Stability and safe resume',7)
+          writer.add_outline_item('Option 5 offline-first',8)
+          writer.add_outline_item('Greek artist corrections',9)
+          writer.add_outline_item('Greeklish word spelling',10)
+          writer.add_outline_item('Greek lexicon and SQLite',11)
+          writer.add_outline_item('Option 2 marked candidate promotion',12)
+          writer.add_outline_item('Core application reference (v2.1.15)',13)
           with pdf_path.open('wb') as dest:writer.write(dest)
           checked=PdfReader(str(pdf_path))
-          assert len(checked.pages)==29
-          assert 'BUILT-IN PROFILES' in (checked.pages[1].extract_text() or '')
-          assert 'LIBRARY AND SYNC LAB' in (checked.pages[2].extract_text() or '')
-          assert 'WINDOWS CONTROL CENTER' in (checked.pages[3].extract_text() or '')
-          assert 'DAILY WORKFLOW' in (checked.pages[4].extract_text() or '')
-          assert 'SEARCH PERFORMANCE' in (checked.pages[5].extract_text() or '')
-          assert 'STABILITY AND ACCURACY' in (checked.pages[6].extract_text() or '')
-          assert 'THREE-STAGE WORKFLOW' in (checked.pages[7].extract_text() or '')
-          assert 'Γιώργος Αλκαίος' in (checked.pages[8].extract_text() or '')
-          assert 'Φωνάζω' in (checked.pages[9].extract_text() or '')
-          assert 'Greek_Lexicon.sqlite3' in (checked.pages[10].extract_text() or '')
-          assert '[00:00.00] candidate' in (checked.pages[11].extract_text() or '')
-          print('PASS PDF: 29 pages; Greek/Night presets, tooltips, downloads, incremental audio and experimental Sync Lab')
+          assert len(checked.pages)==30
+          assert 'RELIABLE STOP' in (checked.pages[1].extract_text() or '')
+          assert 'BUILT-IN PROFILES' in (checked.pages[2].extract_text() or '')
+          assert 'LIBRARY AND SYNC LAB' in (checked.pages[3].extract_text() or '')
+          assert 'WINDOWS CONTROL CENTER' in (checked.pages[4].extract_text() or '')
+          assert 'DAILY WORKFLOW' in (checked.pages[5].extract_text() or '')
+          assert 'SEARCH PERFORMANCE' in (checked.pages[6].extract_text() or '')
+          assert 'STABILITY AND ACCURACY' in (checked.pages[7].extract_text() or '')
+          assert 'THREE-STAGE WORKFLOW' in (checked.pages[8].extract_text() or '')
+          assert 'Γιώργος Αλκαίος' in (checked.pages[9].extract_text() or '')
+          assert 'Φωνάζω' in (checked.pages[10].extract_text() or '')
+          assert 'Greek_Lexicon.sqlite3' in (checked.pages[11].extract_text() or '')
+          assert '[00:00.00] candidate' in (checked.pages[12].extract_text() or '')
+          print('PASS PDF: 30 pages; STOP/counters, Greek/Night presets, setup, multi-format audio and Sync Lab')
           for path in (zip_path,pdf_path):
               print('SHA256',path.name,sha256(path.read_bytes()).hexdigest())
           PY
