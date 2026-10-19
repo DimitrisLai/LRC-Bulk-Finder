@@ -357,7 +357,7 @@ def load_curated_artists():
         print('Could not read public Greek_Artists.csv:',ex)
 
 
-_ARTIST_CREDIT_SPLIT=re.compile(r'(,\\s*|\\s+&\\s+|\\s+\\bfeat\\.?\\s+|\\s+\\bft\\.?\\s+)',re.IGNORECASE)
+_ARTIST_CREDIT_SPLIT=re.compile(r'(,\s*|\s+&\s+|\s+\bfeat\.?\s+|\s+\bft\.?\s+)',re.IGNORECASE)
 _KEEP_LATIN_ARTIST_CREDIT={'2002 gr','magic de spell','domenica','onirama','stan',
     'melisses','tamta','kings','antique','one','rec','apon','goin through'}
 
