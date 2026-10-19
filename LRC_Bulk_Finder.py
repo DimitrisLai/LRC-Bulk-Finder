@@ -2398,7 +2398,15 @@ def main():
                     # Replay its exact results into this run's final reports.
                     states[path]=(previous['status'],previous.get('detail',''))
                     row=previous.get('row')
-                    if row:rows.append(row)
+                    if row:
+                        rows.append(row)
+                        if len(row)>5 and row[5]:
+                            prior_calls=tuple(row[5].split(' | '))
+                            lrclib_attempt_log.append((path,prior_calls))
+                            previous_completed=completed_by_song.get(path,set())
+                            completed_by_song[path]=previous_completed | {
+                                item.split('=',1)[0] for item in prior_calls
+                                if item.endswith('=NO_MATCH')}
                     reviews.extend(previous.get('review_rows',[]))
                     provider_rows.extend(previous.get('provider_rows',[]))
                     http_rows.extend(previous.get('http_rows',[]))
