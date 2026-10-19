@@ -49,7 +49,7 @@ class Version215Tests(unittest.TestCase):
 
     def test_international_startup_asks_musicbrainz(self):
         prompts=[]
-        answers=iter(['1','n','n','fast','n','n','n','0'])
+        answers=iter(['1','n','n','fast','d','n','n','n','0'])
         def fake_input(prompt):
             prompts.append(prompt)
             return next(answers)
