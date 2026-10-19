@@ -1,3 +1,21 @@
+LRC BULK FINDER v2.1.19 - START HERE
+Created by Dimitris L. - PUBLIC BETA
+
+NEW: Greek_Artists.csv = 113 curated artist/group name variants.
+Never blindly transliterate unknown artist names using the AI.
+Examples: Giorgos Alkaios -> Γιώργος Αλκαίος
+          Alkinoos Ioannidis -> Αλκίνοος Ιωαννίδης
+          Ditikes Sinikies -> Δυτικές Συνοικίες
+          Antidrasi -> Αντίδραση
+          Sexy koritsia -> Sexy κορίτσια (title)
+
+Full, ordered test prompts: HOW_TO_START_V2_1_19.txt
+Continue to use START_HERE.cmd with the extracted Windows ZIP.
+Greek_Words_Expanded.csv and Greek_Lexicon.sqlite3 stay included.
+All original MP3 files/ID3 tags and candidate LRCs stay unchanged.
+
+---- PREVIOUS RELEASE NOTES ----
+
 LRC BULK FINDER v2.1.18 - START HERE
 Created by Dimitris L. - PUBLIC BETA
 
