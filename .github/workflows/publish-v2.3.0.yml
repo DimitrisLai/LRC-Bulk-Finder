@@ -175,6 +175,95 @@ jobs:
           assert Path(greek_font).is_file() and Path(greek_bold).is_file()
           pdfmetrics.registerFont(TTFont('DejaVu',greek_font))
           pdfmetrics.registerFont(TTFont('DejaVu-Bold',greek_bold))
+          # v2.3.0: native Windows Control Center overview.
+          c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
+          c.setFillColor(navy);c.rect(0,height-152,width,152,stroke=0,fill=1)
+          c.setFillColor(teal);c.setFont('Helvetica-Bold',11)
+          c.drawString(46,height-50,'NEW IN v2.3.0    /    WINDOWS CONTROL CENTER')
+          c.setFillColor(HexColor('#FFFFFF'));c.setFont('Helvetica-Bold',23)
+          c.drawString(46,height-95,'Saved profiles. Progress. Review.')
+          y=height-177
+          y=para('Double-click <b>OPEN_CONTROL_CENTER.cmd</b> to launch the '
+                 'native Tkinter interface. Your original <b>START_HERE.cmd</b> '
+                 'still opens the classic full command-line application. '
+                 'Neither launcher changes MP3 audio or ID3 metadata.',
+                 46,y,502,10.5,16)-27
+          features=[
+            ('SAVED SEARCHES',
+             'Choose an MP3 folder and save a named profile. Options 1, 4 and 5 '
+             'can remember your Greeklish/local AI/MusicBrainz choices, '
+             'FAST/FULL providers, default/SMART/custom priority, '
+             'search limit, recursion, history and recovery settings.'),
+            ('LIVE PROGRESS',
+             'Read the complete log, current search ROUND and progress bar. '
+             'After three uncached completed songs a THIS ROUND ETA appears. '
+             'Unpredictable later rounds are not included in that estimate.'),
+            ('SAFE CANDIDATE REVIEW',
+             'See all primary and numbered candidate lyrics, preview their '
+             'timestamped text and open the matching MP3 externally. '
+             'Promotion needs explicit consent and always keeps the '
+             '[00:00.00] candidate warning marker.')
+          ]
+          for i,(heading,body) in enumerate(features,1):
+              c.setFillColor(cloud);c.roundRect(46,y-113,503,122,9,stroke=0,fill=1)
+              c.setFillColor(teal);c.circle(70,y-20,15,stroke=0,fill=1)
+              c.setFillColor(navy);c.setFont('Helvetica-Bold',12)
+              c.drawCentredString(70,y-24,str(i))
+              c.drawString(102,y-17,heading)
+              para(body,102,y-35,421,9.45,14.5)
+              y-=137
+          c.setFillColor(pale);c.roundRect(46,98,503,60,8,stroke=0,fill=1)
+          para('<b>PROFILE LOCATION (Windows)</b><br/>'
+               '%APPDATA%/LRCBulkFinder/profiles.json - private, local '
+               'JSON settings, atomically saved and never uploaded.',
+               61,142,474,9.6,15)
+          c.setFillColor(subtle);c.setFont('Helvetica',8.5)
+          c.drawString(46,57,'New setup: OPEN_CONTROL_CENTER.cmd. Old console: START_HERE.cmd.')
+          c.drawString(46,40,'Detailed profile options: HOW_TO_START_V2_3.txt in the Windows ZIP.')
+          c.showPage()
+
+          # v2.3.0: all-options and safety reference for GUI search/review.
+          c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
+          c.setFillColor(navy);c.rect(0,height-145,width,145,stroke=0,fill=1)
+          c.setFillColor(teal);c.setFont('Helvetica-Bold',11)
+          c.drawString(46,height-48,'v2.3.0    /    DAILY WORKFLOW')
+          c.setFillColor(HexColor('#FFFFFF'));c.setFont('Helvetica-Bold',23)
+          c.drawString(46,height-92,'From a music folder to reviewed LRCs')
+          y=height-169
+          for i,(label,body) in enumerate([
+              ('01  CREATE OR LOAD A PROFILE',
+               'Choose a descriptive name, folder and mode: 5 OFFLINE FIRST '
+               '(recommended), 1 NORMAL or 4 OFFLINE ONLY. Choose settings '
+               'and save. Local AI requires its separately installed model.'),
+              ('02  SELECT TEST OR FULL LIBRARY',
+               'Use 20 for a quick controlled run or A for your entire '
+               'collection. A saved profile answers only recognized CLI '
+               'questions; unexpected prompts stop safely.'),
+              ('03  WATCH A ROUND-SPECIFIC ETA',
+               'Stage progress counts checkpoint-reused songs as completed, '
+               'but excludes them from the timing average. Choose Stop to '
+               'request graceful interruption; finished JSONL stages persist.'),
+              ('04  REVIEW UNCERTAIN RESULTS',
+               'Inspect the LRC text and listen via your usual audio player. '
+               'A candidate is not proof of correct singer, recording version '
+               'or timing; do not confuse it with a verified match.'),
+              ('05  OPTIONAL MARKED PROMOTION',
+               'Select a primary .candidate.lrc and confirm EACH install. '
+               'The resulting .lrc visibly includes [00:00.00] candidate. '
+               'Existing LRCs are never overwritten; MP3/ID3 remains intact.')
+          ],1):
+              c.setFillColor(cloud if i%2 else pale)
+              c.roundRect(46,y-88,503,94,8,stroke=0,fill=1)
+              c.setFillColor(navy);c.setFont('Helvetica-Bold',10.6)
+              c.drawString(60,y-16,label)
+              para(body,60,y-27,470,8.9,13.6)
+              y-=104
+          c.setFillColor(subtle);c.setFont('Helvetica',8.6)
+          c.drawString(46,70,'Numbered candidate alternatives stay read-only until they become primary.')
+          c.drawString(46,51,'For exact 13 CLI prompts, see HOW_TO_START_V2_3.txt.')
+          c.drawString(46,34,'Safety: NO automatic candidate approval. NO original MP3 modifications.')
+          c.showPage()
+
           # NEW v2.3.0: one visually distinct search performance page.
           c.setFillColor(HexColor('#FFFFFF'));c.rect(0,0,width,height,stroke=0,fill=1)
           c.setFillColor(navy);c.rect(0,height-151,width,151,stroke=0,fill=1)
@@ -513,32 +602,36 @@ jobs:
           writer=PdfWriter()
           for page in PdfReader(buf).pages:writer.add_page(page)
           for page in old.pages:writer.add_page(page)
-          assert len(writer.pages)==25
+          assert len(writer.pages)==27
           writer.add_metadata({
               '/Title':'LRC Bulk Finder v2.3.0 - Complete User Manual',
               '/Author':'Dimitris L.',
               '/Subject':'Search profiles, per-round ETA and explicitly reviewed candidate lyrics'
           })
           writer.add_outline_item('v2.3.0 cover',0)
-          writer.add_outline_item('v2.3.0 performance and provider ordering',1)
-          writer.add_outline_item('Stability and safe resume',2)
-          writer.add_outline_item('Option 5 offline-first',3)
-          writer.add_outline_item('Greek artist corrections',4)
-          writer.add_outline_item('Greeklish word spelling',5)
-          writer.add_outline_item('Greek lexicon and SQLite',6)
-          writer.add_outline_item('Option 2 marked candidate promotion',7)
-          writer.add_outline_item('Core application reference (v2.1.15)',8)
+          writer.add_outline_item('Windows Control Center - profiles and ETA',1)
+          writer.add_outline_item('Review interface and safe daily workflow',2)
+          writer.add_outline_item('Provider performance',3)
+          writer.add_outline_item('Stability and safe resume',4)
+          writer.add_outline_item('Option 5 offline-first',5)
+          writer.add_outline_item('Greek artist corrections',6)
+          writer.add_outline_item('Greeklish word spelling',7)
+          writer.add_outline_item('Greek lexicon and SQLite',8)
+          writer.add_outline_item('Option 2 marked candidate promotion',9)
+          writer.add_outline_item('Core application reference (v2.1.15)',10)
           with pdf_path.open('wb') as dest:writer.write(dest)
           checked=PdfReader(str(pdf_path))
-          assert len(checked.pages)==25
-          assert 'SEARCH PERFORMANCE' in (checked.pages[1].extract_text() or '')
-          assert 'STABILITY AND ACCURACY' in (checked.pages[2].extract_text() or '')
-          assert 'THREE-STAGE WORKFLOW' in (checked.pages[3].extract_text() or '')
-          assert 'Γιώργος Αλκαίος' in (checked.pages[4].extract_text() or '')
-          assert 'Φωνάζω' in (checked.pages[5].extract_text() or '')
-          assert 'Greek_Lexicon.sqlite3' in (checked.pages[6].extract_text() or '')
-          assert '[00:00.00] candidate' in (checked.pages[7].extract_text() or '')
-          print('PASS PDF: 25 pages; v2.2 caches, performance, provider priority, staged search, Greek guide')
+          assert len(checked.pages)==27
+          assert 'WINDOWS CONTROL CENTER' in (checked.pages[1].extract_text() or '')
+          assert 'DAILY WORKFLOW' in (checked.pages[2].extract_text() or '')
+          assert 'SEARCH PERFORMANCE' in (checked.pages[3].extract_text() or '')
+          assert 'STABILITY AND ACCURACY' in (checked.pages[4].extract_text() or '')
+          assert 'THREE-STAGE WORKFLOW' in (checked.pages[5].extract_text() or '')
+          assert 'Γιώργος Αλκαίος' in (checked.pages[6].extract_text() or '')
+          assert 'Φωνάζω' in (checked.pages[7].extract_text() or '')
+          assert 'Greek_Lexicon.sqlite3' in (checked.pages[8].extract_text() or '')
+          assert '[00:00.00] candidate' in (checked.pages[9].extract_text() or '')
+          print('PASS PDF: 27 pages; native GUI, saved settings, per-round ETA, candidate review plus preserved legacy guide')
           for path in (zip_path,pdf_path):
               print('SHA256',path.name,sha256(path.read_bytes()).hexdigest())
           PY
