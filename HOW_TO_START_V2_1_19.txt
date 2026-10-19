@@ -1,0 +1,61 @@
+LRC BULK FINDER v2.1.19 - ARTIST NAMES / WINDOWS TEST QUICK START
+Created by Dimitris L. - PUBLIC BETA
+
+WHAT CHANGED:
+  NEW Greek_Artists.csv: 113 standalone Greek artist/group name mappings.
+  Artist names are looked up as COMPLETE credits, not word-by-word.
+  Approved original-to-Greek artist variants take priority over uncertain AI.
+  UNKNOWN artist names remain in Latin letters; the AI will not invent names.
+  Known collaborations can use recognized artist names, keeping separators.
+  English-first mixed Greek titles are preserved, e.g. Sexy koritsia
+  searches also as Sexy κορίτσια - NOT Σεξυ κορίτσια.
+
+EXAMPLES:
+  Giorgos Alkaios         => Γιώργος Αλκαίος
+  Alkinoos Ioannidis      => Αλκίνοος Ιωαννίδης
+  Alinoos Ioannidis       => Αλκίνοος Ιωαννίδης
+  Antidrasi              => Αντίδραση
+  Ditikes Sinikies       => Δυτικές Συνοικίες
+  Giorgos Mazwnakis      => Γιώργος Μαζωνάκης
+  Kimata                 => Κύματα
+  Mesanychta Savvatou    => Μεσάνυχτα Σαββάτου
+
+INSTALL A COMPLETE VERSION:
+1. Download the v2.1.19 WINDOWS RELEASE ZIP, not GitHub's Source code.zip.
+2. Extract the WHOLE ZIP into a NEW folder. Keep your old installation.
+3. Copy ONLY your own edited Greek_Aliases.csv / Greek_Words.csv from the
+   previous installation as desired. Personal aliases override public ones.
+4. If using your huge LRCLIB SQLite, reconnect it through the launcher
+   CONNECT_EXISTING_LRCLIB_DATABASE.cmd or copy LRCLIB_LOCAL_DB.txt.
+5. Double-click START_HERE.cmd (Python 3.10+ and required packages).
+
+COMPLETE OPTION 1 - ACCURACY-FIRST TEST PROMPTS, IN ORDER:
+1) Choose [1/2/3/4] (default 1):                     1
+2) Folder chooser / paste MP3 folder path:             [your 20-track test folder]
+3) Greeklish / Greek folder? [y/N]:                    Y
+4) Use your installed LOCAL G2G AI model? [y/N]:       Y (only if installed)
+5) MusicBrainz extra artist/title metadata? [Y/n]:    Y
+6) Search mode FAST or FULL? [F/full]:                 full
+7) Wait for temporary provider recovery? [Y/n]:       N (avoid hours of waiting)
+8) Include subfolders? [Y/n]:                          Y
+9) Skip completed NO_MATCH from last 7 days? [Y/n]:   N (fresh controlled test)
+10) How many missing songs? [20 for test, A for all]:  20
+11) LRCLIB exact-signature fallback? [y/N]:           Y
+12) Auto-search after Greek/AI preview? [Y/n]:         N FIRST to review spellings;
+                                                     Y for second full test.
+
+IMPORTANT: Artist names must be accurate. This build never uses speculative
+AI artist spellings as alternatives. The original ID3 artist and title are
+ALWAYS the first query; then original title plus official Greek artist;
+then approved Greek title plus official Greek artist when available.
+
+Other modes:
+2 = Promote candidate sidecar to .lrc with [00:00.00] candidate marker.
+3 = LRCLIB-only catch-up for queued incomplete searches (no MusicBrainz).
+4 = LOCAL LRCLIB SQLite only, no HTTP / MusicBrainz; separate from
+    the small Greek_Lexicon.sqlite3 vocabulary cache.
+
+PUBLIC FILES contain a generic Greek word and artist vocabulary,
+NOT personal filenames, folder paths, or the 5,686-track inventory.
+Both public dictionaries are editable CSVs; your private
+Greek_Aliases.csv has final authority.
