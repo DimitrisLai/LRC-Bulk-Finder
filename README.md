@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.1.16 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.1.17 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -78,6 +78,30 @@ Already have a large `.sqlite3` snapshot installed?
 4. Open `START_HERE.cmd` and choose **4** to scan only offline or **1** for offline-first, then other sources.
 
 A large LRCLIB database is **never bundled** inside this GitHub repository or its Windows ZIP. Official snapshots can use **hundreds of GiB of disk space**; confirm disk capacity before installing one.
+
+### Greeklish accuracy in v2.1.17 - dictionary first, AI second
+
+The app uses **three levels of confidence**, in this order:
+
+1. **Manual aliases** in `Greek_Aliases.csv` - reviewed full-title/artist spellings you explicitly provided.
+2. **Curated accented word dictionary** in `Greek_Words.csv` - used only when the entire base title is recognized, before AI. Examples: `Fonazo → Φωνάζω`, `Den Ise Erotas Esi → Δεν είσαι έρωτας εσύ`, `Esy Horeveis Kai Ego Pethaino → Εσύ χορεύεις και εγώ πεθαίνω`.
+3. **Optional installed local AUEB G2G AI** - only for otherwise unresolved plausible Greeklish, marked as an AI suggestion needing review. Known words in aligned model output can be corrected from the dictionary, including older cached predictions.
+
+**English protection:** Titles such as `Best of Times` will not be phonetically transliterated to fake Greek. Artist brands such as `2002 GR` and mixed international artist credits are left alone unless you supply a manual alias.
+
+**Important:** Greeklish-to-Greek is inherently ambiguous; the small curated dictionary cannot resolve thousands of unknown songs perfectly. No AI output is evidence of the correct recording/remix. Original title+artist searches always run first, and strict version/duration checks still control automatic `.lrc` saving.
+
+The CSV `LRC_G2G_AI_Review_v2_1_15.csv` includes the original text, Greek alternatives, origin, AI output, and review flags. (This historical filename is retained for compatibility.) Copy any personal edits to `Greek_Aliases.csv` when installing into a new program directory; do not replace them with the empty example file.
+
+To fix additional problematic songs permanently, add a reviewed row in `Greek_Aliases.csv`, for example:
+
+```csv
+type,greeklish,greek
+title,Den Ise Erotas Esi,Δεν είσαι έρωτας εσύ
+title,Fonazo,Φωνάζω
+```
+
+Option 2's verified-working `[00:00.00] candidate` marker and numbered candidate rotation are **unchanged**.
 
 ### 🇬🇷 Greek and Greeklish collections
 
