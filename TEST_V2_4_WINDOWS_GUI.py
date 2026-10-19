@@ -58,5 +58,43 @@ class WindowsGuiV24Tests(unittest.TestCase):
                     self.assertEqual(len(gui.review_rows),1)
                 finally:gui.destroy()
 
+    def test_stop_button_creates_real_stop_marker_and_force_stop_is_explicit(self):
+        from LRC_Control_Center import ControlCenter
+        with tempfile.TemporaryDirectory() as td:
+            gui=ControlCenter()
+            gui.withdraw()
+            try:
+                child=mock.Mock()
+                child.poll.return_value=None
+                gui.process=child
+                marker=Path(td)/"stop.request"
+                gui.stop_directory=Path(td)
+                gui.stop_path=marker
+                with mock.patch("tkinter.messagebox.askyesno",return_value=True):
+                    gui._stop()
+                self.assertTrue(marker.is_file(), "Stop button must send an IPC marker")
+                self.assertEqual(marker.read_text(encoding="utf-8"),"STOP\n")
+                self.assertTrue(gui.stop_requested)
+                self.assertEqual(gui.stop_button.cget("state"),"disabled")
+                gui._enable_force_stop(child)
+                self.assertEqual(gui.stop_button.cget("state"),"normal")
+                self.assertIn("Force STOP",gui.stop_button.cget("text"))
+                with mock.patch("tkinter.messagebox.askyesno",return_value=True):
+                    gui._stop()
+                child.kill.assert_called_once()
+                gui._line("STAGE COUNTERS: stage=1 found=2 candidate=1 not_found=3 total_found=2 total_candidate=1")
+                self.assertEqual([gui.counter_vars[k].get() for k in
+                                 ("found","candidate","not_found","total_found","total_candidate")],
+                                 ["2","1","3","2","1"])
+                gui._line("STAGE COUNTERS: stage=2 found=0 candidate=0 not_found=0 total_found=2 total_candidate=1")
+                self.assertEqual([gui.counter_vars[k].get() for k in
+                                 ("found","candidate","not_found","total_found","total_candidate")],
+                                 ["0","0","0","2","1"])
+            finally:
+                gui.process=None
+                gui.stop_directory=None
+                gui.stop_path=None
+                gui.destroy()
+
 if __name__=="__main__":
     unittest.main(verbosity=2)
