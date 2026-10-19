@@ -648,7 +648,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
               --title "LRC Bulk Finder v2.3.0 - Windows Control Center" \
-              --notes-file RELEASE_NOTES_V2_2.md --prerelease
+              --notes-file RELEASE_NOTES_V2_3.md --prerelease
           fi
       - name: Download assets back and verify identity
         env:
