@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LRC Bulk Finder v2.1.16. See README for provider/API limitations.
+"""LRC Bulk Finder v2.1.18. See README for provider/API limitations.
 Reads audio ID3 metadata; writes ONLY sidecar .lrc and reports, never audio tags.
 Created by Dimitris L. (project credit; third-party services credited separately).
 """
@@ -7,6 +7,7 @@ from __future__ import annotations
 import csv
 from lrclib_local import LocalLRCLIB, load_local_config
 import hashlib
+import sqlite3
 import shutil
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -36,8 +37,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.1.17'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.17',
+VERSION = '2.1.18'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.1.18',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -364,17 +365,56 @@ def load_aliases():
 GREEK_WORDS = {}
 
 def load_greek_words():
-    filename=Path(__file__).with_name('Greek_Words.csv')
-    if not filename.exists():return
-    try:
-        with filename.open(encoding='utf-8-sig',newline='') as f:
-            for row in csv.DictReader(f):
-                key=normalize(row.get('greeklish',''))
-                value=(row.get('greek') or '').strip()
-                if key and value and not any('a'<=c<='z' for c in value.casefold()):
-                    GREEK_WORDS[key]=value
-    except (OSError, UnicodeError, csv.Error) as ex:
-        print('Cannot load Greek_Words.csv:',ex)
+    """Load curated Greek word spellings once from SQLite or the two CSV files.
+
+    The tiny local SQLite DB is OPTIONAL. Check fingerprints against CSV sources
+    to reject stale databases after user edits. A corrupt or absent SQLite DB
+    never prevents offline searches. Base Greek_Words.csv is always loaded LAST
+    so existing user-edited word spellings win over public suggested additions.
+    Neither this database nor the CSV sources contain music library paths.
+    """
+    from contextlib import closing
+    root=Path(__file__).resolve().parent
+    db_path=root/'Greek_Lexicon.sqlite3'
+    fingerprints={}
+    for name in ('Greek_Words_Expanded.csv','Greek_Words.csv'):
+        candidate=root/name
+        if candidate.is_file():
+            try:
+                fingerprints[name]=hashlib.sha256(candidate.read_bytes()).hexdigest()
+            except OSError:pass
+    if db_path.is_file():
+        try:
+            # Use a read-only SQLite URI; never mutate the public lexicon.
+            with closing(sqlite3.connect(db_path.as_uri()+'?mode=ro',uri=True)) as conn:
+                if conn.execute('PRAGMA application_id').fetchone()[0] != 0x4C524347:
+                    raise ValueError('not the LRC Greek lexicon database')
+                if conn.execute('PRAGMA user_version').fetchone()[0] != 1:
+                    raise ValueError('unexpected Greek lexicon schema version')
+                meta=dict(conn.execute('SELECT key,value FROM metadata').fetchall())
+                if not all(meta.get(name)==digest for name,digest in fingerprints.items()):
+                    raise ValueError('source CSV files were edited; rebuild the lexicon')
+                entries=conn.execute('SELECT greeklish,greek FROM words').fetchall()
+                for greeklish,greek in entries:
+                    if greeklish and greek:GREEK_WORDS[greeklish]=greek
+        except (OSError,ValueError,sqlite3.Error) as ex:
+            print('Greek lexicon SQLite skipped; continuing with CSV words:',ex,flush=True)
+    # CSV is the authoritative, editable source in public and local installs.
+    # Expanded set first, then the small legacy/user-customizable dictionary.
+    for filename in ('Greek_Words_Expanded.csv','Greek_Words.csv'):
+        source=root/filename
+        if not source.is_file():continue
+        try:
+            with source.open(encoding='utf-8-sig',newline='') as stream:
+                for row in csv.DictReader(stream):
+                    key=normalize(row.get('greeklish',''))
+                    value=(row.get('greek') or '').strip()
+                    if (key and re.fullmatch(r'[a-z]+',key) and
+                        value and not any('a'<=c<='z' for c in value.casefold())):
+                        GREEK_WORDS[key]=value
+        except (OSError,UnicodeError,csv.Error) as ex:
+            print('Cannot read Greek dictionary '+filename+':',ex,flush=True)
+
 
 def _capitalize_first_letter(text):
     """Capitalize a word while preserving leading years, separators and tags."""
