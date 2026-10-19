@@ -1,0 +1,135 @@
+name: Published v2.4.1 Full Windows and Linux Release Audit
+
+on:
+  push:
+    branches: ['audit/v2.4.1-release-readiness']
+    paths:
+      - '.github/workflows/audit-v2.4.1-readiness.yml'
+      - 'AUDIT_V241_STRESS.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published-zip-cross-platform:
+    name: Published ZIP ${{ matrix.os }} Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.10', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install test-only dependencies
+        run: python -m pip install mutagen Unidecode syncedlyrics pypdf
+      - name: Download BOTH original published Windows ZIP and 30-page manual
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p verified
+          gh release download v2.4.1 --repo DimitrisLai/LRC-Bulk-Finder --pattern 'LRC_Bulk_Finder_Public_v2_4_1_GitHub_Release_Windows.zip' --dir verified
+          gh release download v2.4.1 --repo DimitrisLai/LRC-Bulk-Finder --pattern 'LRC_Bulk_Finder_v2_4_1_Complete_User_Manual_EN.pdf' --dir verified
+      - name: Confirm exact release SHA256, ZIP safety, 30 PDF pages and all controls
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,zipfile,compileall
+          from pathlib import Path,PurePosixPath
+          from pypdf import PdfReader
+          checks={
+            'LRC_Bulk_Finder_Public_v2_4_1_GitHub_Release_Windows.zip':
+              '204657cb00ba0729d5a4d97edb7ee8c622110895a5a3a21c9393e29ff1adf08f',
+            'LRC_Bulk_Finder_v2_4_1_Complete_User_Manual_EN.pdf':
+              '4369b0379c7ee3b47d42be3a72b339239c9370752b8704acc7a9992741d32caa'}
+          for name,digest in checks.items():
+              actual=hashlib.sha256((Path('verified')/name).read_bytes()).hexdigest()
+              assert actual==digest,(name,actual,digest)
+              print('PASS SHA256:',name)
+          pdf=PdfReader(Path('verified')/'LRC_Bulk_Finder_v2_4_1_Complete_User_Manual_EN.pdf')
+          assert len(pdf.pages)==30
+          first='\n'.join((p.extract_text() or '') for p in pdf.pages[:9])
+          for needle in ('RELIABLE STOP','BUILT-IN PROFILES','LIBRARY AND SYNC LAB',
+                         'WINDOWS CONTROL CENTER','STABILITY AND ACCURACY',
+                         'THREE-STAGE WORKFLOW'):
+              assert needle in first,needle
+          for n,page in enumerate(pdf.pages):
+              assert abs(float(page.mediabox.width)-595.2756)<3,n
+              assert abs(float(page.mediabox.height)-841.8898)<3,n
+              assert (page.extract_text() or '').strip(),n
+          print('PASS PDF: 30 A4 searchable pages and maintenance/recovery sections')
+          archive=Path('verified')/'LRC_Bulk_Finder_Public_v2_4_1_GitHub_Release_Windows.zip'
+          with zipfile.ZipFile(archive) as z:
+              assert z.testzip() is None
+              names=z.namelist();assert len(names)==len(set(names))
+              assert all('..' not in PurePosixPath(n).parts and
+                         not PurePosixPath(n).is_absolute() for n in names)
+              root='LRC_Bulk_Finder_v2_4_1/'
+              required=('START_HERE.cmd','OPEN_CONTROL_CENTER.cmd',
+                'Run_LRC_Finder.cmd','Start_LRC_Finder.bat','Run_Diagnostics.cmd',
+                'SETUP_GREEK_AI.cmd','SETUP_LRCLIB_DATABASE.cmd',
+                'SETUP_LRCLIB_DATABASE_FROM_FILE.cmd',
+                'CONNECT_EXISTING_LRCLIB_DATABASE.cmd','CLEANUP_LRCLIB_DATABASE.cmd',
+                'LRC_Bulk_Finder.py','LRC_Control_Center.py','stop_control.py',
+                'stage_counters.py','search_checkpoint.py','incremental_library.py',
+                'lyric_sync_lab.py','search_profiles.py',
+                'TEST_V2_4_WINDOWS_GUI.py','TEST_V2_4_1_STOP_COUNTERS.py',
+                'TEST_V2_4_1_FROZEN_SMOKE.py','Greek_Artists.csv','Greek_Lexicon.sqlite3')
+              assert all(root+n in names for n in required)
+              assert not any('lrclib-db-dump-' in n for n in names)
+              source=z.read(root+'LRC_Bulk_Finder.py')
+              assert b"VERSION = '2.4.1'" in source
+              z.extractall('release_unpacked')
+              print('PASS ZIP:',len(names),'members, 10 launchers and v2.4.1 components')
+          assert compileall.compile_dir('release_unpacked',quiet=1)
+          print('PASS bytecode compilation of published source archive')
+          PY
+      - name: All built-in tests from the *published*, not branch, ZIP
+        shell: bash
+        run: |
+          cd release_unpacked/LRC_Bulk_Finder_v2_4_1
+          python -m unittest discover -p 'TEST_*.py' -v
+      - name: Stress-test 3353 audio files, all stages, counters and resume
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        shell: bash
+        run: python AUDIT_V241_STRESS.py -v
+
+  published-standalone-windows:
+    name: Published frozen Windows GUI and STOP-aware worker
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Download official v2.4.1 frozen GUI/worker ZIP
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force verified | Out-Null
+          gh release download v2.4.1 --repo DimitrisLai/LRC-Bulk-Finder --pattern "LRC_Bulk_Finder_v2_4_1_Standalone_Windows_GUI.zip" --dir verified
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify exact frozen ZIP SHA256, both EXEs and resource bundle
+        shell: pwsh
+        run: |
+          python -c "import hashlib,zipfile,pathlib; p=pathlib.Path('verified/LRC_Bulk_Finder_v2_4_1_Standalone_Windows_GUI.zip'); assert hashlib.sha256(p.read_bytes()).hexdigest()=='939b8019f4e9db2f48e1aee5d3b61d06a6c003e5d6d97201a7866e0d8bcb8f66'; z=zipfile.ZipFile(p);assert z.testzip() is None;names=z.namelist();assert len(names)==len(set(names));assert all(n in names for n in ['LRC_Control_Center.exe','LRC_Bulk_Finder_Worker.exe','Greek_Artists.csv','Greek_Lexicon.sqlite3','README_STANDALONE_EXE_V2_4_1.txt']);z.extractall('standalone_unpacked');print('PASS: standalone asset SHA256 and both actual EXEs')"
+      - name: Frozen worker tests real cooperative GUI STOP marker
+        shell: pwsh
+        run: |
+          python TEST_V2_4_1_FROZEN_SMOKE.py standalone_unpacked/LRC_Bulk_Finder_Worker.exe
+          if ($LASTEXITCODE -ne 0) { throw "Published frozen worker failed STOP audit" }
+      - name: Published windowed GUI actually opens on Windows
+        shell: pwsh
+        run: |
+          $p=Start-Process -FilePath (Resolve-Path standalone_unpacked/LRC_Control_Center.exe) -PassThru
+          Start-Sleep -Seconds 5
+          $p.Refresh()
+          if ($p.HasExited) { throw "Published frozen GUI crashed on startup" }
+          Stop-Process -Id $p.Id -Force
+          Write-Host "PASS: published standalone Windows Control Center starts"
