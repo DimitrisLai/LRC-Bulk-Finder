@@ -23,7 +23,13 @@ ENGLISH_WORDS = {'the','and','with','you','your','love','baby','summer','greece'
     'tonight','dance','night','girl','boy','beautiful','forever','world','music',
     'english','please','never','always','one','two','three','only','feel','this',
     'that','from','back','again','happy','birthday','heart','christmas','song',
-    'street','club','myself','life','going','through','little','something','more'}
+    'street','club','myself','life','going','through','little','something','more',
+    'best','of','time','times','memories','original','greatest','hits',
+    'golden','classics','collection','english','all','day','dreams','first',
+    'last','way','away','ever','no','yes','every','home','good','bad','new',
+    'old','just','friend','friends','is','are','we','us','our','in','on','at',
+    'for','not','but','what','who','when','where','how','here','there',
+    'music','mix','album','song','songs','work','play','party','dancefloor'}
 GREEKLISH_WORDS = {'mou','sou','mas','sas','ime','eimai','ise','eisai','ime','kai',
     'gia','gi','ena','mia','den','min','oxi','nai','alla','apo','edo','esi','esy',
     'pou','pos','pote','an','tha','to','ti','ta','na','me','se','stin','sto','stis',
