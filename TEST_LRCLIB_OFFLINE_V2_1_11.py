@@ -2,6 +2,7 @@
 from __future__ import annotations
 import csv, io, sqlite3, sys, tempfile, types, unittest
 from pathlib import Path
+from contextlib import closing
 from unittest import mock
 from contextlib import redirect_stdout
 sys.modules.setdefault('syncedlyrics',types.SimpleNamespace(search=lambda *a, **kw:None))
@@ -12,7 +13,7 @@ LYR='[00:05.00] Hello world\n[00:25.00] How are you\n[02:59.00] Song ends\n'
 
 def fixture(folder, name='snapshot.sqlite3'):
     db=Path(folder)/name
-    with sqlite3.connect(db) as con:
+    with closing(sqlite3.connect(db)) as con, con:
         con.executescript('''
           CREATE TABLE tracks (id INTEGER PRIMARY KEY, name TEXT, name_lower TEXT,
             artist_name TEXT, artist_name_lower TEXT, duration FLOAT, last_lyrics_id INTEGER);
