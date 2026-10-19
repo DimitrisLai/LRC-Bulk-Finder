@@ -2,6 +2,13 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.1.21 — Stability, full Greek offline variants, resumable checkpoints
+- Offline LRCLIB uses up to six approved deduplicated search pairs rather than only two, including original song + approved Greek artist and approved Greek title + approved Greek artist.
+- Track candidate review presence across all rounds; later timeout retries cannot turn retained `.candidate.lrc` files into incorrect NOT_FOUND statuses.
+- New `search_checkpoint.py` stores song/stage results after each song; safe automatic resume when settings, dictionaries, local snapshot and song timestamps are unchanged; restored results populate provider reports and LRCLIB catch-up bookkeeping.
+- All 22 regression modules selected in Windows/Linux Python 3.10/3.13 CI (previously ten); corrected historic test fixture cleanup and expectations.
+- Updated complete Windows ZIP, 24-page manual, README and change notes. No MP3/ID3/approved LRC modifications.
+
 ## v2.1.20 — One-click offline-first, then online misses, then timeouts
 - New Option 5 scans the full selected eligible folder with the existing large LRCLIB database before contacting any online music provider.
 - Round 2 checks only unsaved songs against chosen FAST/FULL online providers, skipping redundant offline DB reads.
