@@ -8,6 +8,7 @@ import csv
 from lrclib_local import LocalLRCLIB, load_local_config
 from search_checkpoint import SearchCheckpoint, checkpoint_signature
 from search_performance import MusicBrainzDiskCache, ProviderPerformance, choose_provider_order
+from progress_eta import RoundProgress
 import hashlib
 import sqlite3
 import shutil
@@ -39,8 +40,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.2.0'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.2.0',
+VERSION = '2.3.0'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.3.0',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -2122,6 +2123,7 @@ def run_offline_lrclib_folder(folder):
     review_path=folder/'LRC_Offline_Only_Review_v2_1_15.csv'
     counts=Counter();started=time.monotonic()
     processed=0;interrupted=False
+    offline_progress=RoundProgress(len(eligible),'OFFLINE')
     try:
         with report.open('w',encoding='utf-8-sig',newline='') as outf, review_path.open('w',encoding='utf-8-sig',newline='') as reviewf:
             writer=csv.writer(outf)
@@ -2177,7 +2179,9 @@ def run_offline_lrclib_folder(folder):
                 writer.writerow([str(track),outcome,detail,elapsed,len(review.items)])
                 outf.flush();reviewf.flush()
                 counts[outcome]+=1;processed+=1
+                offline_progress.complete(elapsed)
                 print('  '+outcome+': '+detail+f' | {elapsed:.1f}s',flush=True)
+                print('  '+offline_progress.line(),flush=True)
     finally:
         if G2G_TOOL:
             G2G_TOOL.flush();G2G_TOOL.release_model()
@@ -2423,7 +2427,9 @@ def main():
                    'ONLINE FOR LOCAL MISSES' if staged_mode and rnd==2 else
                    'TIMED-OUT PROVIDERS ONLY' if staged_mode else f'wait {rnd}x')
             print(f'\n===== ROUND {rnd}/3 | {len(current)} songs | {phase} =====',flush=True)
+            progress=RoundProgress(len(current),rnd,phase)
             for index,path in enumerate(current,1):
+                track_started=time.monotonic()
                 print(f'[{index}/{len(current)}] {path.name}',flush=True)
                 previous=checkpoint.get(path,rnd)
                 if previous:
@@ -2453,7 +2459,9 @@ def main():
                     if offline_stage or (previous['status']=='TIMEOUT'
                                          and previous.get('retry_targets') and rnd<3):
                         pending.append(path)
+                    progress.complete(0,checkpoint=True)
                     print(f'    CHECKPOINT: {previous["status"]} (no repeat requests)',flush=True)
+                    print('  '+progress.line(),flush=True)
                     continue
                 review=CandidateReview();status='TIMEOUT';detail='';calls=[];hit=None
                 new_retry=set();call_timings=[];call_traces=[]
@@ -2580,7 +2588,9 @@ def main():
                 provider_performance.record_rows(
                     provider_rows[provider_start:],checkpoint_config+checkpoint.run_id,
                     path.stat().st_mtime_ns)
+                progress.complete(time.monotonic()-track_started)
                 print(f'  {status}: {detail}',flush=True)
+                print('  '+progress.line(),flush=True)
                 if offline_stage and not path.with_suffix('.lrc').exists():
                     pending.append(path)
                 elif not offline_stage and status=='TIMEOUT' and new_retry and rnd<3:
