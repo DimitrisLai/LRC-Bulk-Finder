@@ -349,7 +349,8 @@ GREEK_TITLE_ALIASES = {}
 # Full artist identities need approved exact aliases; never guess from letters.
 # User-controlled Greek_Aliases.csv is loaded LAST and overrides this list.
 def load_curated_artists():
-    f=Path(__file__).with_name('Greek_Artists.csv')
+    f=(program_folder()/'Greek_Artists.csv' if getattr(sys,'frozen',False)
+       else Path(__file__).with_name('Greek_Artists.csv'))
     if not f.is_file():return
     try:
         with f.open(encoding='utf-8-sig',newline='') as stream:
@@ -397,7 +398,8 @@ def approved_artist_alias(original_artist):
 # File columns: type,greeklish,greek
 def load_aliases():
     load_curated_artists()
-    f=Path(__file__).with_name('Greek_Aliases.csv')
+    f=(program_folder()/'Greek_Aliases.csv' if getattr(sys,'frozen',False)
+       else Path(__file__).with_name('Greek_Aliases.csv'))
     if not f.exists():return
     try:
         with f.open(encoding='utf-8-sig',newline='') as stream:
@@ -427,7 +429,7 @@ def load_greek_words():
     Neither this database nor the CSV sources contain music library paths.
     """
     from contextlib import closing
-    root=program_folder()
+    root=program_folder() if getattr(sys,'frozen',False) else Path(__file__).resolve().parent
     db_path=root/'Greek_Lexicon.sqlite3'
     fingerprints={}
     for name in ('Greek_Words_Expanded.csv','Greek_Words.csv'):
