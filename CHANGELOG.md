@@ -2,6 +2,13 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.1.18 — Large public Greek word lexicon and read-only SQLite
+- Added 950 separate Greeklish word spellings to the public `Greek_Words_Expanded.csv`, drawn from recurring spellings in a large Greek music example list (without sharing private song filenames or personal paths).
+- Added reproducible SQLite database builder `BUILD_GREEK_LEXICON_DB.py`, combining public words and customizable `Greek_Words.csv` into an optional small read-only `Greek_Lexicon.sqlite3` included in the Windows ZIP.
+- Added safeguards for database corruption, out-of-date CSV fingerprints, user overrides and cross-platform Windows SQLite close semantics.
+- Preserved original title/artist and remix, Option 2 `[00:00.00] candidate` behavior, strict match checking, and audio/ID3 safety.
+- Added dedicated offline database regression tests and Linux/Windows Python 3.10/3.13 coverage.
+
 ## v2.1.17 — Greeklish quality and dictionary-first search
 - Corrected Greek search-plan priority to **manual full title alias → verified accented word dictionary → optional local AI suggestion**.
 - Expanded the small curated word-level Greeklish lexicon and preserved punctuation, years and remix/version labels.
