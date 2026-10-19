@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.3.0 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.4.0 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -15,6 +15,18 @@ LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music librarie
 Lyrics are saved alongside the MP3 with the same base filename, making them compatible with many portable music players and car stereos that support synchronized LRC text.
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
+
+## What's new in v2.4.0: ready-made profiles, incrementally scanned libraries and experimental timing assistance
+
+Open `OPEN_CONTROL_CENTER.cmd` and select a **built-in preset** at the top: **Greek FULL Offline First**, **Greek Night Search** (wait for temporary provider recovery; can take hours), **Greek Quick Test 20**, **Greek OFFLINE ONLY**, **Greek Local AI FULL** (separately installed model) or **International FAST 20**. Click **Apply preset**; personalize toggles and save without overwriting existing profiles. Hover on each checkbox for a short explanation.
+
+The new **Download / set up LRCLIB database** and **Download / set up Greek G2G AI** buttons launch the established consent-based scripts in the complete CMD distribution. Standalone EXE users can invoke the database downloader in a separate worker console; local G2G AI still requires its external Python environment.
+
+The **incremental library** toggle caches read-only metadata in `LRC_Incremental_Library_v2_4.sqlite3` inside your music folder. New/changed audio or sidecar status is detected without changing MP3/ID3/LRC safety. Supported read-only audio types now include **MP3, FLAC, M4A, MP4, OGG, OPUS and WAV**. Same-stem cross-format clashes are skipped to prevent sidecar ambiguity.
+
+In the **Sync Lab (experimental)**, paste/import your own plain lyrics; estimate rough timestamps based on track duration or manually tap the starts while listening externally. Saving requires confirmation and creates **only UNVERIFIED `[00:00.00] candidate` sidecars**. This is not automatic audio alignment or transcription. Acoustic fingerprinting is intentionally not included.
+
+[Full v2.4 guide](HOW_TO_START_V2_4.txt) · [Release notes](RELEASE_NOTES_V2_4.md) · [Test audit](TEST_AUDIT_V2_4.md)
 
 ## What's new in v2.3.0: Windows Control Center and saved profiles
 
