@@ -179,6 +179,9 @@ class StopAndCounterTests(unittest.TestCase):
             self.assertTrue(any("stage=2 found=1 candidate=0 not_found=0 total_found=2 total_candidate=1" in x for x in markers),markers)
             self.assertTrue(any("stage=3 found=0 candidate=0 not_found=0 total_found=2 total_candidate=1" in x for x in markers),markers)
             self.assertTrue(any("stage=3 found=0 candidate=0 not_found=1 total_found=2 total_candidate=1" in x for x in markers),markers)
+            self.assertEqual(markers[-1],
+                "STAGE COUNTERS: stage=3 found=0 candidate=0 not_found=0 total_found=2 total_candidate=1",
+                "After the last stage, only the ALL-stages totals may remain nonzero")
             old=list(events)
             log2=run()
             self.assertEqual(events,old,"Completed results must be replayed without network")
