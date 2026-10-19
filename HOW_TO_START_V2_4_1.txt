@@ -1,0 +1,43 @@
+LRC BULK FINDER v2.4.1 - STOP AND LIVE SEARCH COUNTERS
+
+START:
+  Standalone: LRC_Control_Center.exe with LRC_Bulk_Finder_Worker.exe.
+  Python GUI: OPEN_CONTROL_CENTER.cmd.
+  Original full console: START_HERE.cmd.
+
+STOP:
+  1. Open LIVE PROGRESS.
+  2. Click "Stop search safely" and confirm.
+  3. The GUI writes a unique stop request marker; no Windows console
+     or Ctrl+Break dependency.
+  4. Current bounded network request may finish or time out first.
+     Completed per-song checkpoints are kept; final reports are saved
+     whenever possible.
+  5. After 8 seconds, if still running, "Force STOP (last resort)"
+     appears. Requires another confirmation. It may drop the current
+     track's incomplete result or final reports but not completed
+     checkpoint files. Restart the same profile to resume.
+
+FIVE COUNTERS IN LIVE PROGRESS:
+  LRC found (stage): verified lyrics created this stage.
+  Candidates (stage): new unverified candidates discovered this stage.
+  Not found (stage): songs with no accepted match/candidate this stage.
+  LRC found (ALL stages): cumulative unique verified songs this run.
+  Candidates (ALL stages): cumulative unique candidate songs this run.
+
+The first 3 reset to ZERO immediately after EACH round completes.
+The last 2 remain cumulative until you start another run.
+Timed-out, rate-limited and errored requests are NOT confirmed NO MATCH.
+An earlier candidate can later be saved as LRC, appearing in both
+historical totals; one song never double-counts within one category.
+Already installed LRCs excluded at the beginning are not counted as
+newly found in a new run.
+
+ALL OTHER v2.4 FEATURES:
+  See HOW_TO_START_V2_4.txt in the complete Windows ZIP: six Greek,
+  Night, offline and international presets; setup buttons; hover help;
+  local incremental tracking; MP3/FLAC/M4A/MP4/OGG/OPUS/WAV; and
+  experimental, explicitly marked unverified Sync Lab.
+
+No MP3/audio tags are modified. Existing approved LRCs remain protected.
+Standalone EXEs are unsigned Public Beta; signing planned for stable.
