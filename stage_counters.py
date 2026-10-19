@@ -26,15 +26,15 @@ class StageCounters:
 
     def add(self,track,status,*,reviewed=False):
         name=str(Path(track).resolve())
-        if status in {"SAVED","EXISTS"}:
+        if status=="SAVED":
             self.found.add(name)
             self.total_found.add(name)
             self.not_found.discard(name)
-        if reviewed or status in {"REVIEW","REVIEW_AVAILABLE","REVIEW_PARTIAL"}:
+        if reviewed or status in {"REVIEW","REVIEW_AVAILABLE"}:
             self.candidates.add(name)
             self.total_candidates.add(name)
             self.not_found.discard(name)
-        if (status in {"NO_MATCH","NOT_FOUND","NOT_FOUND_PARTIAL","NO_METADATA"} and
+        if (status in {"NO_MATCH","NOT_FOUND","NOT_FOUND_PARTIAL","NO_METADATA","REVIEW_PARTIAL"} and
                 name not in self.candidates and name not in self.found):
             self.not_found.add(name)
         return self.line()
