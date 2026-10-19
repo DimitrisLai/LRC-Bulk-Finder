@@ -31,7 +31,7 @@ class GreekLexiconSQLiteTests(unittest.TestCase):
 
     def test_builder_creates_small_privacy_safe_sql(self):
         sql,count=builder.build(root=self.root)
-        self.assertEqual(sql,self.root/'Greek_Lexicon.sqlite3')
+        self.assertEqual(sql.resolve(),(self.root/'Greek_Lexicon.sqlite3').resolve())
         self.assertGreaterEqual(count,1000)
         self.assertLess(sql.stat().st_size,2_000_000)
         self.assertEqual(sql.read_bytes()[:16],b'SQLite format 3\x00')
