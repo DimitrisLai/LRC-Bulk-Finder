@@ -1,3 +1,25 @@
+LRC BULK FINDER v2.1.18 - START HERE
+Created by Dimitris L. - PUBLIC BETA
+
+NEW GREEKLISH VOCABULARY
+Expanded community word list: Greek_Words_Expanded.csv
+Optional tiny read-only SQLite word database: Greek_Lexicon.sqlite3
+Source/editor dictionary: Greek_Words.csv (your custom edits win)
+Full title or artist overrides: Greek_Aliases.csv (highest priority)
+
+IMPORTANT: This word database is NOT the large LRCLIB SQLite database.
+Neither database changes your MP3 audio or ID3 tags. Original names stay.
+
+To rebuild the small lexicon after editing the CSV files:
+  python BUILD_GREEK_LEXICON_DB.py
+If the SQLite is missing or stale the program uses the CSV sources.
+Option 2 remains [00:00.00] candidate with alternative shifting.
+Start with a 20-track Greek preview before a large search.
+
+Detailed guide: HOW_TO_START_V2_1_18.txt
+
+---- PREVIOUS RELEASE NOTES ----
+
 LRC BULK FINDER v2.1.17 - START HERE
 Created by Dimitris L. - PUBLIC BETA
 
