@@ -11,19 +11,19 @@ from pathlib import Path
 
 FIELDS=("folder","action","greek","local_ai","musicbrainz","provider_mode",
         "order","custom_order","recovery_wait","recursive","history","limit",
-        "exact_fallback","auto_search","database")
+        "exact_fallback","auto_search","database","incremental")
 DEFAULT={
     "folder":"","action":"5","greek":True,"local_ai":False,
     "musicbrainz":True,"provider_mode":"full","order":"d","custom_order":"",
     "recovery_wait":False,"recursive":True,"history":True,"limit":"20",
-    "exact_fallback":True,"auto_search":True,"database":"",
+    "exact_fallback":True,"auto_search":True,"database":"","incremental":True,
 }
 NAMES_RE=re.compile(r"^[\w][\w ._-]{0,39}$",re.UNICODE)
 PROVIDER_FAST=("LRCLIB","SyncLRC","NetEase","Unison","LrcAPI")
 PROVIDER_FULL=("LRCLIB","SyncLRC","Unison","BetterKuGou","BetterTTML","YouLyTTML",
                "LrcAPI","LiriQo","NetEase","Musixmatch","Megalobiz","Tencent")
 BOOL_FIELDS=("greek","local_ai","musicbrainz","recovery_wait","recursive",
-             "history","exact_fallback","auto_search")
+             "history","exact_fallback","auto_search","incremental")
 
 
 def profile_file(appdata=None):
@@ -165,3 +165,47 @@ class ProfileAnswers:
         self.position+=1
         print(f"{prompt}{answer}",flush=True)
         return answer
+
+
+# Non-destructive built-in templates. Never silently replace a user's
+# individually saved profiles, paths or LRCLIB database configuration.
+PRESET_TEMPLATES={
+    "Greek FULL — Offline First": {
+        "action":"5","greek":True,"local_ai":False,"musicbrainz":True,
+        "provider_mode":"full","order":"d","recovery_wait":False,
+        "recursive":True,"history":True,"limit":"a","exact_fallback":True},
+    "Greek Night Search — Maximum Coverage": {
+        "action":"5","greek":True,"local_ai":False,"musicbrainz":True,
+        "provider_mode":"full","order":"d","recovery_wait":True,
+        "recursive":True,"history":False,"limit":"a","exact_fallback":True},
+    "Greek Quick Test — 20 Songs": {
+        "action":"5","greek":True,"local_ai":False,"musicbrainz":True,
+        "provider_mode":"full","order":"d","recovery_wait":False,
+        "recursive":True,"history":False,"limit":"20","exact_fallback":True},
+    "Greek OFFLINE ONLY": {
+        "action":"4","greek":True,"local_ai":False,"musicbrainz":False,
+        "provider_mode":"fast","order":"d","recovery_wait":False,
+        "recursive":True,"history":False,"limit":"a","exact_fallback":False},
+    "Greek Local AI — FULL": {
+        "action":"5","greek":True,"local_ai":True,"musicbrainz":True,
+        "provider_mode":"full","order":"d","recovery_wait":False,
+        "recursive":True,"history":True,"limit":"a","exact_fallback":True},
+    "International FAST — 20 Songs": {
+        "action":"1","greek":False,"local_ai":False,"musicbrainz":True,
+        "provider_mode":"fast","order":"d","recovery_wait":False,
+        "recursive":True,"history":True,"limit":"20","exact_fallback":False},
+}
+PRESET_DESCRIPTIONS={
+    "Greek FULL — Offline First":"Your normal Greeklish workflow. Local LRCLIB for all tracks, full online fallback, timeout-only retry. No unnecessary provider waiting.",
+    "Greek Night Search — Maximum Coverage":"Unattended full-library run. Waits for providers in temporary recovery and checks all sources; can take many hours. Does not schedule itself.",
+    "Greek Quick Test — 20 Songs":"Recheck only 20 missing songs with full Greek search and no reused NO_MATCH history.",
+    "Greek OFFLINE ONLY":"Only your downloaded SQLite LRCLIB database. Zero online lyrics or MusicBrainz requests.",
+    "Greek Local AI — FULL":"Greek FULL plus your separately installed local G2G model. Requires a functioning model; NOT bundled into the EXE.",
+    "International FAST — 20 Songs":"Small English/international FAST test without Greek conversion or mandatory local SQLite.",
+}
+
+def preset_profile(name,folder="",database=""):
+    if name not in PRESET_TEMPLATES:
+        raise KeyError(name)
+    return validate_profile({**DEFAULT,**PRESET_TEMPLATES[name],
+                             "folder":str(folder),"database":str(database)})
