@@ -141,7 +141,7 @@ class DiagnosticsTests(unittest.TestCase):
             folder=Path(td)
             original=b'MP3-DO-NOT-CHANGE'
             (folder/'A.mp3').write_bytes(original)
-            answers=iter(['1','n','n','fast','n','n','n','a','n'])
+            answers=iter(['1','n','n','fast','d','n','n','n','a','n'])
             out=io.StringIO()
             def simulated_request(req,timeout=10):
                 if 'lrclib.net' in req.full_url:
