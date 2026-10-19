@@ -2,6 +2,14 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.3.0 — Saved profiles, live progress and safe candidate review
+- NEW `OPEN_CONTROL_CENTER.cmd` and `LRC_Control_Center.py`: native Python/Tkinter GUI and log/progress/ETA dashboard. CLI START_HERE.cmd remains available.
+- NEW `search_profiles.py` and `run_saved_profile.py`: validated, atomic local user profiles and known-answer-only launch of Options 1, 4 and 5.
+- NEW `progress_eta.py`: clear per-round percentage, elapsed time and ETA based on actual uncached songs.
+- NEW `review_candidates_gui.py`: browse candidate sidecars, preview without modifying them, open MP3 externally and explicitly confirm one MARKED unverified candidate promotion using existing safe routines.
+- 17 new GUI/profile/progress/candidate regression tests plus full legacy matrix on Windows and Linux.
+- Existing Greek offline search, provider statistics, MusicBrainz cache, JSONL resume safety and all MP3/ID3 protections remain unchanged.
+
 ## v2.2.0 — Persistent metadata, provider ordering, performance and stronger recovery
 - New persistent duration- and Greek-mode-aware MusicBrainz artist/title spelling cache (30-day positive/7-day clean no-match TTL; never cache provider errors).
 - New provider priority prompt: D=DEFAULT, S=SMART based on independently verified LRC saves per provider seconds (minimum 10 observations), C=CUSTOM exact permutation; FULL/FAST provider sets unchanged.
