@@ -5,6 +5,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from contextlib import closing
 from unittest import mock
 import auto_install_lrclib_database as ins
 from lrclib_local import LocalLRCLIB
@@ -23,7 +24,7 @@ class FakeResponse:
 class AutoTests(unittest.TestCase):
     def make_db_gzip(self, folder):
         db=folder/'demo.sqlite3'
-        with sqlite3.connect(db) as con:
+        with closing(sqlite3.connect(db)) as con, con:
             con.executescript('''
               CREATE TABLE tracks (id INTEGER PRIMARY KEY, name TEXT, name_lower TEXT,
                 artist_name TEXT, artist_name_lower TEXT, duration FLOAT, last_lyrics_id INTEGER);
