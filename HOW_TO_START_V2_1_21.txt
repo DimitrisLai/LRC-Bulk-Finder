@@ -1,0 +1,67 @@
+LRC BULK FINDER v2.1.21 - STABILITY / ACCURACY / RESUME
+Created by Dimitris L. | Public Beta | Windows Python 3.10+
+
+NEW IN v2.1.21
+1) Local LRCLIB now uses up to SIX distinct approved artist/title pairs,
+   including the THIRD: approved Greek title + approved Greek artist.
+   Strict duration, title, artist and version validation remains unchanged.
+2) Review candidates survive later NO_MATCH/timeout-only retry rounds.
+   The FINAL report continues to classify them as requiring manual review.
+3) Automatic per-song/stage checkpoint:
+   LRC_Run_Checkpoint_v2_1_21.jsonl in the selected music folder.
+   Each finished song is recorded DURING the run (not only at its end).
+   Restarting with identical settings resumes completed eligible stages,
+   replays previous provider/review data into the final reports, and
+   retries only the currently uncompleted song/stage.
+4) Historical test suite expanded to all 22 modules on Windows and Linux.
+   See TEST_AUDIT_V2_1_21.md.
+
+CHECKPOINT SAFETY
+- Nothing modifies MP3 files, ID3 tags, or an existing .lrc file.
+- Modified/moved song files are re-evaluated (size/mtime/path changes).
+- Changed Greek alias/word dictionaries, online/offline settings, or
+  downloaded SQLite snapshot invalidate OLD checkpoint entries.
+- If you want a fresh search with the same settings, MOVE/RENAME the
+  LRC_Run_Checkpoint_v2_1_21.jsonl file before starting.
+- Do NOT run two copies of the program against the same folder at once.
+- New entries are append-only JSONL; an incomplete final line is ignored.
+- This version writes checkpoints only for menu Option 1 and Option 5.
+  Existing Option 4 remains fully offline and can safely be rerun.
+- An outage that returned SKIPPED/NO_MATCH is marked as completed for that
+  stage; this is NOT a retry of every unavailable provider. Use later
+  catch-up with a restored provider or choose a fresh run as appropriate.
+
+COMPLETE OPTION 5 PROMPTS (all, in actual on-screen order)
+ 1. Choose [1/2/3/4/5] (default 1):            5
+ 2. Select MP3 folder:                         full music folder
+    IF requested: path to your downloaded large LRCLIB .sqlite3 file
+ 3. Greeklish / Greek folder? [y/N]:          Y
+ 4. Local G2G AI? [y/N]:                      Y only if installed
+ 5. MusicBrainz metadata? [Y/n]:             Y
+ 6. FAST or FULL? [F/full]:                   full
+ 7. Wait for temporary provider recovery?     N for speed
+ 8. Include subfolders? [Y/n]:               Y
+ 9. Skip cached NO_MATCH (7 days)? [Y/n]:    N for fresh test
+10. How many missing songs? [20/A]:          20 for test / A for full
+11. LRCLIB exact-signature fallback? [y/N]: Y
+12. Search after Greek preview? [Y/n]:       Y
+
+If restarting a completed or interrupted job, choose the SAME settings.
+An existing checkpoint is recognized automatically; no extra prompt.
+
+OPTION 5 STAGES
+ROUND 1: local LRCLIB SQLite for all missing tracks (zero online requests)
+ROUND 2: online sources for tracks with no verified sidecar
+ROUND 3: ONLY genuine timed-out source/song pairs from ROUND 2.
+A stored .candidate.lrc is NEVER silently promoted.
+Use Option 2 if you explicitly want to mark/promote candidates.
+
+UPGRADE FROM v2.1.20
+- Download complete RELEASE Windows ZIP, not GitHub "Source code".
+- Extract into a NEW location.
+- Reconnect your existing huge LRCLIB SQLite with
+  CONNECT_EXISTING_LRCLIB_DATABASE.cmd (no database redownload).
+- Copy your personally edited Greek_Aliases.csv and/or Greek_Words.csv,
+  without overwriting newer public dictionaries unintentionally.
+- Double-click START_HERE.cmd (Python 3.10+ and packages required).
+- Existing v2.1.20 releases and reports remain untouched.
