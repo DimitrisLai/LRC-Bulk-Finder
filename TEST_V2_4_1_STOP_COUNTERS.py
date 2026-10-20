@@ -40,7 +40,7 @@ class StopAndCounterTests(unittest.TestCase):
 
     def test_01_stage_reset_totals_and_distinct_song_count(self):
         metrics=StageCounters()
-        self.assertEqual(metrics.start(1),"STAGE COUNTERS: stage=1 found=0 candidate=0 not_found=0 total_found=0 total_candidate=0")
+        self.assertEqual(metrics.start(1),"STAGE COUNTERS: stage=1 found=0 candidate=0 not_found=0 total_found=0 total_candidate=0 skipped=0")
         with tempfile.TemporaryDirectory() as folder:
             a=Path(folder)/"A.mp3";b=Path(folder)/"B.mp3";c=Path(folder)/"C.mp3"
             metrics.add(a,"SAVED")
@@ -180,7 +180,7 @@ class StopAndCounterTests(unittest.TestCase):
             self.assertTrue(any("stage=3 found=0 candidate=0 not_found=0 total_found=2 total_candidate=1" in x for x in markers),markers)
             self.assertTrue(any("stage=3 found=0 candidate=0 not_found=1 total_found=2 total_candidate=1" in x for x in markers),markers)
             self.assertEqual(markers[-1],
-                "STAGE COUNTERS: stage=3 found=0 candidate=0 not_found=0 total_found=2 total_candidate=1",
+                "STAGE COUNTERS: stage=3 found=0 candidate=0 not_found=0 total_found=2 total_candidate=1 skipped=0",
                 "After the last stage, only the ALL-stages totals may remain nonzero")
             old=list(events)
             log2=run()

@@ -21,6 +21,8 @@ def run_profile(name,profiles_path=None):
     folder=Path(profile["folder"]).expanduser()
     if not folder.is_dir():
         raise ValueError("Selected music folder does not exist: "+str(folder))
+    prior_exp=os.environ.get("LRC_EXPERIMENTAL_SIMPMUSIC")
+    os.environ["LRC_EXPERIMENTAL_SIMPMUSIC"]="1" if profile.get("experimental_simpmusic",False) and profile["provider_mode"]=="full" and profile["action"]!="4" else "0"
     import LRC_Bulk_Finder as finder
     answers=ProfileAnswers(profile)
     prior_incremental=os.environ.get('LRC_INCREMENTAL')
@@ -38,6 +40,8 @@ def run_profile(name,profiles_path=None):
     finally:
         builtins.input=old_input
         finder.select_folder=old_select
+        if prior_exp is None:os.environ.pop("LRC_EXPERIMENTAL_SIMPMUSIC",None)
+        else:os.environ["LRC_EXPERIMENTAL_SIMPMUSIC"]=prior_exp
         if prior_incremental is None:os.environ.pop('LRC_INCREMENTAL',None)
         else:os.environ['LRC_INCREMENTAL']=prior_incremental
         if finder.LIBRARY_INDEX is not None:
