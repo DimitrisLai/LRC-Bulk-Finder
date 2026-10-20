@@ -1,23 +1,23 @@
-name: v2.4.3 private validation handoff
+name: v2.4.3 isolated baseline archive
 on:
   push:
     branches:
       - qa/v2.4.3-prepublish
 permissions:
   contents: read
+concurrency:
+  group: v243-isolated-baseline
+  cancel-in-progress: true
 jobs:
   baseline:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Make source archive for independent QA
-        run: |
-          python - <<'PY'
-          import shutil
-          shutil.make_archive('v242-source-tree','zip','.')
-          PY
+      - name: Package only tracked source files outside checkout
+        run: git archive --format=zip --output=/tmp/v242-baseline-source.zip HEAD
       - uses: actions/upload-artifact@v4
         with:
           name: v242-baseline-source
-          path: v242-source-tree.zip
+          path: /tmp/v242-baseline-source.zip
           retention-days: 7
