@@ -2,6 +2,18 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.4.3 — Provider health, verified STOP, Skipped counting and one-click resume
+- **Provider Health Dashboard** distinguishes working, temporarily unavailable, timed-out and blocked providers. Records a verified success only after an approved `.lrc` sidecar is saved, not merely after receiving HTTP 200.
+- **STOP verification** attempts to terminate worker descendants and warns if full process-tree termination cannot be verified. Completed stage/song checkpoints are retained; an unfinished song or unwritten report may be lost on force stop.
+- **Separate Skipped counter** distinguishes missing/unusable metadata from genuine no-match searches. Four stage counters reset between rounds; two cumulative totals track distinct verified and candidate-bearing songs.
+- **Resume previous search** restores a saved profile and uses safe resumable checkpoints; no duplicate search against the same folder should run simultaneously.
+- **Provider contribution CSV** records providers that actually deliver new verified `.lrc` files, not candidates or repeated findings.
+- **Approved Greek aliases** can be saved locally for later matching without rewriting audio tags or trusting unreviewed AI output.
+- **SimpMusic experimental route** is an explicit opt-in and remains disabled by default; results without verifiable recording metadata are candidates only. LetrasMus, YouTube Music and separate Apple Music experiments are research only, not silently added to existing FAST/FULL routes.
+- Complete standalone Windows GUI/worker ZIP, complete Python/CMD ZIP and a **29-page beginner-first English PDF user manual** published together.
+- **Validation:** full regression suite passed on Windows and Linux with Python 3.10 and 3.13; Windows frozen GUI/worker startup and STOP smoke tests passed; release assets were downloaded again and SHA-256 compared with tested packages.
+- Version remains labeled **Public Beta** because provider availability and correctness on real music libraries cannot be guaranteed.
+
 ## v2.4.2 — Immediate worker-tree STOP and distinct stage/all-stage counters
 - A single confirmation immediately kills the entire search worker tree without terminating or freezing the Control Center.
 - Windows `taskkill /T /F` handles PyInstaller worker children; Linux searches use an isolated process session. Completed-song checkpoints remain; current in-flight work may be retried.
