@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - qa/v2.4.3-prepublish
+    paths:
+      - .github/workflows/v243-qa-handoff.yml
 permissions:
   contents: read
 concurrency:
