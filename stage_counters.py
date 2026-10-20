@@ -30,7 +30,7 @@ class StageCounters:
             self.found.add(name)
             self.total_found.add(name)
             self.not_found.discard(name)
-        if reviewed or status in {"REVIEW","REVIEW_AVAILABLE"}:
+        if reviewed:
             self.candidates.add(name)
             self.total_candidates.add(name)
             self.not_found.discard(name)
