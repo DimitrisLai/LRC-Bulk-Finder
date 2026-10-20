@@ -1,0 +1,63 @@
+name: Set v2.4.3 as GitHub Latest
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v243-mark-latest.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  latest:
+    if: github.repository == 'DimitrisLai/LRC-Bulk-Finder'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate published v2.4.3 assets before changing release label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v2.4.3")"
+          printf '%s' "$release" | jq -e '.draft == false and .tag_name == "v2.4.3"' >/dev/null
+          for asset in \
+            LRC_Bulk_Finder_Public_v2_4_3_GitHub_Release_Windows.zip \
+            LRC_Bulk_Finder_v2_4_3_Standalone_Windows_GUI.zip \
+            LRC_Bulk_Finder_v2_4_3_Complete_User_Manual_EN.pdf; do
+            printf '%s' "$release" | jq -e --arg file "$asset" '.assets | any(.name == $file and .size > 100000)' >/dev/null
+          done
+          echo "All three existing tested release assets are present; no assets will be rewritten."
+      - name: Mark v2.4.3 as the default Latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release edit v2.4.3 --repo "$GITHUB_REPOSITORY" --prerelease=false --latest
+      - name: Verify GitHub Latest API and preservation of all downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if gh api "repos/${GITHUB_REPOSITORY}/releases/latest" \
+              --jq 'select(.tag_name == "v2.4.3" and .prerelease == false and .draft == false) | .tag_name' \
+              | grep -Fx v2.4.3; then break; fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "GitHub Latest endpoint did not resolve to v2.4.3" >&2
+              exit 1
+            fi
+            sleep 3
+          done
+          gh api "repos/${GITHUB_REPOSITORY}/releases/latest" \
+            --jq '.assets[] | "\(.name) \(.size) \(.digest)"'
+          count="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.assets | length')"
+          if [ "$count" != "3" ]; then
+            echo "Expected exactly three published files, got $count" >&2
+            exit 1
+          fi
+          echo "PASS: v2.4.3 is GitHub Latest and all three assets remain available."
