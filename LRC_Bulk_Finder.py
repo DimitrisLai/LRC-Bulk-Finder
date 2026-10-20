@@ -2219,7 +2219,7 @@ def run_offline_lrclib_folder(folder):
                 outf.flush();reviewf.flush()
                 counts[outcome]+=1;processed+=1
                 offline_progress.complete(elapsed)
-                search_counts.record(track,outcome,candidate=bool(rows))
+                search_counts.record(track,outcome,candidate=any(len(row)>6 and row[6] for row in rows))
                 print(search_counts.output(),flush=True)
                 print('  '+outcome+': '+detail+f' | {elapsed:.1f}s',flush=True)
                 print('  '+offline_progress.line(),flush=True)
@@ -2511,7 +2511,7 @@ def main():
                         pending.append(path)
                     progress.complete(0,checkpoint=True)
                     search_counts.record(path,previous['status'],
-                                         candidate=bool(previous.get('review_rows',[])))
+                                         candidate=any(len(row)>6 and row[6] for row in previous.get('review_rows',[])))
                     print(search_counts.output(),flush=True)
                     print(f'    CHECKPOINT: {previous["status"]} (no repeat requests)',flush=True)
                     print('  '+progress.line(),flush=True)
@@ -2642,7 +2642,7 @@ def main():
                     provider_rows[provider_start:],checkpoint_config+checkpoint.run_id,
                     path.stat().st_mtime_ns)
                 progress.complete(time.monotonic()-track_started)
-                search_counts.record(path,status,candidate=bool(stage_reviews))
+                search_counts.record(path,status,candidate=any(len(row)>6 and row[6] for row in stage_reviews))
                 print(search_counts.output(),flush=True)
                 print(f'  {status}: {detail}',flush=True)
                 print('  '+progress.line(),flush=True)
