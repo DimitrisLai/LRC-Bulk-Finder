@@ -1,0 +1,23 @@
+name: v2.4.3 private validation handoff
+on:
+  push:
+    branches:
+      - qa/v2.4.3-prepublish
+permissions:
+  contents: read
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make source archive for independent QA
+        run: |
+          python - <<'PY'
+          import shutil
+          shutil.make_archive('v242-source-tree','zip','.')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v242-baseline-source
+          path: v242-source-tree.zip
+          retention-days: 7
