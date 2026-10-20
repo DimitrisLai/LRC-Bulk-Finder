@@ -98,6 +98,78 @@ class CounterTests(unittest.TestCase):
             self.assertEqual(c.snapshot()["total_lrc"],1)
 
 
+    def test_actual_three_stage_counter_events_with_multicandidate_tracks(self):
+        import io
+        from contextlib import redirect_stdout
+        import LRC_Bulk_Finder as app
+        lyrics=("[00:04.00] First lyric\n[00:35.00] Second line\n"
+                "[01:30.00] Chorus here\n[02:58.00] Finish song\n")
+        with tempfile.TemporaryDirectory() as td:
+            folder=Path(td)
+            for name in ("A","B","C","D"):
+                (folder/(name+".mp3")).write_bytes(b"PROTECTED")
+            app.GREEK_MODE=False
+            app.G2G_TOOL=None
+            app.MB_ENABLED=False
+            app.LOCAL_LRCLIB=None
+            app.G2G_SONG_PLANS.clear()
+            app.blocked.clear()
+            def local(title,artist,duration,review):
+                if title=="A":
+                    return app.Hit(lyrics,"LRCLIB","verified","LOCAL",True)
+                if title=="B":
+                    review.add("Local-1",title,artist,"review one",lyrics)
+                    review.add("Local-2",title,artist,"review two",lyrics.replace("First","Different"))
+                return None
+            def remote(title,artist,album,duration,review,*,only_providers=None,
+                       retry_targets=None,timings=None,request_traces=None):
+                if title=="B":
+                    return app.Hit(lyrics,"SyncLRC","verified","ORIGINAL",True),"SAVED","verified",["SyncLRC=SAVED"]
+                if title=="C" and only_providers is None:
+                    retry_targets.add("LiriQo")
+                    return None,"TIMEOUT","one timeout",["LiriQo=ERROR (timeout)"]
+                if title=="D":
+                    review.add("NetEase",title,artist,"review",lyrics)
+                    return None,"REVIEW_AVAILABLE","candidate",["NetEase=REVIEW_AVAILABLE"]
+                return None,"NOT_FOUND","no match",["LiriQo=NO_MATCH"]
+            def save(song,hit):
+                song.with_suffix(".lrc").write_text(hit.lyrics,encoding="utf-8")
+            answers=iter(["5","n","n","full","d","n","n","n","a","n"])
+            with mock.patch("builtins.input",side_effect=lambda _:next(answers)),\
+                 mock.patch.object(app,"select_folder",return_value=folder),\
+                 mock.patch.object(app,"ensure_local_lrclib_config",return_value=True),\
+                 mock.patch.object(app,"load_provider_cooldowns"),\
+                 mock.patch.object(app,"configure_lrclib_contact",return_value=True),\
+                 mock.patch.object(app,"show_provider_availability"),\
+                 mock.patch.object(app,"song_info",side_effect=lambda path:(path.stem,"Artist","",180)),\
+                 mock.patch.object(app,"local_lrclib_search",side_effect=local),\
+                 mock.patch.object(app,"search_song",side_effect=remote),\
+                 mock.patch.object(app,"save_hit",side_effect=save),\
+                 redirect_stdout(io.StringIO()) as out:
+                app.main()
+            events=[parse_counter_line(line) for line in out.getvalue().splitlines()]
+            events=[e for e in events if e is not None]
+            self.assertEqual([e["round"] for e in events if
+                e["round_lrc"]==e["round_candidate"]==e["round_not_found"]==0][:1],["1"])
+            for stage in ("1","2","3"):
+                stage_events=[e for e in events if e["round"]==stage]
+                self.assertGreaterEqual(len(stage_events),3)
+                self.assertEqual(tuple(stage_events[-1][k] for k in
+                    ("round_lrc","round_candidate","round_not_found")),(0,0,0))
+            stage1=[e for e in events if e["round"]=="1"]
+            self.assertTrue(any(e["round_lrc"]==1 and e["round_candidate"]==1 for e in stage1))
+            self.assertTrue(any(e["round_not_found"]==2 for e in stage1))
+            stage2=[e for e in events if e["round"]=="2"]
+            self.assertTrue(any(e["round_lrc"]==1 and e["round_candidate"]==1 for e in stage2))
+            self.assertEqual((events[-1]["total_lrc"],events[-1]["total_candidate"]),(2,2))
+            self.assertTrue((folder/"B.candidate.lrc").exists())
+            self.assertTrue((folder/"B.candidate.2.lrc").exists())
+            self.assertTrue((folder/"D.candidate.lrc").exists())
+            for name in "ABCD":
+                self.assertEqual((folder/(name+".mp3")).read_bytes(),b"PROTECTED")
+
+
+
 class ProcessTerminationTests(unittest.TestCase):
     def test_real_sleeping_worker_is_killed_and_test_process_survives(self):
         options={}
