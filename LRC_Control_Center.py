@@ -27,12 +27,13 @@ from lyric_sync_lab import plain_lines,estimate_timestamps,draft_lrc,save_unveri
 from review_candidates_gui import (list_review_candidates,preview_candidate,
                                    explicitly_promote)
 from runtime_paths import program_folder
+from worker_stop import kill_search_process
 
 
 class ControlCenter(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LRC Bulk Finder v2.4.1 — Control Center")
+        self.title("LRC Bulk Finder v2.4.2 — Control Center")
         self.geometry("1140x910")
         self.minsize(970,770)
         self.process=None
@@ -195,33 +196,39 @@ class ControlCenter(tk.Tk):
         self.bar=ttk.Progressbar(self.run_tab,maximum=100,length=500)
         self.bar.pack(fill="x",pady=10)
         ttk.Label(self.run_tab,textvariable=self.progress_text).pack(anchor="w",pady=(0,12))
-        counters=ttk.LabelFrame(self.run_tab,text="This stage / All stages",padding=10)
-        counters.pack(fill="x",pady=(0,12))
         self.counter_vars={}
-        for index,(key,label) in enumerate((
-            ("found","LRC found (stage)"),
-            ("candidate","Candidates (stage)"),
-            ("not_found","Not found (stage)"),
-            ("total_found","LRC found (ALL stages)"),
-            ("total_candidate","Candidates (ALL stages)"))):
-            widget=ttk.Frame(counters)
-            widget.grid(row=0,column=index,sticky="ew",padx=7)
-            counters.grid_columnconfigure(index,weight=1)
-            value=tk.StringVar(value="0")
-            self.counter_vars[key]=value
-            ttk.Label(widget,textvariable=value,font=("Segoe UI",20,"bold")).pack()
-            ttk.Label(widget,text=label,wraplength=145,justify="center").pack()
+        self._counter_group(
+            "THIS STAGE  •  resets after Round 1, 2 and 3",
+            (("found","Songs / LRC found"),
+             ("candidate","Songs / Candidate found"),
+             ("not_found","Not found")))
+        self._counter_group(
+            "ALL STAGES  •  totals remain until a new search",
+            (("total_found","LRC Count"),
+             ("total_candidate","Candidate Count")))
         ttk.Label(self.run_tab,text="Stage numbers reset to 0 at each round; ALL-stages totals remain. "
                   "Timed-out/errored requests are not falsely counted as confirmed 'not found'.",
                   style="Hint.TLabel").pack(anchor="w",pady=(0,8))
         controls=ttk.Frame(self.run_tab)
         controls.pack(fill="x")
-        self.stop_button=ttk.Button(controls,text="Stop search safely",state="disabled",command=self._stop)
+        self.stop_button=ttk.Button(controls,text="STOP SEARCH — keep app open",state="disabled",command=self._stop)
         self.stop_button.pack(side="left")
         ttk.Button(controls,text="Clear displayed log",command=self._clear_log).pack(side="left",padx=10)
         self.log=scrolledtext.ScrolledText(self.run_tab,wrap="word",height=24,font=("Consolas",9))
         self.log.pack(fill="both",expand=True,pady=(12,0))
         self.log.configure(state="disabled")
+
+    def _counter_group(self,title,fields):
+        frame=ttk.LabelFrame(self.run_tab,text=title,padding=9)
+        frame.pack(fill="x",pady=(0,8))
+        for index,(key,label) in enumerate(fields):
+            item=ttk.Frame(frame)
+            item.grid(row=0,column=index,sticky="nsew",padx=12)
+            frame.grid_columnconfigure(index,weight=1)
+            value=tk.StringVar(value="0")
+            self.counter_vars[key]=value
+            ttk.Label(item,textvariable=value,font=("Segoe UI",21,"bold")).pack()
+            ttk.Label(item,text=label,wraplength=200,justify="center").pack()
 
     def _build_review(self):
         top=ttk.Frame(self.review_tab)
@@ -405,14 +412,15 @@ class ControlCenter(tk.Tk):
             self.process=subprocess.Popen(cmd,stdout=subprocess.PIPE,
                stderr=subprocess.STDOUT,stdin=subprocess.DEVNULL,
                encoding="utf-8",errors="replace",bufsize=1,
-               cwd=str(program_folder()),creationflags=creationflags,env=environment)
+               cwd=str(program_folder()),creationflags=creationflags,env=environment,
+               start_new_session=(os.name!="nt"))
         except OSError as error:
             self._cleanup_stop_marker()
             messagebox.showerror("Cannot start search",str(error))
             return
         self._clear_log()
         self.stop_requested=False
-        self.stop_button.configure(text="Stop search safely")
+        self.stop_button.configure(text="STOP SEARCH — keep app open")
         for value in self.counter_vars.values():value.set("0")
         self.notebook.select(self.run_tab)
         self.stop_button.configure(state="normal")
@@ -444,6 +452,14 @@ class ControlCenter(tk.Tk):
                     self.process=None
                     self._cleanup_stop_marker()
                     self._refresh_review()
+                elif kind=="hardstop_result":
+                    success,detail=data
+                    if not success:
+                        self.stop_requested=False
+                        self.stop_button.configure(state="normal")
+                        self.phase.set("Stop failed: "+detail)
+                    else:
+                        self._line("STOP: "+detail+" Completed checkpoints remain available.")
                 elif kind=="error":
                     self._line("Control Center reader error: "+data)
         except queue.Empty:pass
@@ -480,40 +496,24 @@ class ControlCenter(tk.Tk):
 
     def _stop(self):
         process=self.process
-        if process is None or process.poll() is not None:return
-        if self.stop_requested:
-            if not messagebox.askyesno("FORCE stop?",
-                "The worker has not exited yet. Force stop now?\n\n"
-                "Only completed checkpoints survive. The current track and "
-                "final report might not be saved. Resuming will retry that work."):
-                return
-            try:
-                process.kill()
-                self.phase.set("Force-stop requested — waiting for process exit...")
-            except OSError as error:
-                messagebox.showerror("Force stop failed",str(error))
+        if process is None or process.poll() is not None or self.stop_requested:
             return
-        if not messagebox.askyesno("Stop current search",
-            "Ask the worker to stop gracefully after the current bounded request?\n"
-            "Completed songs and reports will be preserved."):
+        if not messagebox.askyesno(
+                "Stop search now?",
+                "Immediately KILL the running lyrics-search worker?\n\n"
+                "The CONTROL CENTER will stay open. Finished-song checkpoints "
+                "are retained, but the in-progress song and final reports "
+                "might not have been written. Restarting can retry that song."):
             return
-        try:
-            # File-based IPC works in windowed frozen EXEs without a console.
-            if self.stop_path is None:
-                raise OSError("No stop channel was created for this search")
-            self.stop_path.write_text("STOP\n",encoding="utf-8")
-            self.stop_requested=True
-            self.stop_button.configure(state="disabled",text="Waiting for safe stop...")
-            self.phase.set("STOP REQUESTED — completing bounded request and saving checkpoints...")
-            self._line("STOP REQUESTED: worker will finish the current request safely.")
-            self.after(8000,lambda:self._enable_force_stop(process))
-        except OSError as error:
-            messagebox.showerror("Stop request failed",str(error))
+        self.stop_requested=True
+        self.stop_button.configure(state="disabled",text="Stopping worker...")
+        self.phase.set("Stopping search worker — app remains open...")
+        self.progress_text.set("Previously saved checkpoints remain; unfinished song may be retried.")
+        threading.Thread(target=self._hard_stop_worker,
+                         args=(process,),daemon=True).start()
 
-    def _enable_force_stop(self,process):
-        if self.process is process and process.poll() is None and self.stop_requested:
-            self.stop_button.configure(state="normal",text="Force STOP (last resort)")
-            self._line("Worker still running: use Force STOP only if it cannot finish safely.")
+    def _hard_stop_worker(self,process):
+        self.messages.put(("hardstop_result",kill_search_process(process)))
 
     def _cleanup_stop_marker(self):
         directory=self.stop_directory

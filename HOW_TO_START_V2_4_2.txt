@@ -1,0 +1,52 @@
+LRC BULK FINDER v2.4.2 - ONE-CLICK STOP & LIVE COUNTERS
+Public Beta - created by Dimitris L.
+
+START:
+  Standalone: LRC_Control_Center.exe plus LRC_Bulk_Finder_Worker.exe.
+  Python GUI: OPEN_CONTROL_CENTER.cmd.
+  Original full console: START_HERE.cmd.
+
+STOP BUTTON (CHANGED from v2.4.1)
+  1. Open LIVE PROGRESS, click STOP SEARCH - keep app open.
+  2. Confirm immediate termination of ONLY the search worker process.
+  3. Windows: stops the worker PROCESS TREE, including any packaged
+     PyInstaller child processes. The Control Center remains running.
+  4. No second click, console Ctrl+Break or 8-second wait is needed.
+  5. Previously completed-song JSONL checkpoints are durable and remain.
+     A currently running song and reports not yet written can be lost.
+     Restart the saved profile to retry unfinished work.
+  6. The GUI keeps previously observed totals after you press Stop;
+     a NEW run resets all five counters to zero and then replays
+     completed checkpoints as appropriate.
+  7. Do not run two searches simultaneously against the same music folder.
+
+FIVE LIVE COUNTERS, ARRANGED IN TWO GROUPS:
+  THIS STAGE (first three; reset after EACH completed round):
+    Songs / LRC found        - unique songs saved in current stage.
+    Songs / Candidate found  - unique songs with ACTUAL candidate sidecars
+                                in current stage (even 2-3 candidates = 1).
+    Not found                - definite misses this stage, excluding timeouts,
+                                transport errors and blocked providers.
+  ALL STAGES (last two; NOT reset between stages):
+    LRC Count                - unique songs for which verified LRC was saved.
+    Candidate Count          - unique songs with a saved candidate review file.
+
+For example: Stage 1 finds 10 LRCs and candidates on 5 different songs.
+After Stage 1 finishes, the first three counters reset to 0 while the
+totals remain LRC Count 10, Candidate Count 5. Stage 2 adds its NEW
+findings to those totals without counting the same song twice in a category.
+A candidate-bearing song saved with verified LRC later can appear in BOTH
+historical totals. Previously installed LRCs skipped at the beginning of
+a new run are NOT counted as newly found in that run.
+
+No original MP3/FLAC/M4A/MP4/OGG/OPUS/WAV files or audio tags are modified.
+Approved existing LRCs and candidate safety rules remain protected.
+
+OTHER v2.4 FEATURES:
+  See HOW_TO_START_V2_4.txt: built-in Greek FULL, NIGHT, offline, AI and
+  test presets, mouseover explanations, LRCLIB database/G2G setup buttons,
+  local incremental metadata SQLite, Sync Lab with unverified drafts.
+  Optional heavy G2G AI model still needs the complete Python package.
+
+Code signing: community-built standalone EXEs remain UNSIGNED Public Beta.
+Verify the official SHA-256 and scan downloads before allowing Windows.
