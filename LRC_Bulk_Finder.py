@@ -2234,6 +2234,9 @@ def run_offline_lrclib_folder(folder):
         print('  Report:',report,flush=True)
         print('  Review:',review_path,flush=True)
         if interrupted:print('  Rerun option 4 to continue; songs already having .lrc are skipped.',flush=True)
+        else:
+            search_counts.end_round()
+            print(search_counts.output(),flush=True)
 
 def main():
     global ROUND, STAGED_ONLINE_MODE
@@ -2651,6 +2654,8 @@ def main():
             suffix=('song(s) to check online next.' if offline_stage else
                     'song(s) with timed-out providers eligible for a retry.')
             print(f'Round {rnd} finished; {len(pending)} {suffix}',flush=True)
+            search_counts.end_round()
+            print(search_counts.output(),flush=True)
             if pending and all(x in blocked for x in PROVIDERS):
                 print('All providers disabled; no reason to repeat immediately.',flush=True)
                 break
