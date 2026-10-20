@@ -2,6 +2,13 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.4.2 — Immediate worker-tree STOP and distinct stage/all-stage counters
+- A single confirmation immediately kills the entire search worker tree without terminating or freezing the Control Center.
+- Windows `taskkill /T /F` handles PyInstaller worker children; Linux searches use an isolated process session. Completed-song checkpoints remain; current in-flight work may be retried.
+- Three current-stage counters and two persistent run totals now appear in separate GUI groups.
+- Candidate counts measure unique songs with actual saved candidate sidecars, rather than unsaved diagnostic review notes.
+- Full Windows/Linux 3.10/3.13 regression suite and standalone worker smoke tests.
+
 ## v2.4.1 — Reliable STOP and stage-by-stage live counters
 - Fixed Stop in both Python and frozen Windows GUI via console-independent, per-run cooperative marker; provider sleeps respond promptly.
 - Completed stage checkpoints and reports are retained when stopping gracefully; an explicit last-resort Force STOP is available after eight seconds.
