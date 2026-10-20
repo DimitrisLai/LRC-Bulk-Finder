@@ -25,16 +25,20 @@ from lyric_sync_lab import plain_lines,estimate_timestamps,draft_lrc,save_unveri
 from review_candidates_gui import (list_review_candidates,preview_candidate,
                                    explicitly_promote)
 from runtime_paths import program_folder
+from search_counters import parse_counter_line
+from worker_stop import kill_search_process
 
 
 class ControlCenter(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LRC Bulk Finder v2.4 — Control Center")
+        self.title("LRC Bulk Finder v2.4.1 — Control Center")
         self.geometry("1140x910")
         self.minsize(970,770)
         self.process=None
         self.reader=None
+        self.stopping=False
+        self.run_serial=0
         self.messages=queue.Queue()
         self.review_rows={}
         self.loaded_profiles={}
@@ -190,14 +194,51 @@ class ControlCenter(tk.Tk):
         self.bar=ttk.Progressbar(self.run_tab,maximum=100,length=500)
         self.bar.pack(fill="x",pady=10)
         ttk.Label(self.run_tab,textvariable=self.progress_text).pack(anchor="w",pady=(0,12))
+        self.counter_vars={}
+        self.counter_labels={
+            "round_lrc":"Songs / LRC found",
+            "round_candidate":"Songs / Candidate found",
+            "round_not_found":"Not found",
+            "total_lrc":"LRC Count (all stages)",
+            "total_candidate":"Candidate Count (all stages)",
+        }
+        stage_box=ttk.LabelFrame(self.run_tab,text="CURRENT STAGE  •  resets to zero at each stage",padding=12)
+        stage_box.pack(fill="x",pady=(0,8))
+        self._counter_row(stage_box,("round_lrc","round_candidate","round_not_found"))
+        total_box=ttk.LabelFrame(self.run_tab,text="ALL STAGES  •  unique songs found in this run",padding=12)
+        total_box.pack(fill="x",pady=(0,12))
+        self._counter_row(total_box,("total_lrc","total_candidate"))
         controls=ttk.Frame(self.run_tab)
         controls.pack(fill="x")
-        self.stop_button=ttk.Button(controls,text="Stop / save finished checkpoints",state="disabled",command=self._stop)
+        self.stop_button=ttk.Button(controls,text="STOP SEARCH (keep app open)",state="disabled",command=self._stop)
         self.stop_button.pack(side="left")
         ttk.Button(controls,text="Clear displayed log",command=self._clear_log).pack(side="left",padx=10)
         self.log=scrolledtext.ScrolledText(self.run_tab,wrap="word",height=24,font=("Consolas",9))
         self.log.pack(fill="both",expand=True,pady=(12,0))
         self.log.configure(state="disabled")
+
+    def _counter_row(self,container,keys):
+        for index,key in enumerate(keys):
+            column=ttk.Frame(container,padding=(10,3))
+            column.grid(row=0,column=index,sticky="nsew")
+            container.columnconfigure(index,weight=1)
+            val=tk.StringVar(value="0")
+            self.counter_vars[key]=val
+            ttk.Label(column,text=self.counter_labels[key],
+                      font=("Segoe UI",9)).pack(anchor="w")
+            ttk.Label(column,textvariable=val,
+                      font=("Segoe UI",22,"bold")).pack(anchor="w")
+
+    def _reset_counters(self):
+        for value in self.counter_vars.values():
+            value.set("0")
+
+    def _apply_counter_line(self,line):
+        result=parse_counter_line(line)
+        if result is None:return False
+        for key in self.counter_vars:
+            self.counter_vars[key].set(str(result[key]))
+        return True
 
     def _build_review(self):
         top=ttk.Frame(self.review_tab)
@@ -376,44 +417,60 @@ class ControlCenter(tk.Tk):
             self.process=subprocess.Popen(cmd,stdout=subprocess.PIPE,
                stderr=subprocess.STDOUT,stdin=subprocess.DEVNULL,
                encoding="utf-8",errors="replace",bufsize=1,
-               cwd=str(Path(__file__).resolve().parent),creationflags=creationflags)
+               cwd=str(program_folder()),creationflags=creationflags,
+               start_new_session=(os.name!="nt"))
         except OSError as error:
             messagebox.showerror("Cannot start search",str(error))
             return
+        self.run_serial+=1
+        self.stopping=False
+        self._reset_counters()
         self._clear_log()
         self.notebook.select(self.run_tab)
         self.stop_button.configure(state="normal")
         self.phase.set("Starting "+self.name.get()+"...")
         self.progress_text.set("Waiting for first completed song; ETA appears after 3 timed samples.")
         self.bar["value"]=0
-        self.reader=threading.Thread(target=self._read_process,daemon=True)
+        self.reader=threading.Thread(
+            target=self._read_process,args=(self.process,self.run_serial),daemon=True)
         self.reader.start()
 
-    def _read_process(self):
-        process=self.process
+    def _read_process(self,process,serial):
         try:
             for line in process.stdout:
-                self.messages.put(("line",line.rstrip("\r\n")))
-            self.messages.put(("ended",process.wait()))
+                self.messages.put((serial,"line",line.rstrip("\r\n")))
+            self.messages.put((serial,"ended",process.wait()))
         except Exception as error:
-            self.messages.put(("error",str(error)))
+            self.messages.put((serial,"error",str(error)))
 
     def _poll(self):
         try:
             for _ in range(200):
-                kind,data=self.messages.get_nowait()
-                if kind=="line":self._line(data)
+                serial,kind,data=self.messages.get_nowait()
+                if serial!=self.run_serial:
+                    continue
+                if kind=="line":
+                    self._line(data)
                 elif kind=="ended":
-                    self.phase.set(f"Search finished. Exit code: {data}")
+                    self.phase.set("Search stopped. The Control Center remains open."
+                                  if self.stopping else f"Search finished. Exit code: {data}")
                     self.stop_button.configure(state="disabled")
                     self.process=None
+                    self.stopping=False
                     self._refresh_review()
+                elif kind=="stopped":
+                    if not data[0]:
+                        self.phase.set("Stop failed: "+data[1])
+                        self.stop_button.configure(state="normal")
+                        self.stopping=False
                 elif kind=="error":
                     self._line("Control Center reader error: "+data)
         except queue.Empty:pass
         self.after(110,self._poll)
 
     def _line(self,line):
+        if self._apply_counter_line(line):
+            return
         self.log.configure(state="normal")
         self.log.insert("end",line+"\n")
         # Bound memory for multi-day searches.
@@ -434,19 +491,24 @@ class ControlCenter(tk.Tk):
 
     def _stop(self):
         process=self.process
-        if process is None or process.poll() is not None:return
-        if not messagebox.askyesno("Stop current search",
-            "Stop the search? Completed tracks have durable checkpoints.\n"
-            "The current in-flight request may be repeated when resuming."):
+        if process is None or process.poll() is not None or self.stopping:return
+        if not messagebox.askyesno("STOP search worker",
+            "Immediately terminate the running search process?\n\n"
+            "The CONTROL CENTER stays open. Completed-song checkpoints "
+            "are durable and can be resumed. The current unfinished song "
+            "may need to be searched again, and final reports may be incomplete."):
             return
-        try:
-            if os.name=="nt":
-                process.send_signal(signal.CTRL_BREAK_EVENT)
-            else:
-                process.send_signal(signal.SIGINT)
-            self.phase.set("Stopping; requesting safe checkpoint/report finalization...")
-        except (OSError,ValueError):
-            self.phase.set("Stop request could not be delivered; see log")
+        self.stopping=True
+        self.stop_button.configure(state="disabled")
+        self.phase.set("STOPPING search worker (the app stays open)...")
+        self.progress_text.set("Previously completed checkpoints remain available.")
+        serial=self.run_serial
+        threading.Thread(target=self._kill_worker,
+                         args=(process,serial),daemon=True).start()
+
+    def _kill_worker(self,process,serial):
+        result=kill_search_process(process)
+        self.messages.put((serial,"stopped",result))
 
     def _clear_log(self):
         self.log.configure(state="normal")
