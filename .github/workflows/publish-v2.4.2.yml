@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "PUBLISH_V2_4_2_PAUSED_UNTIL_VERIFIED"
+      - ".github/workflows/publish-v2.4.2.yml"
   workflow_dispatch:
 
 permissions:
@@ -787,7 +787,7 @@ jobs:
           with pdf_path.open('wb') as dest:writer.write(dest)
           checked=PdfReader(str(pdf_path))
           assert len(checked.pages)==30
-          assert 'RELIABLE STOP' in (checked.pages[1].extract_text() or '')
+          assert 'INSTANT STOP' in (checked.pages[1].extract_text() or '')
           assert 'BUILT-IN PROFILES' in (checked.pages[2].extract_text() or '')
           assert 'LIBRARY AND SYNC LAB' in (checked.pages[3].extract_text() or '')
           assert 'WINDOWS CONTROL CENTER' in (checked.pages[4].extract_text() or '')
