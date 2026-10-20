@@ -16,7 +16,32 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
-## v2.4.1 — working Windows Stop button and five search counters
+## Current release — v2.4.3 (Public Beta)
+
+**v2.4.3 is the current recommended version.** Download from the [v2.4.3 release page](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/tag/v2.4.3), or choose the package you need:
+
+| Download | Who should use it |
+| --- | --- |
+| [**Standalone Windows GUI ZIP**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.4.3/LRC_Bulk_Finder_v2_4_3_Standalone_Windows_GUI.zip) | Easiest Windows option: extract everything and open `LRC_Control_Center.exe`. No separate Python installation required for normal searches; keep both EXEs together. |
+| [**Complete Windows Python/CMD ZIP**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.4.3/LRC_Bulk_Finder_Public_v2_4_3_GitHub_Release_Windows.zip) | Python 3.10+ edition for the GUI (`OPEN_CONTROL_CENTER.cmd`), classic console (`START_HERE.cmd`), or optional external local Greek G2G AI. |
+| [**Complete v2.4.3 English PDF user manual**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.4.3/LRC_Bulk_Finder_v2_4_3_Complete_User_Manual_EN.pdf) | Beginner-friendly step-by-step setup, 20-song test, all controls, candidate review, provider health, STOP/resume and troubleshooting. |
+
+**Start with 20 songs.** In the GUI choose a music folder, select action **1** for online searching without a local snapshot, **5** for a three-stage offline-first scan with an existing large LRCLIB SQLite database, or **4** for offline-only SQLite searching. Select and save a search profile, then start your test. The full LRCLIB snapshot is not included.
+
+### What's included in v2.4.3
+
+- **Provider Health:** observed working, temporary-error, timed-out and blocked statuses; a successful HTTP response is distinct from a *verified lyric file actually saved*.
+- **Improved STOP:** attempts to terminate the worker process tree, checks termination, and warns if verification is incomplete. Saved checkpoints can help resume unfinished work.
+- **Six search counters:** four stage counters (verified LRCs, candidates, not found, skipped/missing metadata) reset after each stage, while two all-stage totals remain cumulative for the run.
+- **Resume previous search**, per-provider contribution statistics, and locally approved Greeklish/artist/title aliases.
+- **Optional experimental SimpMusic** support, disabled by default. Other experimental source research does not automatically enable additional providers.
+- All prior strict title/artist/version/duration checks, protected existing sidecars, and read-only original audio/metadata remain in force.
+
+**QA:** the Windows/Linux Python 3.10/3.13 regression matrix and the independent Windows standalone GUI/worker build and smoke tests passed. External music services can change or be unavailable; the project remains a *Public Beta*.
+
+For older-version changes see the [full changelog](CHANGELOG.md). The older release notes below are historical.
+
+## Earlier release: v2.4.1 — historical STOP and five counters
 
 The Control Center now sends a **cooperative stop request** to the search worker. This also works with the frozen Windows GUI, which may have no console for Ctrl+Break. Press **Stop search safely** to finish the bounded current request, preserve completed checkpoints and write reports. If it cannot exit within eight seconds, the GUI offers a **Force STOP (last resort)** action requiring separate confirmation.
 
@@ -85,11 +110,11 @@ All five modes and the existing offline-first sequence are retained. **See [ever
 
 ## 🚀 Quick start
 
-1. Download the **Windows ZIP** and **PDF user manual** from [the latest release](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases).
-2. Extract the ZIP completely to a normal folder; don't launch from inside an archive.
-3. Install [Python 3.10 or later](https://www.python.org/downloads/) if necessary. The Windows launcher can install required Python packages through `pip` if they are missing.
-4. Double-click **`START_HERE.cmd`**. Select one of the five menu modes, then follow the questions.
-5. Test with **20** eligible songs before choosing **A** to scan an entire collection.
+1. Choose the **standalone GUI ZIP** (no Python needed for normal searches) or the **complete Python/CMD ZIP** from [the current v2.4.3 release](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/tag/v2.4.3).
+2. Extract **all** files into a normal Windows folder; do not open the program inside the compressed archive.
+3. For standalone, double-click **`LRC_Control_Center.exe`** and keep `LRC_Bulk_Finder_Worker.exe` in the same folder. For the Python/CMD edition, install [Python 3.10+](https://www.python.org/downloads/) if needed, and run **`OPEN_CONTROL_CENTER.cmd`** (GUI) or **`START_HERE.cmd`** (classic console).
+4. Select the music folder. Use **action 1** without a downloaded LRCLIB SQLite snapshot, **action 5** for offline-first plus online fallback with the snapshot, or **action 4** for offline-only.
+5. Save a profile and test with **20** missing-lyrics tracks. Review candidates and reports before choosing **A** for an entire collection.
 
 ### Main menu
 
@@ -213,13 +238,13 @@ Option 2 intentionally makes candidate lyrics playable **without claiming they a
 
 ## 📘 Documentation
 
-The accompanying [v2.1.16 English PDF manual](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/tag/v2.1.16) includes:
+The [**current v2.4.3 Complete English User Manual (PDF)**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.4.3/LRC_Bulk_Finder_v2_4_3_Complete_User_Manual_EN.pdf) walks a new user through:
 
-- Installation and every CMD/BAT launcher, explained in order
-- Each startup prompt and the meaning of **Enter / Y / N / FAST / FULL / 20 / A**
-- International, Greek/Greeklish, and offline-only worked examples
-- LRCLIB automatic setup, existing-database connection, and optional cleanup
-- Review candidates, report files, troubleshooting, and version history
+- Installing either the standalone Windows GUI or the full Python/CMD edition.
+- Connecting an existing LRCLIB SQLite database (or choosing online-only), and trying a **20-song first test**.
+- The profiles, Greek/Greeklish options, all search actions and the experimental-provider safety switch.
+- Reading the provider health dashboard, stage counters, verified results, review candidates and reports.
+- Using STOP safely, resuming unfinished searches, optionally approving Greek aliases, and troubleshooting.
 
 For individual changes across versions, see [CHANGELOG.md](CHANGELOG.md).
 
