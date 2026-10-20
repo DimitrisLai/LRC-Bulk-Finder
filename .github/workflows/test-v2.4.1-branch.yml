@@ -1,0 +1,30 @@
+name: v2.4.1 Stop and Counter QA
+
+on:
+  push:
+    branches: ["fix/v2.4.1-stop-and-counters"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.10', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install dependencies
+        run: python -m pip install mutagen Unidecode
+      - name: Compile complete source
+        run: python -m compileall -q .
+      - name: Full original regression and new stop/counter tests
+        run: python -m unittest discover -p 'TEST_*.py' -v
