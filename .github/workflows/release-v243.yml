@@ -35,7 +35,7 @@ jobs:
       - name: Validate version and complete manual
         shell: pwsh
         run: |
-          python -c "import pathlib; p=pathlib.Path('LRC_Bulk_Finder.py').read_text(encoding='utf-8'); assert \"VERSION = '2.4.3'\" in p; d=pathlib.Path('docs/manuals/LRC_Bulk_Finder_v2.4.3_Complete_Step_by_Step_User_Manual_EN.pdf'); assert d.stat().st_size > 100000 and d.read_bytes().startswith(b'%PDF-'); print('Version + complete manual validated')"
+          python -c "import pathlib; p=pathlib.Path('LRC_Bulk_Finder.py').read_text(encoding='utf-8'); assert ('VERSION = '+chr(39)+'2.4.3'+chr(39)) in p; d=pathlib.Path('docs/manuals/LRC_Bulk_Finder_v2.4.3_Complete_Step_by_Step_User_Manual_EN.pdf'); assert d.stat().st_size > 100000 and d.read_bytes().startswith(b'%PDF-'); print('Version + complete manual validated')"
       - name: Generate local Greek SQLite and complete Python/CMD ZIP
         shell: pwsh
         run: |
