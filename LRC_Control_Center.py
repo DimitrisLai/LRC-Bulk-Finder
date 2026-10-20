@@ -37,7 +37,7 @@ from v243_contribution import export_contribution
 class ControlCenter(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LRC Bulk Finder v2.4.3 DEV — Control Center")
+        self.title("LRC Bulk Finder v2.4.3 — Control Center")
         self.geometry("1140x910")
         self.minsize(970,770)
         self.process=None

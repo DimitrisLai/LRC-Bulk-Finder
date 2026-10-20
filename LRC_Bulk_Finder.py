@@ -47,8 +47,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.4.2'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.4.2',
+VERSION = '2.4.3'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.4.3',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''

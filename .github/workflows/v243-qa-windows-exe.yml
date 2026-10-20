@@ -19,7 +19,7 @@ jobs:
     if: github.repository == 'DimitrisLai/LRC-Bulk-Finder'
     runs-on: windows-latest
     steps:
-      - name: Checkout v2.4.2 project
+      - name: Checkout v2.4.3 project
         uses: actions/checkout@v4
       - name: Python 3.13
         uses: actions/setup-python@v5
@@ -69,11 +69,12 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path portable | Out-Null
           Copy-Item dist/LRC_Control_Center.exe,dist/LRC_Bulk_Finder_Worker.exe -Destination portable
-          Copy-Item Greek_Artists.csv,Greek_Aliases.csv,Greek_Words.csv,Greek_Words_Expanded.csv,Greek_Lexicon.sqlite3,LRCLIB_CONTACT.txt,LICENSE,README_STANDALONE_EXE_V2_4_2.txt -Destination portable
-          Compress-Archive -Path portable/* -DestinationPath "dist/LRC_Bulk_Finder_v2_4_2_Standalone_Windows_GUI.zip" -Force
-          python -c "import zipfile,hashlib; p='dist/LRC_Bulk_Finder_v2_4_2_Standalone_Windows_GUI.zip'; z=zipfile.ZipFile(p); assert z.testzip() is None; names=z.namelist(); required=['LRC_Control_Center.exe','LRC_Bulk_Finder_Worker.exe','Greek_Artists.csv','Greek_Lexicon.sqlite3','README_STANDALONE_EXE_V2_4_2.txt']; assert all(n in names for n in required),names; print('PASS STANDALONE ZIP:', len(names),'files; SHA256:',hashlib.sha256(open(p,'rb').read()).hexdigest())"
+          Copy-Item Greek_Artists.csv,Greek_Aliases.csv,Greek_Words.csv,Greek_Words_Expanded.csv,Greek_Lexicon.sqlite3,LRCLIB_CONTACT.txt,LICENSE,README_STANDALONE_EXE_V2_4_3.txt -Destination portable
+          Copy-Item docs/manuals/LRC_Bulk_Finder_v2.4.3_Complete_Step_by_Step_User_Manual_EN.pdf -Destination portable
+          Compress-Archive -Path portable/* -DestinationPath "dist/LRC_Bulk_Finder_v2_4_3_Standalone_Windows_GUI.zip" -Force
+          python -c "import zipfile,hashlib; p='dist/LRC_Bulk_Finder_v2_4_3_Standalone_Windows_GUI.zip'; z=zipfile.ZipFile(p); assert z.testzip() is None; names=z.namelist(); required=['LRC_Control_Center.exe','LRC_Bulk_Finder_Worker.exe','Greek_Artists.csv','Greek_Lexicon.sqlite3','README_STANDALONE_EXE_V2_4_3.txt','LRC_Bulk_Finder_v2.4.3_Complete_Step_by_Step_User_Manual_EN.pdf']; assert all(n in names for n in required),names; print('PASS STANDALONE ZIP:', len(names),'files; SHA256:',hashlib.sha256(open(p,'rb').read()).hexdigest())"
       - uses: actions/upload-artifact@v4
         with:
           name: v243-qa-standalone-windows
-          path: dist/LRC_Bulk_Finder_v2_4_2_Standalone_Windows_GUI.zip
+          path: dist/LRC_Bulk_Finder_v2_4_3_Standalone_Windows_GUI.zip
           retention-days: 7

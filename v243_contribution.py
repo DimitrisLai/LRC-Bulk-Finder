@@ -22,7 +22,7 @@ def export_contribution(folder):
             path=Path(row.get('MP3 path',''))
             if not name or not path.is_file() or not path.with_suffix('.lrc').is_file():continue
             by_provider[name].add(str(path.resolve()))
-    target=root/'LRC_Provider_Contribution_v2_4_3_DEV.csv'
+    target=root/'LRC_Provider_Contribution_v2_4_3.csv'
     with target.open('w',encoding='utf-8-sig',newline='') as fh:
         writer=csv.writer(fh)
         writer.writerow(['provider','unique_tracks_with_verified_installs_in_report','note'])

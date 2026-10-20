@@ -137,6 +137,51 @@ class StopTests(unittest.TestCase):
             self.assertIsNotNone(p.poll())
         finally:
             if p.poll() is None:p.kill()
+    def test_windows_all_observed_children_confirmed(self):
+        class P:
+            pid=4100
+            exited=False
+            def poll(self):return 0 if self.exited else None
+            def wait(self,timeout):self.exited=True;return 0
+        tables=iter(({4100:1,4101:4100,4102:4101},{1:0}))
+        with mock.patch('worker_stop._windows_process_table',side_effect=lambda:next(tables)),\
+             mock.patch('worker_stop.subprocess.run',return_value=mock.Mock(returncode=0,stdout='ok',stderr='')):
+            ok,detail=kill_search_process(P(),platform='nt')
+        self.assertTrue(ok,detail)
+        self.assertIn('2 observed',detail)
+
+    def test_windows_observed_child_survives_reports_failure(self):
+        class P:
+            pid=4100
+            exited=False
+            def poll(self):return 0 if self.exited else None
+            def wait(self,timeout):self.exited=True;return 0
+        tables=iter(({4100:1,4101:4100,4102:4101},{1:0,4102:77}))
+        with mock.patch('worker_stop._windows_process_table',side_effect=lambda:next(tables)),\
+             mock.patch('worker_stop.subprocess.run',return_value=mock.Mock(returncode=0,stdout='ok',stderr='')):
+            ok,detail=kill_search_process(P(),platform='nt')
+        self.assertFalse(ok)
+        self.assertIn('4102',detail)
+
+    def test_real_child_process_stop_on_posix(self):
+        if os.name=='nt':self.skipTest('POSIX specific')
+        import time
+        with tempfile.TemporaryDirectory() as d:
+            pidfile=Path(d)/'child.pid'
+            script=("import subprocess,sys,time; p=subprocess.Popen([sys.executable, '-c', 'import time;time.sleep(180)']); "
+                    f"open({str(pidfile)!r},'w').write(str(p.pid));time.sleep(180)")
+            worker=subprocess.Popen([sys.executable,'-u','-c',script],start_new_session=True)
+            try:
+                for _ in range(100):
+                    if pidfile.exists():break
+                    time.sleep(.05)
+                self.assertTrue(pidfile.exists())
+                ok,detail=kill_search_process(worker)
+                self.assertTrue(ok,detail)
+                self.assertIsNotNone(worker.poll())
+            finally:
+                if worker.poll() is None:worker.kill()
+
     def test_windows_fallback_never_claims_tree_verified(self):
         class P:
             pid=1234
