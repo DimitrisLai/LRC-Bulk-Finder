@@ -11,19 +11,20 @@ from pathlib import Path
 
 FIELDS=("folder","action","greek","local_ai","musicbrainz","provider_mode",
         "order","custom_order","recovery_wait","recursive","history","limit",
-        "exact_fallback","auto_search","database","incremental")
+        "exact_fallback","auto_search","database","incremental","experimental_simpmusic")
 DEFAULT={
     "folder":"","action":"5","greek":True,"local_ai":False,
     "musicbrainz":True,"provider_mode":"full","order":"d","custom_order":"",
     "recovery_wait":False,"recursive":True,"history":True,"limit":"20",
     "exact_fallback":True,"auto_search":True,"database":"","incremental":True,
+    "experimental_simpmusic":False,
 }
 NAMES_RE=re.compile(r"^[\w][\w ._–—-]{0,63}$",re.UNICODE)
 PROVIDER_FAST=("LRCLIB","SyncLRC","NetEase","Unison","LrcAPI")
 PROVIDER_FULL=("LRCLIB","SyncLRC","Unison","BetterKuGou","BetterTTML","YouLyTTML",
                "LrcAPI","LiriQo","NetEase","Musixmatch","Megalobiz","Tencent")
 BOOL_FIELDS=("greek","local_ai","musicbrainz","recovery_wait","recursive",
-             "history","exact_fallback","auto_search","incremental")
+             "history","exact_fallback","auto_search","incremental","experimental_simpmusic")
 
 
 def profile_file(appdata=None):
@@ -53,6 +54,8 @@ def validate_profile(values):
         raise ValueError("Order must be d, s or c")
     if data["order"]=="c" and data["action"]!="4":
         providers=PROVIDER_FULL if data["provider_mode"]=="full" else PROVIDER_FAST
+        if data.get("experimental_simpmusic") and data["provider_mode"]=="full":
+            providers=providers+("SimpMusic",)
         ordered=[v.strip() for v in data["custom_order"].split(",") if v.strip()]
         if len(ordered)!=len(providers) or {v.casefold() for v in ordered}!={v.casefold() for v in providers} or len({v.casefold() for v in ordered})!=len(providers):
             raise ValueError("CUSTOM requires every provider exactly once, comma separated")

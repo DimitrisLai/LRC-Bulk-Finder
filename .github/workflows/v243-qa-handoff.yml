@@ -1,0 +1,25 @@
+name: v2.4.3 isolated baseline archive
+on:
+  push:
+    branches:
+      - qa/v2.4.3-prepublish
+    paths:
+      - .github/workflows/v243-qa-handoff.yml
+permissions:
+  contents: read
+concurrency:
+  group: v243-isolated-baseline
+  cancel-in-progress: true
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package only tracked source files outside checkout
+        run: git archive --format=zip --output=/tmp/v242-baseline-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v242-baseline-source
+          path: /tmp/v242-baseline-source.zip
+          retention-days: 7

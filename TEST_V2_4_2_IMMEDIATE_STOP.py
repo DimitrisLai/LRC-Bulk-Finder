@@ -117,7 +117,7 @@ class HardStopWindowsGuiTests(unittest.TestCase):
             gui.withdraw()
             try:
                 self.assertEqual(set(gui.counter_vars),{
-                    "found","candidate","not_found","total_found","total_candidate"})
+                    "found","candidate","not_found","total_found","total_candidate","skipped"})
                 x=StageCounters()
                 x.start(1);x.add(Path(td)/"A.mp3","SAVED")
                 x.add(Path(td)/"B.mp3","REVIEW_AVAILABLE",reviewed=True)

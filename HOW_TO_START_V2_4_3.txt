@@ -1,0 +1,20 @@
+LRC BULK FINDER v2.4.3 — Windows quick reference
+For full, illustrated-first-time instructions use the Complete v2.4.3 PDF manual.
+
+NORMAL FIRST RUN: Extract the full ZIP. For standalone EXE run LRC_Control_Center.exe (keep the worker EXE beside it). For Python run OPEN_CONTROL_CENTER.cmd. Pick music folder, choose action 1 if no large LRCLIB SQLite or action 5 if you have one, set 20 songs, save profile and start.
+
+SIX LIVE COUNTERS: THIS STAGE has LRC found, Candidate found, Not found, Skipped/no metadata; ALL STAGES has cumulative LRC Count and Candidate Count. Timeouts and server errors are not definite no-matches.
+
+STOP AND RESUME: Press STOP SEARCH — keep app open and confirm hard termination of the search worker. The GUI stays open. A hard stop can interrupt the current song and final reports. Use Resume previous search from Live progress after the old worker is gone. If STOP NOT FULLY VERIFIED appears, verify child processes in Task Manager.
+
+PROVIDER HEALTH: No independent network probes. Last HTTP 2xx is not an accepted match. Actual verified file saves are recorded separately.
+
+SIMP MUSIC: Experimental checkbox (FULL online only) is off by default. Never treats a response missing resolved recording duration as a verified lyric. Backend service may be unavailable or change.
+
+GREEK ALIASES: Candidate review > Approve Greek alias... > select artist or title > type Greeklish original and reviewed Greek > confirm. Stored locally in Greek_Aliases.csv. Never edits audio metadata.
+
+REPORTS: LRC_Not_Found.txt, LRC_Skipped.txt, LRC_Timeouts.txt, LRC_Review_Needed.txt, LRC_Provider_Contribution_v2_4_3.csv and detailed existing compatible CSVs. A hard-stop may interrupt final report writing; rerun profile to complete.
+
+FULL three-stage search: 1 Offline LRCLIB SQLite for all eligible missing songs; 2 online only for still-missing .lrc; 3 genuine timed-out provider/song pairs only. Existing LRCs protected.
+
+OPTIONAL AI: Large Greek G2G model available via the complete Python ZIP only. Large LRCLIB SQLite snapshot is external, not bundled. Never download it twice if a valid file already exists.

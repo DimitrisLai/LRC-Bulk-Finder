@@ -4,6 +4,7 @@ Reads audio ID3 metadata; writes ONLY sidecar .lrc and reports, never audio tags
 Created by Dimitris L. (project credit; third-party services credited separately).
 """
 from __future__ import annotations
+import os
 import csv
 from lrclib_local import LocalLRCLIB, load_local_config
 from search_checkpoint import SearchCheckpoint, checkpoint_signature
@@ -11,6 +12,8 @@ from search_performance import MusicBrainzDiskCache, ProviderPerformance, choose
 from progress_eta import RoundProgress
 from stop_control import check_stop, interruptible_sleep, stop_requested
 from stage_counters import StageCounters
+from v243_provider_lab import provider_simpmusic
+from v243_contribution import export_contribution
 from runtime_paths import program_folder
 from incremental_library import AUDIO_EXTENSIONS, safe_audio_files, IncrementalLibrary
 import hashlib
@@ -44,8 +47,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.4.2'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.4.2',
+VERSION = '2.4.3'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.4.3',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -53,8 +56,10 @@ COOLDOWN_PATH = None
 COOLDOWN_UNTIL = {}
 # Older libraries use these identifiers exactly.
 PROVIDERS = ('LRCLIB', 'SyncLRC', 'Unison', 'BetterKuGou', 'BetterTTML', 'YouLyTTML', 'LrcAPI', 'LiriQo', 'NetEase', 'Musixmatch', 'Megalobiz', 'Tencent')
+if os.environ.get('LRC_EXPERIMENTAL_SIMPMUSIC') == '1':
+    PROVIDERS += ('SimpMusic',)
 BASE_GAP = {'LRCLIB': 2.4, 'SyncLRC': 2.2, 'Unison': 1.5, 'BetterKuGou': 1.8, 'BetterTTML': 1.8, 'YouLyTTML': 2.5, 'LrcAPI': 1.5, 'LiriQo': 1.5,
-            'NetEase': 1.5, 'Musixmatch': 1.5, 'Megalobiz': 1.5, 'Tencent': 2.0, 'MusicBrainz': 1.2}
+            'NetEase': 1.5, 'Musixmatch': 1.5, 'Megalobiz': 1.5, 'Tencent': 2.0, 'MusicBrainz': 1.2, 'SimpMusic': 2.5}
 NETWORK_TIMEOUT = 10
 OPTIONAL_TENCENT_AVAILABLE = False
 try:
@@ -1695,7 +1700,11 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
                'BetterKuGou':lambda t,a,al,d,r:provider_better('BetterKuGou',t,a,al,d,r),
                'BetterTTML':lambda t,a,al,d,r:provider_better('BetterTTML',t,a,al,d,r),
                'YouLyTTML':provider_youly,'LrcAPI':provider_lrcapi,
-               'LiriQo':provider_liriqo, 'Tencent':provider_tencent}
+               'LiriQo':provider_liriqo, 'Tencent':provider_tencent,
+               'SimpMusic':lambda t,a,al,d,r:provider_simpmusic(t,a,al,d,r,
+                   direct_json=direct_json,acceptable=acceptable,Hit=Hit,
+                   query_variants=query_variants,label_for_query=label_for_query,
+                   plausible_lrc=plausible_lrc)}
     sources=tuple(only_providers) if only_providers is not None else (ACTIVE_PROVIDERS if ACTIVE_PROVIDERS is not None else PROVIDERS)
     global LRCLIB_503_STREAK, LRCLIB_503_RETRY_AT
     for source in sources:
@@ -1903,7 +1912,8 @@ def save_hit(track,hit):
 
 
 def write_summary(folder,selected,states):
-    lists=[('LRC_Not_Found.txt',{'NOT_FOUND','NOT_FOUND_PARTIAL'},
+    lists=[('LRC_Skipped.txt',{'NO_METADATA'},'NO USABLE ARTIST/TITLE METADATA; NO ONLINE LYRICS SEARCH'),
+           ('LRC_Not_Found.txt',{'NOT_FOUND','NOT_FOUND_PARTIAL'},
             'NO SYNCED LYRICS OR CANDIDATES FROM COMPLETED SEARCHES (some providers may be unavailable)'),
            ('LRC_Review_Needed.txt',{'REVIEW_AVAILABLE','REVIEW_PARTIAL'},
             'TIMED LYRICS CANDIDATES FOUND - REVIEW REQUIRED, NOTHING AUTO-INSTALLED'),
@@ -2247,7 +2257,7 @@ def run_offline_lrclib_folder(folder):
 def main():
     global ROUND, STAGED_ONLINE_MODE
     STAGED_ONLINE_MODE=False
-    print(f'\n=== LRC Bulk Finder v{VERSION} | 12 lyrics routes (some aggregate others) ===')
+    print(f'\n=== LRC Bulk Finder v{VERSION} | {len(PROVIDERS)} lyrics routes (some aggregate others) ===')
     print('Created by Dimitris L.')
     print('Writes verified .lrc files, nearby .candidate.lrc review files and reports; audio never changed.')
     print('Audio formats: MP3, FLAC, M4A, MP4, OGG, OPUS, WAV (read-only tags, sidecar lyrics).')
@@ -2313,7 +2323,7 @@ def main():
     G2G_TOOL=G2GManager() if G2G_ENABLED else None
     MB_ENABLED=input('MusicBrainz extra artist/title metadata for this folder? [Y/n] (optional; slower): ').strip().lower() not in {'n','no'}
     MB_DISK_CACHE=MusicBrainzDiskCache(folder) if MB_ENABLED else None
-    mode=input('Search mode: FAST (5 useful providers) or FULL (all 12)? [F/full]: ').strip().lower()
+    mode=input(f'Search mode: FAST (5 useful providers) or FULL (all {len(PROVIDERS)})? [F/full]: ').strip().lower()
     selected_providers=PROVIDERS if mode in {'full','all','12','a'} else FAST_PROVIDERS
     provider_performance=ProviderPerformance(folder,PROVIDERS)
     print('Provider order choices: D=DEFAULT (current order), S=SMART (verified-match history), C=CUSTOM (your exact list)')
@@ -2541,7 +2551,7 @@ def main():
                         print('    Search title(s):', ' / '.join(v[0] for v in variants),flush=True)
                         if len(variants)==1: print('    No Greek title alternative; using original title only.',flush=True)
                     if not title or not artist:
-                        status='NOT_FOUND';detail='No artist/title tags and no Artist - Title filename'
+                        status='NO_METADATA';detail='No artist/title tags and no Artist - Title filename'
                     else:
                         if offline_stage:
                             # Stage 1 guarantees local lookup for every eligible
@@ -2592,6 +2602,8 @@ def main():
                             try:
                                 check_stop()
                                 save_hit(path,hit);saved+=1
+                                source_name=str(hit.provider).split(" (",1)[0]
+                                print(f"      {source_name}: LRC_INSTALLED | actual .lrc sidecar created | saved",flush=True)
                             except FileExistsError:status='EXISTS';detail='LRC appeared during the run'
                             except (OSError,ValueError) as ex:
                                 status='SERVER_ERROR';detail=f'File save failed: {ex}'
@@ -2756,9 +2768,12 @@ def main():
         print('REVIEW REQUIRED:',sum(states[p][0] in {'REVIEW_AVAILABLE','REVIEW_PARTIAL'} for p in missing))
         print('NOTE: NOT_FOUND_PARTIAL means at least one lyrics provider was unavailable; not proof the lyrics do not exist.')
         print('Not Found list:',folder/'LRC_Not_Found.txt')
+        print('Skipped/no-metadata list:',folder/'LRC_Skipped.txt')
         print('Timeout list:',folder/'LRC_Timeouts.txt')
         print('Review-needed list:',folder/'LRC_Review_Needed.txt')
         print('Correctly structured detailed CSV:',report)
+        contribution=export_contribution(folder)
+        if contribution:print('Provider verified-install contribution:',contribution)
         print('Uncertain possible matches:',reviews_path)
         print('Review candidates: .candidate.lrc beside MP3; extra choices: .candidate.2.lrc, etc.')
         print('Provider-by-provider details:',providers_path)
@@ -2779,7 +2794,7 @@ def main():
             archive.mkdir(parents=True)
             archive_files=[report,reviews_path,providers_path,http_details_path,stats_path,
                            performance_path,coverage_path,
-                           folder/'LRC_Not_Found.txt',folder/'LRC_Timeouts.txt',folder/'LRC_Review_Needed.txt',lrclib_queue_path]
+                           folder/'LRC_Not_Found.txt',folder/'LRC_Timeouts.txt',folder/'LRC_Review_Needed.txt',folder/'LRC_Skipped.txt',lrclib_queue_path]
             if GREEK_MODE:archive_files.extend([greek_plan_path,ai_plan_path])
             for file in archive_files:
                 if file.exists():shutil.copy2(file,archive/file.name)

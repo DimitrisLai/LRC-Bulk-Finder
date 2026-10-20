@@ -17,7 +17,7 @@ import tempfile
 import shutil
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog,messagebox,scrolledtext,ttk
+from tkinter import filedialog,messagebox,scrolledtext,ttk,simpledialog
 
 from search_profiles import (DEFAULT,PROVIDER_FAST,PROVIDER_FULL,load_profiles,
                              save_profiles,validate_profile,PRESET_TEMPLATES,
@@ -28,12 +28,16 @@ from review_candidates_gui import (list_review_candidates,preview_candidate,
                                    explicitly_promote)
 from runtime_paths import program_folder
 from worker_stop import kill_search_process
+from v243_health import ProviderHealth
+from v243_resume import last_run, mark_run
+from v243_aliases import approve_alias
+from v243_contribution import export_contribution
 
 
 class ControlCenter(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LRC Bulk Finder v2.4.2 — Control Center")
+        self.title("LRC Bulk Finder v2.4.3 — Control Center")
         self.geometry("1140x910")
         self.minsize(970,770)
         self.process=None
@@ -41,6 +45,9 @@ class ControlCenter(tk.Tk):
         self.stop_directory=None
         self.stop_path=None
         self.stop_requested=False
+        self.active_profile=None
+        self.active_folder=None
+        self.active_action=None
         self.messages=queue.Queue()
         self.review_rows={}
         self.loaded_profiles={}
@@ -65,14 +72,72 @@ class ControlCenter(tk.Tk):
         self.run_tab=ttk.Frame(self.notebook,padding=12)
         self.review_tab=ttk.Frame(self.notebook,padding=12)
         self.sync_tab=ttk.Frame(self.notebook,padding=12)
+        self.health_tab=ttk.Frame(self.notebook,padding=12)
         self.notebook.add(self.search_tab,text="  Saved searches  ")
         self.notebook.add(self.run_tab,text="  Live progress  ")
         self.notebook.add(self.review_tab,text="  Candidate review  ")
         self.notebook.add(self.sync_tab,text="  Sync Lab (experimental)  ")
+        self.notebook.add(self.health_tab,text="  Provider health  ")
         self._build_profiles()
         self._build_progress()
         self._build_review()
         self._build_sync_lab()
+        self._build_health()
+
+    def _build_health(self):
+        """States are derived from this run's actual provider output."""
+        names=tuple(dict.fromkeys(PROVIDER_FULL+("SimpMusic",)))
+        self.provider_health=ProviderHealth(names)
+        ttk.Label(self.health_tab,text="Provider health — current run",style="Header.TLabel").pack(anchor="w")
+        ttk.Label(self.health_tab,text="No network probes are made by this screen. An HTTP 200 is not a verified LRC.",wraplength=900).pack(anchor="w",pady=8)
+        fields=("provider","status","last_http_success","last_verified","verified_count","detail")
+        self.health_tree=ttk.Treeview(self.health_tab,columns=fields,show="headings",height=17)
+        for key,label,width in (("provider","Provider",120),("status","Latest state",170),("last_http_success","Latest HTTP 2xx",145),("last_verified","Last verified hit",155),("verified_count","Verified hits",100),("detail","Latest response",340)):
+            self.health_tree.heading(key,text=label)
+            self.health_tree.column(key,width=width,stretch=True)
+        self.health_tree.pack(fill="both",expand=True,pady=8)
+        self._refresh_health()
+
+    def _refresh_health(self):
+        self.health_tree.delete(*self.health_tree.get_children())
+        for provider,data in self.provider_health.rows.items():
+            self.health_tree.insert("","end",values=(provider,data["status"],data["last_http_success"],data["last_verified"],data["verified_count"],data["detail"]))
+
+    def _approve_alias(self):
+        if self.process is not None and self.process.poll() is None:
+            messagebox.showwarning("Search running","Finish the current search before editing aliases.")
+            return
+        kind=simpledialog.askstring("Approve Greek alias","Type artist or title:",parent=self)
+        if kind is None:return
+        kind=kind.strip().lower()
+        if kind not in ("artist","title"):
+            messagebox.showerror("Invalid type","Choose artist or title.");return
+        original=simpledialog.askstring("Greeklish original","Enter exact original artist/title:",parent=self)
+        if original is None:return
+        approved=simpledialog.askstring("Approved Greek spelling","Enter reviewed Greek spelling:",parent=self)
+        if approved is None:return
+        if not messagebox.askyesno("Confirm reviewed spelling",f"Save {kind} alias?\n\n{original}  →  {approved}\n\nIt will be used by NEW searches only."):
+            return
+        try:
+            changed=approve_alias(program_folder()/"Greek_Aliases.csv",kind,original,approved)
+            messagebox.showinfo("Greek aliases","Saved. Restart the search to apply." if changed else "Already approved.")
+        except (OSError,ValueError) as error:messagebox.showerror("Alias error",str(error))
+
+    def _resume_previous(self):
+        if self.process is not None and self.process.poll() is None:
+            messagebox.showwarning("Search running","Stop the current search first.");return
+        record=last_run()
+        if not record or record["status"]=="finished":
+            messagebox.showinfo("Resume","No interrupted search has been recorded.");return
+        name=record["profile"]
+        profiles=load_profiles()
+        if name not in profiles or profiles[name]["folder"]!=record["folder"]:
+            messagebox.showerror("Resume","Saved profile was moved or changed; review it manually.");return
+        if not messagebox.askyesno("Resume earlier search",f"Resume saved profile {name}?\n\nCompleted matching checkpoints will be reused; unfinished work retried."):
+            return
+        self.name.set(name)
+        self._set_values(profiles[name])
+        self._run_profile()
 
     def _build_profiles(self):
         outer=self.search_tab
@@ -86,7 +151,7 @@ class ControlCenter(tk.Tk):
         self.custom_order=tk.StringVar()
         self.limit=tk.StringVar(value="20")
         self.boolvars={}
-        for field in ("greek","local_ai","musicbrainz","recovery_wait","recursive","history","exact_fallback","auto_search","incremental"):
+        for field in ("greek","local_ai","musicbrainz","recovery_wait","recursive","history","exact_fallback","auto_search","incremental","experimental_simpmusic"):
             self.boolvars[field]=tk.BooleanVar(value=DEFAULT[field])
         row=0
         self.preset_name=tk.StringVar()
@@ -155,6 +220,7 @@ class ControlCenter(tk.Tk):
             ("exact_fallback","Extra LRCLIB exact-signature request"),
             ("auto_search","Search after Greek preview"),
             ("incremental","Incremental library tracking (fast repeat scans)"),
+            ("experimental_simpmusic","EXPERIMENTAL SimpMusic (FULL mode only)"),
         ]
         descriptions={
             "greek":"Create approved Greek/Greeklish title and artist search alternatives. Not a filter that excludes non-Greek audio.",
@@ -166,6 +232,7 @@ class ControlCenter(tk.Tk):
             "exact_fallback":"Optional extra exact LRCLIB lookup after ordinary requests; may add network calls.",
             "auto_search":"After Greek conversion preview, automatically continue searching without asking again.",
             "incremental":"Save a local SQLite metadata index; unchanged tracks reuse metadata while changed/new tracks are refreshed.",
+            "experimental_simpmusic":"Opt-in 13th route for FULL mode. Response MUST pass strict artist/title/version/duration checks, else it is candidate only.",
         }
         for i,(key,label) in enumerate(toggles):
             widget=ttk.Checkbutton(frame,text=label,variable=self.boolvars[key])
@@ -201,7 +268,7 @@ class ControlCenter(tk.Tk):
             "THIS STAGE  •  resets after Round 1, 2 and 3",
             (("found","Songs / LRC found"),
              ("candidate","Songs / Candidate found"),
-             ("not_found","Not found")))
+             ("not_found","Not found"),("skipped","Skipped / no metadata")))
         self._counter_group(
             "ALL STAGES  •  totals remain until a new search",
             (("total_found","LRC Count"),
@@ -214,6 +281,7 @@ class ControlCenter(tk.Tk):
         self.stop_button=ttk.Button(controls,text="STOP SEARCH — keep app open",state="disabled",command=self._stop)
         self.stop_button.pack(side="left")
         ttk.Button(controls,text="Clear displayed log",command=self._clear_log).pack(side="left",padx=10)
+        ttk.Button(controls,text="Resume previous search",command=self._resume_previous).pack(side="left",padx=10)
         self.log=scrolledtext.ScrolledText(self.run_tab,wrap="word",height=24,font=("Consolas",9))
         self.log.pack(fill="both",expand=True,pady=(12,0))
         self.log.configure(state="disabled")
@@ -235,6 +303,7 @@ class ControlCenter(tk.Tk):
         top.pack(fill="x")
         ttk.Label(top,text="Unverified candidate lyrics",style="Header.TLabel").pack(side="left")
         ttk.Button(top,text="Refresh candidates",command=self._refresh_review).pack(side="right")
+        ttk.Button(top,text="Approve Greek alias...",command=self._approve_alias).pack(side="right",padx=10)
         ttk.Label(self.review_tab,text="Review before installing. Only explicitly selected primary candidates can become MARKED [00:00.00] candidate LRCs. This NEVER certifies lyrics as verified.",wraplength=850).pack(anchor="w",pady=10)
         columns=("track","candidate","status")
         self.review_tree=ttk.Treeview(self.review_tab,columns=columns,show="headings",height=12)
@@ -419,6 +488,13 @@ class ControlCenter(tk.Tk):
             messagebox.showerror("Cannot start search",str(error))
             return
         self._clear_log()
+        self.active_profile=self.name.get()
+        self.active_folder=profile["folder"]
+        self.active_action=profile["action"]
+        try:mark_run(self.active_profile,self.active_folder,"running")
+        except OSError:pass
+        self.provider_health=ProviderHealth(tuple(dict.fromkeys(PROVIDER_FULL+("SimpMusic",))))
+        self._refresh_health()
         self.stop_requested=False
         self.stop_button.configure(text="STOP SEARCH — keep app open")
         for value in self.counter_vars.values():value.set("0")
@@ -445,6 +521,14 @@ class ControlCenter(tk.Tk):
                 kind,data=self.messages.get_nowait()
                 if kind=="line":self._line(data)
                 elif kind=="ended":
+                    if self.active_profile and self.active_folder:
+                        try:mark_run(self.active_profile,self.active_folder, "stopped" if self.stop_requested or data!=0 else "finished")
+                        except OSError:pass
+                    if data==0 and not self.stop_requested and self.active_folder and self.active_action in ("1","5"):
+                        try:
+                            report=export_contribution(self.active_folder)
+                            if report:self._line("PROVIDER CONTRIBUTION REPORT: "+str(report))
+                        except (OSError,ValueError) as error:self._line("Contribution report unavailable: "+str(error))
                     self.phase.set(("Stopped by user; completed checkpoints preserved"
                                     if self.stop_requested else
                                     f"Search finished. Exit code: {data}"))
@@ -455,9 +539,10 @@ class ControlCenter(tk.Tk):
                 elif kind=="hardstop_result":
                     success,detail=data
                     if not success:
-                        self.stop_requested=False
-                        self.stop_button.configure(state="normal")
-                        self.phase.set("Stop failed: "+detail)
+                        alive=self.process is not None and self.process.poll() is None
+                        self.stop_requested=not alive
+                        self.stop_button.configure(state="normal" if alive else "disabled")
+                        self.phase.set("STOP NOT FULLY VERIFIED: "+detail)
                     else:
                         self._line("STOP: "+detail+" Completed checkpoints remain available.")
                 elif kind=="error":
@@ -466,15 +551,16 @@ class ControlCenter(tk.Tk):
         self.after(110,self._poll)
 
     def _line(self,line):
+        if self.provider_health.observe(line):self._refresh_health()
         status=re.fullmatch(
             r"STAGE COUNTERS: stage=(\w+) found=(\d+) candidate=(\d+) "
-            r"not_found=(\d+) total_found=(\d+) total_candidate=(\d+)",
+            r"not_found=(\d+) total_found=(\d+) total_candidate=(\d+)(?: skipped=(\d+))?",
             line.strip())
         if status:
-            stage,found,candidate,not_found,total_found,total_candidate=status.groups()
+            stage,found,candidate,not_found,total_found,total_candidate,skipped=status.groups()
             for key,number in (
                 ("found",found),("candidate",candidate),("not_found",not_found),
-                ("total_found",total_found),("total_candidate",total_candidate)):
+                ("total_found",total_found),("total_candidate",total_candidate),("skipped",skipped or "0")):
                 self.counter_vars[key].set(number)
         self.log.configure(state="normal")
         self.log.insert("end",line+"\n")
