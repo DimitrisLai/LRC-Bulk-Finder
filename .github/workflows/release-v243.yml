@@ -1,0 +1,78 @@
+name: Publish verified LRC Bulk Finder v2.4.3 Public Beta
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-v243.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: lrc-v243-publication
+  cancel-in-progress: false
+
+jobs:
+  verify-package-publish:
+    if: github.repository == 'DimitrisLai/LRC-Bulk-Finder'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact main release commit
+        uses: actions/checkout@v4
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install production Python dependencies
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check mutagen Unidecode syncedlyrics
+      - name: Gate publication on full native Windows regression suite
+        shell: pwsh
+        run: python -m unittest discover -p 'TEST_*.py' -v
+      - name: Validate version and complete manual
+        shell: pwsh
+        run: |
+          python -c "import pathlib; p=pathlib.Path('LRC_Bulk_Finder.py').read_text(encoding='utf-8'); assert \"VERSION = '2.4.3'\" in p; d=pathlib.Path('docs/manuals/LRC_Bulk_Finder_v2.4.3_Complete_Step_by_Step_User_Manual_EN.pdf'); assert d.stat().st_size > 100000 and d.read_bytes().startswith(b'%PDF-'); print('Version + complete manual validated')"
+      - name: Generate local Greek SQLite and complete Python/CMD ZIP
+        shell: pwsh
+        run: |
+          python BUILD_GREEK_LEXICON_DB.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python package_v243_release.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retrieve independently tested Windows standalone EXE package
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 39401227942 --repo "$env:GITHUB_REPOSITORY" --name v243-qa-standalone-windows --dir dist
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify both ZIPs and standalone content before publication
+        shell: pwsh
+        run: |
+          python -c "import pathlib,zipfile,hashlib; d=pathlib.Path('dist'); z=[d/'LRC_Bulk_Finder_Public_v2_4_3_GitHub_Release_Windows.zip',d/'LRC_Bulk_Finder_v2_4_3_Standalone_Windows_GUI.zip']; r=['LRC_Bulk_Finder.py','LRC_Control_Center.py','v243_health.py','v243_provider_lab.py','v243_resume.py','v243_aliases.py','worker_stop.py','LRC_Bulk_Finder_v2_4_3_Complete_User_Manual_EN.pdf']; e=['LRC_Control_Center.exe','LRC_Bulk_Finder_Worker.exe','README_STANDALONE_EXE_V2_4_3.txt','LRC_Bulk_Finder_v2.4.3_Complete_Step_by_Step_User_Manual_EN.pdf']; assert all(p.is_file() for p in z); a,b=[zipfile.ZipFile(p) for p in z]; assert a.testzip() is None and b.testzip() is None; assert set(r).issubset(a.namelist()),set(r)-set(a.namelist()); assert set(e).issubset(b.namelist()),set(e)-set(b.namelist()); [print(p.name,p.stat().st_size,hashlib.sha256(p.read_bytes()).hexdigest()) for p in z]; print('PASS - complete release bundles')"
+      - name: Publish new v2.4.3 prerelease without modifying v2.4.2
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v2.4.3 --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title 'LRC Bulk Finder v2.4.3 — Public Beta' --prerelease --notes-file RELEASE_NOTES_V2_4_3.md dist/LRC_Bulk_Finder_Public_v2_4_3_GitHub_Release_Windows.zip dist/LRC_Bulk_Finder_v2_4_3_Standalone_Windows_GUI.zip dist/LRC_Bulk_Finder_v2_4_3_Complete_User_Manual_EN.pdf
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify SHA256 of all actually published downloads
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force -Path published | Out-Null
+          gh release download v2.4.3 --repo "$env:GITHUB_REPOSITORY" --pattern '*' --dir published
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $names = @('LRC_Bulk_Finder_Public_v2_4_3_GitHub_Release_Windows.zip','LRC_Bulk_Finder_v2_4_3_Standalone_Windows_GUI.zip','LRC_Bulk_Finder_v2_4_3_Complete_User_Manual_EN.pdf')
+          foreach ($name in $names) {
+            $local = (Get-FileHash (Join-Path dist $name) -Algorithm SHA256).Hash
+            $online = (Get-FileHash (Join-Path published $name) -Algorithm SHA256).Hash
+            if ($local -ne $online) { throw "SHA256 mismatch after GitHub download: $name" }
+            Write-Host "Published and verified $name SHA256 $local"
+          }
