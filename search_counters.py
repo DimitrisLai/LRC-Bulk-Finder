@@ -46,6 +46,13 @@ class SearchCounters:
             self.round_not_found.add(key)
         return self.snapshot()
 
+    def end_round(self):
+        """Completed stage: clear only current-round numbers, keep totals."""
+        self.round_saved.clear()
+        self.round_candidate.clear()
+        self.round_not_found.clear()
+        return self.snapshot()
+
     def snapshot(self):
         return {
             "round":self.round,
