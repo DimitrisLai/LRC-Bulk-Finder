@@ -9,6 +9,7 @@ from lrclib_local import LocalLRCLIB, load_local_config
 from search_checkpoint import SearchCheckpoint, checkpoint_signature
 from search_performance import MusicBrainzDiskCache, ProviderPerformance, choose_provider_order
 from progress_eta import RoundProgress
+from search_counters import SearchCounters
 from runtime_paths import program_folder
 from incremental_library import AUDIO_EXTENSIONS, safe_audio_files, IncrementalLibrary
 import hashlib
@@ -42,8 +43,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.4.0'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.4.0',
+VERSION = '2.4.1'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.4.1',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -2159,6 +2160,9 @@ def run_offline_lrclib_folder(folder):
     counts=Counter();started=time.monotonic()
     processed=0;interrupted=False
     offline_progress=RoundProgress(len(eligible),'OFFLINE')
+    search_counts=SearchCounters()
+    search_counts.begin_round('OFFLINE')
+    print(search_counts.output(),flush=True)
     try:
         with report.open('w',encoding='utf-8-sig',newline='') as outf, review_path.open('w',encoding='utf-8-sig',newline='') as reviewf:
             writer=csv.writer(outf)
@@ -2167,7 +2171,7 @@ def run_offline_lrclib_folder(folder):
             rw.writerow(['MP3 path','mode','provider','candidate title','candidate artist','rejected because','candidate .lrc path'])
             for i,track in enumerate(eligible,1):
                 print(f'[{i}/{len(eligible)}] {track.name}',flush=True)
-                start=time.monotonic(); review=CandidateReview();outcome='NOT_FOUND';detail='';hit=None
+                start=time.monotonic(); review=CandidateReview();outcome='NOT_FOUND';detail='';hit=None;rows=[]
                 try:
                     if track.with_suffix('.lrc').exists():
                         outcome='EXISTS';detail='Already has .lrc (skipped)'
@@ -2215,6 +2219,8 @@ def run_offline_lrclib_folder(folder):
                 outf.flush();reviewf.flush()
                 counts[outcome]+=1;processed+=1
                 offline_progress.complete(elapsed)
+                search_counts.record(track,outcome,candidate=bool(rows))
+                print(search_counts.output(),flush=True)
                 print('  '+outcome+': '+detail+f' | {elapsed:.1f}s',flush=True)
                 print('  '+offline_progress.line(),flush=True)
     finally:
@@ -2453,6 +2459,7 @@ def main():
     retry_by_song={}  # MP3 -> ONLY the actual timed-out providers
     completed_by_song={}  # help classify later-round failure accurately
     interrupted=False
+    search_counts=SearchCounters()
     try:
         for rnd in (1,2,3):
             ROUND=rnd
@@ -2465,6 +2472,8 @@ def main():
                    'ONLINE FOR LOCAL MISSES' if staged_mode and rnd==2 else
                    'TIMED-OUT PROVIDERS ONLY' if staged_mode else f'wait {rnd}x')
             print(f'\n===== ROUND {rnd}/3 | {len(current)} songs | {phase} =====',flush=True)
+            search_counts.begin_round(rnd)
+            print(search_counts.output(),flush=True)
             progress=RoundProgress(len(current),rnd,phase)
             for index,path in enumerate(current,1):
                 track_started=time.monotonic()
@@ -2498,6 +2507,9 @@ def main():
                                          and previous.get('retry_targets') and rnd<3):
                         pending.append(path)
                     progress.complete(0,checkpoint=True)
+                    search_counts.record(path,previous['status'],
+                                         candidate=bool(previous.get('review_rows',[])))
+                    print(search_counts.output(),flush=True)
                     print(f'    CHECKPOINT: {previous["status"]} (no repeat requests)',flush=True)
                     print('  '+progress.line(),flush=True)
                     continue
@@ -2627,6 +2639,8 @@ def main():
                     provider_rows[provider_start:],checkpoint_config+checkpoint.run_id,
                     path.stat().st_mtime_ns)
                 progress.complete(time.monotonic()-track_started)
+                search_counts.record(path,status,candidate=bool(stage_reviews))
+                print(search_counts.output(),flush=True)
                 print(f'  {status}: {detail}',flush=True)
                 print('  '+progress.line(),flush=True)
                 if offline_stage and not path.with_suffix('.lrc').exists():
