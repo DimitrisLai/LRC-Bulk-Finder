@@ -44,8 +44,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.4.1'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.4.1',
+VERSION = '2.4.2'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.4.2',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -2229,7 +2229,7 @@ def run_offline_lrclib_folder(folder):
                 offline_progress.complete(elapsed)
                 print('  '+outcome+': '+detail+f' | {elapsed:.1f}s',flush=True)
                 print('  '+offline_progress.line(),flush=True)
-                print(stage_counts.add(track,outcome,reviewed=bool(review.items)),flush=True)
+                print(stage_counts.add(track,outcome,reviewed=any(len(r)>6 and r[6] for r in rows)),flush=True)
     finally:
         if G2G_TOOL:
             G2G_TOOL.flush();G2G_TOOL.release_model()
@@ -2524,7 +2524,7 @@ def main():
                     progress.complete(0,checkpoint=True)
                     print(f'    CHECKPOINT: {previous["status"]} (no repeat requests)',flush=True)
                     print('  '+progress.line(),flush=True)
-                    print(stage_counts.add(path,previous['status'],reviewed=bool(previous.get('review_rows'))),flush=True)
+                    print(stage_counts.add(path,previous['status'],reviewed=any(len(r)>6 and r[6] for r in previous.get('review_rows',[]))),flush=True)
                     continue
                 review=CandidateReview();status='TIMEOUT';detail='';calls=[];hit=None
                 new_retry=set();call_timings=[];call_traces=[]
@@ -2659,7 +2659,7 @@ def main():
                 progress.complete(time.monotonic()-track_started)
                 print(f'  {status}: {detail}',flush=True)
                 print('  '+progress.line(),flush=True)
-                print(stage_counts.add(path,status,reviewed=bool(review.items)),flush=True)
+                print(stage_counts.add(path,status,reviewed=any(len(r)>6 and r[6] for r in stage_reviews)),flush=True)
                 if offline_stage and not path.with_suffix('.lrc').exists():
                     pending.append(path)
                 elif not offline_stage and status=='TIMEOUT' and new_retry and rnd<3:
