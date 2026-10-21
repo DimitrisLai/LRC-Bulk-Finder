@@ -4,7 +4,7 @@ cd /d "%~dp0"
 set "LOG=%~dp0Startup_Diagnostics.txt"
 echo Collecting Python diagnostics... 
 (
- echo LRC Bulk Finder Public Edition v2.4.3
+ echo LRC Bulk Finder Public Edition v2.4.4
  echo ==== Python ==== 
  where py
  py -3 --version

@@ -36,22 +36,97 @@ def _descendants(pairs, parent_pid):
     return known
 
 
-def _windows_process_table():
-    """Return PID:parent-PID, or None when Windows process enumeration fails."""
+def _windows_process_table_toolhelp():
+    """Fast, dependency-free Windows PID/PPID snapshot using the native API.
+
+    Avoid starting PowerShell/Win32_Process CIM for every STOP: on busy
+    Windows machines that extra process occasionally timed out and falsely
+    made an otherwise successful taskkill impossible to verify.
+    """
+    try:
+        import ctypes
+        from ctypes import wintypes
+        MAX_PATH = 260
+        TH32CS_SNAPPROCESS = 0x00000002
+
+        class PROCESSENTRY32W(ctypes.Structure):
+            _fields_ = [
+                ('dwSize', wintypes.DWORD),
+                ('cntUsage', wintypes.DWORD),
+                ('th32ProcessID', wintypes.DWORD),
+                ('th32DefaultHeapID', ctypes.c_size_t),
+                ('th32ModuleID', wintypes.DWORD),
+                ('cntThreads', wintypes.DWORD),
+                ('th32ParentProcessID', wintypes.DWORD),
+                ('pcPriClassBase', wintypes.LONG),
+                ('dwFlags', wintypes.DWORD),
+                ('szExeFile', wintypes.WCHAR * MAX_PATH),
+            ]
+
+        kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel32.CreateToolhelp32Snapshot.argtypes = (wintypes.DWORD, wintypes.DWORD)
+        kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+        kernel32.Process32FirstW.argtypes = (wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W))
+        kernel32.Process32FirstW.restype = wintypes.BOOL
+        kernel32.Process32NextW.argtypes = (wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W))
+        kernel32.Process32NextW.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        handle = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+        if handle in (None, ctypes.c_void_p(-1).value):
+            return None
+        try:
+            entry = PROCESSENTRY32W()
+            entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+            if not kernel32.Process32FirstW(handle, ctypes.byref(entry)):
+                return None
+            pairs = {}
+            while True:
+                pairs[int(entry.th32ProcessID)] = int(entry.th32ParentProcessID)
+                if not kernel32.Process32NextW(handle, ctypes.byref(entry)):
+                    break
+            return pairs if pairs else None
+        finally:
+            kernel32.CloseHandle(handle)
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
+
+def _windows_process_table_cim():
+    """Slower PowerShell/CIM fallback if the native Windows API fails."""
     cmd=['powershell.exe','-NoProfile','-NonInteractive','-Command',
          'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId | ConvertTo-Json -Compress']
     try:
         r=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
                          text=True,timeout=9,
                          creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
-        if r.returncode: return None
+        if r.returncode:return None
         rows=json.loads(r.stdout.strip().lstrip('\ufeff'))
         if isinstance(rows,dict):rows=[rows]
         if not isinstance(rows,list):return None
-        return {int(row['ProcessId']):int(row['ParentProcessId'])
-                for row in rows if isinstance(row,dict)}
+        pairs={int(row['ProcessId']):int(row['ParentProcessId'])
+               for row in rows if isinstance(row,dict)}
+        return pairs if pairs else None
     except (OSError,ValueError,KeyError,TypeError,subprocess.TimeoutExpired):
         return None
+
+
+def _windows_process_table():
+    """Return PID:parent-PID, or None when BOTH discovery routes fail."""
+    result=_windows_process_table_toolhelp()
+    return result if result is not None else _windows_process_table_cim()
+
+
+def _windows_snapshot_with_retry(attempts=3):
+    """Retry transient snapshots; never treat an unavailable view as success."""
+    for attempt in range(attempts):
+        result=_windows_process_table()
+        if result is not None:
+            return result
+        if attempt+1<attempts:
+            time.sleep(.12)
+    return None
 
 
 def _posix_process_table():
@@ -100,7 +175,7 @@ def kill_search_process(process, platform=None):
         return True,'Worker already exited; no new termination performed.'
     platform=platform or os.name
     if platform=='nt':
-        before=_windows_process_table()
+        before=_windows_snapshot_with_retry()
         owned=_descendants(before,process.pid) if before is not None else None
         try:
             result=subprocess.run(['taskkill','/PID',str(process.pid),'/T','/F'],
@@ -113,7 +188,7 @@ def kill_search_process(process, platform=None):
             detail=(result.stderr or result.stdout or '').strip()[:160]
         if result is not None and result.returncode==0:
             root_gone=_confirm_exit(process)
-            after=_windows_process_table()
+            after=_windows_snapshot_with_retry()
             if root_gone and owned is not None and after is not None:
                 lingering=owned.intersection(after)
                 if not lingering:

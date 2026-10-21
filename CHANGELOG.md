@@ -2,6 +2,14 @@
 
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
+## v2.4.4 — Approved bilingual Windows UI and safer STOP verification
+- English / Ελληνικά live language selection for all five Control Center tabs, with remembered preference separate from saved search profiles.
+- 266 reviewed Greek UI entries (265 unique English source strings): controls, presets, tooltips, messages; internal engine, original audio and lyrics stay unchanged.
+- Native Windows process snapshot plus conservative fallback improves STOP worker/child verification, preserving warnings if independent checks fail.
+- Complete English manual updated for v2.4.4 and new Greek user guide.
+- Windows/Linux Python 3.10 and 3.13 validation: 261 regression tests and 27 adversarial GUI tests per environment, plus Windows command launcher and repeated process-tree STOP tests.
+- PyInstaller portable standalone Windows application built and checked for correct bundled language support.
+
 ## v2.4.3 — Provider health, verified STOP, Skipped counting and one-click resume
 - **Provider Health Dashboard** distinguishes working, temporarily unavailable, timed-out and blocked providers. Records a verified success only after an approved `.lrc` sidecar is saved, not merely after receiving HTTP 200.
 - **STOP verification** attempts to terminate worker descendants and warns if full process-tree termination cannot be verified. Completed stage/song checkpoints are retained; an unfinished song or unwritten report may be lost on force stop.

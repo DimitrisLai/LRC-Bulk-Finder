@@ -1,0 +1,80 @@
+name: QA - full v2.4.4 bilingual GUI and safe STOP matrix
+on:
+  push:
+    branches: [qa/v243-full-option-audit]
+    paths:
+      - 'QA_EXTRA_GUI.py'
+      - 'QA_WINDOWS_CMD_PROBES.py'
+      - 'worker_stop.py'
+      - 'TEST_V2_4_3_STOP_VERIFICATION.py'
+      - 'LRC_Bulk_Finder.py'
+      - 'LRC_Control_Center.py'
+      - 'ui_locale.py'
+      - 'ui_translations.py'
+      - 'TEST_V244_LOCALIZATION.py'
+      - '.github/workflows/qa-v243-all-options.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    name: ${{ matrix.os }} - Python ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python: ['3.10', '3.13']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install core application dependencies
+        run: python -m pip install --disable-pip-version-check mutagen Unidecode syncedlyrics
+      - name: Windows STOP process-enumeration diagnostics
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python -c "from worker_stop import _windows_process_table; import time; [(print('Windows snapshot',i,'processes',None if (p:=_windows_process_table()) is None else len(p)),time.sleep(1)) for i in range(3)]"
+          powershell.exe -NoProfile -NonInteractive -Command "Get-CimInstance Win32_Process | Select-Object -First 3 ProcessId,ParentProcessId | Format-Table" 
+      - name: Re-run full published regression suite
+        id: baseline
+        continue-on-error: true
+        run: python -m unittest discover -p 'TEST_*.py' -v
+      - name: Additional 27 real GUI and adversarial option checks (Windows)
+        if: runner.os == 'Windows'
+        run: python QA_EXTRA_GUI.py
+      - name: Additional 27 GUI and adversarial checks via virtual desktop (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python QA_EXTRA_GUI.py
+      - name: Run every approved Greek/English GUI language test under virtual desktop
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python -m unittest TEST_V244_LOCALIZATION -v
+      - name: Actually execute Windows command launchers against safe disposable stubs
+        if: runner.os == 'Windows'
+        run: python QA_WINDOWS_CMD_PROBES.py
+      - name: Repeat real Windows STOP process-tree verification eight times
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          for ($i=1; $i -le 8; $i++) {
+            Write-Host "STOP adversarial trial $i of 8"
+            python -m unittest TEST_V2_4_2_IMMEDIATE_STOP.HardStopTests.test_real_long_running_worker_is_killed_without_killing_controller -v
+            if ($LASTEXITCODE -ne 0) { throw "STOP verification failed on trial $i; do not certify" }
+          }
+      - name: Native Windows STOP parent-child-grandchild stress - 15 trials
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          for ($i=1; $i -le 15; $i++) {
+            Write-Host "NATIVE NESTED STOP trial $i / 15"
+            python -m unittest TEST_V2_4_3_STOP_VERIFICATION.NativeProcessSnapshotTests.test_real_parent_child_grandchild_stop -v
+            if ($LASTEXITCODE -ne 0) { throw "Native nested STOP failed on trial $i" }
+          }
+      - name: Final gate - any baseline failures remain visible
+        if: steps.baseline.outcome == 'failure'
+        run: |
+          echo "The original regression suite failed; this QA run cannot be certified."
+          exit 1
