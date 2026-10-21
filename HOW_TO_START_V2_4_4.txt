@@ -1,0 +1,24 @@
+LRC Bulk Finder 2.4.4 — Windows (English / Ελληνικά)
+
+QUICK INSTALL (STANDALONE GUI)
+1. Download LRC_Bulk_Finder_v2_4_4_Standalone_Windows_GUI.zip from the official v2.4.4 GitHub release.
+2. Extract the whole package to a writable folder.
+3. Double-click LRC_Control_Center.exe, with LRC_Bulk_Finder_Worker.exe in the same folder.
+4. Choose interface language at top-right: English or Ελληνικά. Your setting is remembered.
+5. Choose music folder; start with 20 songs. Action 1 searches online; actions 4/5 need external LRCLIB database.
+6. Save profile, start search, monitor Live progress and review unverified candidates separately.
+
+PYTHON/CMD EDITION
+1. Download complete v2.4.4 Windows Source ZIP; extract it.
+2. Install Python 3.10+ and the program's documented dependencies.
+3. Double-click OPEN_CONTROL_CENTER.cmd for GUI, or START_HERE.cmd for the five-option console.
+4. Greek AI setup is optional and is NOT in the standalone EXE.
+
+IMPORTANT
+- Original music files and their tags are read-only for ordinary search operations.
+- Existing .lrc is not overwritten by ordinary searches.
+- .candidate.lrc is NOT verified; review before using it.
+- If STOP warns termination was not fully verified, use Windows Task Manager.
+- Full English and Greek PDFs are in this release.
+
+https://github.com/DimitrisLai/LRC-Bulk-Finder
