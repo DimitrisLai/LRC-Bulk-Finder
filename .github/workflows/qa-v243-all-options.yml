@@ -5,6 +5,8 @@ on:
     paths:
       - 'QA_EXTRA_GUI.py'
       - 'QA_WINDOWS_CMD_PROBES.py'
+      - 'worker_stop.py'
+      - 'TEST_V2_4_3_STOP_VERIFICATION.py'
       - '.github/workflows/qa-v243-all-options.yml'
   workflow_dispatch:
 permissions:
@@ -52,6 +54,15 @@ jobs:
             Write-Host "STOP adversarial trial $i of 8"
             python -m unittest TEST_V2_4_2_IMMEDIATE_STOP.HardStopTests.test_real_long_running_worker_is_killed_without_killing_controller -v
             if ($LASTEXITCODE -ne 0) { throw "STOP verification failed on trial $i; do not certify" }
+          }
+      - name: Native Windows STOP parent-child-grandchild stress - 15 trials
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          for ($i=1; $i -le 15; $i++) {
+            Write-Host "NATIVE NESTED STOP trial $i / 15"
+            python -m unittest TEST_V2_4_3_STOP_VERIFICATION.NativeProcessSnapshotTests.test_real_parent_child_grandchild_stop -v
+            if ($LASTEXITCODE -ne 0) { throw "Native nested STOP failed on trial $i" }
           }
       - name: Final gate - any baseline failures remain visible
         if: steps.baseline.outcome == 'failure'
