@@ -1,4 +1,5 @@
 name: Package and publish LRC Bulk Finder v2.4.4 bilingual release
+# Dry-run on QA branch; publish to GitHub only after merged and tested on main.
 
 on:
   push:
