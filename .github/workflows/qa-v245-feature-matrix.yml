@@ -16,7 +16,7 @@ on:
       - 'ui_locale.py'
       - 'ui_translations.py'
       - 'TEST_V244_LOCALIZATION.py'
-      - '.github/workflows/qa-v243-all-options.yml'
+      - '.github/workflows/qa-v245-feature-matrix.yml'
   workflow_dispatch:
 permissions:
   contents: read
