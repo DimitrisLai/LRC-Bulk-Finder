@@ -2,7 +2,7 @@
 Run only on disposable folders, with virtual desktop for Tk on Linux.
 This script does not change the actual repository or user's music files.
 """
-import contextlib,hashlib,io,json,os,subprocess,sys,tempfile,time,unittest,wave,types
+import contextlib,hashlib,io,json,os,subprocess,sys,tempfile,time,unittest,wave,types,gc,faulthandler
 from pathlib import Path
 from unittest import mock
 SRC=Path(os.environ.get('LRC_QA_SOURCE') or Path(__file__).resolve().parent)
@@ -299,18 +299,31 @@ class QA(unittest.TestCase):
             if q.poll() is None:q.kill();q.wait()
         self.addCleanup(lambda:clean(p));self.addCleanup(lambda:clean(other))
         self.a.process=p
-        self.a._stop()
-        self.assertTrue(self.a.stop_requested)
-        deadline=time.monotonic()+25
-        while p.poll() is None and time.monotonic()<deadline:
-            self.a.update()  # process queued hardstop_result on Tk main thread
-            time.sleep(.05)
-        self.assertIsNotNone(p.poll(),
-            'STOP timeout: phase='+self.a.phase.get()
-            +'; pending='+str(self.a.messages.qsize())
-            +'; worker pid='+str(p.pid))
-        self.assertIsNone(other.poll())
-        self.a.process=None
+        # Force collection of old Tk Variables on the main thread BEFORE
+        # launching a worker thread. GC in that worker otherwise invokes
+        # tkinter.Variable.__del__ off-thread without an active mainloop in
+        # the synthetic test environment (a test-harness-only 1s/item stall).
+        gc.collect()
+        gc_enabled=gc.isenabled()
+        gc.disable()
+        try:
+            self.a._stop()
+            self.assertTrue(self.a.stop_requested)
+            deadline=time.monotonic()+25
+            while p.poll() is None and time.monotonic()<deadline:
+                self.a.update()  # process queued hardstop_result on Tk main thread
+                time.sleep(.05)
+            if p.poll() is None:
+                print('STOP GUI diagnostic: phase='+self.a.phase.get()
+                      +'; pending='+str(self.a.messages.qsize())
+                      +'; worker pid='+str(p.pid),file=sys.stderr)
+                faulthandler.dump_traceback(file=sys.stderr,all_threads=True)
+            self.assertIsNotNone(p.poll())
+            self.assertIsNone(other.poll())
+            self.a.process=None
+        finally:
+            if gc_enabled:gc.enable()
+            gc.collect()
 
     def test_18_all_setup_buttons_linux_safe_fallback(self):
         with mock.patch.object(gui,'program_folder',return_value=self.base),mock.patch.object(gui.webbrowser,'open') as op:
