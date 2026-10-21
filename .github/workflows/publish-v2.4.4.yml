@@ -1,0 +1,156 @@
+name: Package and publish LRC Bulk Finder v2.4.4 bilingual release
+
+on:
+  push:
+    branches: [qa/v243-full-option-audit, main]
+    paths:
+      - '.github/workflows/publish-v2.4.4.yml'
+      - 'BUILD_V244_MANUALS.py'
+      - 'BUILD_V244_RELEASE.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-v244-bilingual
+  cancel-in-progress: false
+
+jobs:
+  windows-package:
+    if: github.repository == 'DimitrisLai/LRC-Bulk-Finder'
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact version source
+        uses: actions/checkout@v4
+      - name: Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install tested runtime, packaging and PDF dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check mutagen Unidecode syncedlyrics pyinstaller pymupdf reportlab
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Compile source and validate v2.4.4 version and bilingual dictionary
+        shell: pwsh
+        run: |
+          python -m compileall -q LRC_Control_Center.py LRC_Bulk_Finder.py ui_locale.py ui_translations.py worker_stop.py BUILD_V244_MANUALS.py BUILD_V244_RELEASE.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -c "import LRC_Bulk_Finder as engine; from ui_translations import UI_EL; from ui_locale import GuiLocale; assert engine.VERSION=='2.4.4'; assert len(UI_EL)==265; assert GuiLocale('el').tr('Saved searches')=='Αποθηκευμένες αναζητήσεις'; print('PASS: v2.4.4 bilingual source')"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run every regression and bilingual Tkinter UI test
+        shell: pwsh
+        run: |
+          python -m unittest discover -p 'TEST_*.py' -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python QA_EXTRA_GUI.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python QA_WINDOWS_CMD_PROBES.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Stress test STOP verification 8 times and nested children 15 times
+        shell: pwsh
+        run: |
+          for ($i=1; $i -le 8; $i++) {
+            python -m unittest TEST_V2_4_2_IMMEDIATE_STOP.HardStopTests.test_real_long_running_worker_is_killed_without_killing_controller -v
+            if ($LASTEXITCODE -ne 0) { throw "Worker STOP trial $i failed" }
+          }
+          for ($i=1; $i -le 15; $i++) {
+            python -m unittest TEST_V2_4_3_STOP_VERIFICATION.NativeProcessSnapshotTests.test_real_parent_child_grandchild_stop -v
+            if ($LASTEXITCODE -ne 0) { throw "Nested STOP trial $i failed" }
+          }
+      - name: Create Greek offline word lexicon
+        shell: pwsh
+        run: |
+          python BUILD_GREEK_LEXICON_DB.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build both completely versioned v2.4.4 PDF manuals
+        shell: pwsh
+        run: |
+          python BUILD_V244_MANUALS.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package standalone GUI and console worker as two independent EXEs
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed --name LRC_Control_Center --collect-all syncedlyrics --collect-all mutagen --hidden-import LRC_Bulk_Finder --hidden-import incremental_library --hidden-import lyric_sync_lab --hidden-import tooltip_help --hidden-import stop_control --hidden-import stage_counters --hidden-import worker_stop --hidden-import ui_locale --hidden-import ui_translations LRC_Control_Center.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pyinstaller --noconfirm --clean --onefile --console --name LRC_Bulk_Finder_Worker --collect-all syncedlyrics --collect-all mutagen --hidden-import LRC_Bulk_Finder --hidden-import auto_install_lrclib_database --hidden-import incremental_library --hidden-import stop_control --hidden-import stage_counters run_saved_profile.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path dist/LRC_Control_Center.exe)) { throw 'No standalone GUI EXE' }
+          if (-not (Test-Path dist/LRC_Bulk_Finder_Worker.exe)) { throw 'No standalone Worker EXE' }
+      - name: Inspect frozen GUI for bundled English and Greek modules
+        shell: pwsh
+        run: |
+          $arch = python -m PyInstaller.utils.cliutils.archive_viewer --list --recursive dist/LRC_Control_Center.exe 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect frozen EXE' }
+          if ($arch -notmatch 'ui_locale' -or $arch -notmatch 'ui_translations') { throw 'Greek and English locale files were not bundled in standalone EXE' }
+          Write-Host 'PASS: both translation modules are included in the Windows GUI EXE'
+      - name: Smoke test standalone worker, real STOP and GUI startup
+        shell: pwsh
+        run: |
+          $helpText = & dist/LRC_Bulk_Finder_Worker.exe --help
+          if ($LASTEXITCODE -ne 0 -or (($helpText -join "`n") -notmatch 'setup-lrclib')) { throw 'Frozen Worker --help failed' }
+          python TEST_V2_4_1_FROZEN_SMOKE.py dist/LRC_Bulk_Finder_Worker.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Frozen Worker STOP smoke failed' }
+          $p = Start-Process -FilePath (Resolve-Path dist/LRC_Control_Center.exe) -PassThru
+          Start-Sleep -Seconds 6
+          $p.Refresh()
+          if ($p.HasExited) { throw "Frozen v2.4.4 GUI exited prematurely: $($p.ExitCode)" }
+          Stop-Process -Id $p.Id -Force
+          Write-Host 'PASS: executable GUI started and remained running'
+      - name: Assemble and independently inspect final ZIPs and checksums
+        shell: pwsh
+        run: |
+          python BUILD_V244_RELEASE.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retain complete inspected artifacts for QA / release
+        uses: actions/upload-artifact@v4
+        with:
+          name: lrc-bulk-finder-v244-bilingual-release-inspected
+          path: |
+            dist/LRC_Bulk_Finder_v2_4_4_Standalone_Windows_GUI.zip
+            dist/LRC_Bulk_Finder_Public_v2_4_4_GitHub_Release_Windows.zip
+            dist/LRC_Bulk_Finder_v2_4_4_Complete_User_Manual_EN.pdf
+            dist/LRC_Bulk_Finder_v2_4_4_User_Guide_EL.pdf
+            dist/LRC_Bulk_Finder_v2_4_4_SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    if: github.ref == 'refs/heads/main' && github.repository == 'DimitrisLai/LRC-Bulk-Finder'
+    needs: windows-package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the exact public code version
+        uses: actions/checkout@v4
+      - name: Retrieve the tested, inspected Windows package
+        uses: actions/download-artifact@v4
+        with:
+          name: lrc-bulk-finder-v244-bilingual-release-inspected
+          path: publish-assets
+      - name: Validate names and SHA256 checksums before uploading
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd publish-assets
+          sha256sum -c LRC_Bulk_Finder_v2_4_4_SHA256SUMS.txt
+          test $(ls *.zip | wc -l) -eq 2
+          test $(ls *.pdf | wc -l) -eq 2
+      - name: Publish v2.4.4 Public Beta with all five verified assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view v2.4.4 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Release v2.4.4 already exists. Refusing to overwrite without inspection.'
+            exit 1
+          fi
+          gh release create v2.4.4 publish-assets/*.zip publish-assets/*.pdf publish-assets/*.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title 'LRC Bulk Finder v2.4.4 — English / Ελληνικά (Public Beta)' \
+            --notes-file RELEASE_NOTES_V2_4_4.md --latest
+          gh release view v2.4.4 --repo "$GITHUB_REPOSITORY" --json tagName,isLatest,url
+          echo 'Published official bilingual v2.4.4 release.'
