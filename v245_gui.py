@@ -22,6 +22,14 @@ from search_profiles import DEFAULT
 
 
 class V245Mixin:
+    def destroy(self):
+        token=getattr(self,'_v245_after',None)
+        if token is not None:
+            try:self.after_cancel(token)
+            except tk.TclError:pass
+            self._v245_after=None
+        return super().destroy()
+
     def _build_quick_search(self):
         area = self.quick_tab
         ttk.Label(area, text='Quick Search — get started in three steps',
@@ -63,7 +71,7 @@ class V245Mixin:
             command=self._open_update_page, state='disabled')
         self.update_open_button.pack(anchor='w')
         self._v245_queue=queue.Queue()
-        self.after(150, self._poll_v245)
+        self._v245_after=self.after(150, self._poll_v245)
 
     def _quick_start(self):
         folder=self.folder.get().strip()
@@ -103,7 +111,7 @@ class V245Mixin:
                         self._dashboard_filter()
         except queue.Empty:pass
         try:
-            if self.winfo_exists():self.after(160,self._poll_v245)
+            if self.winfo_exists():self._v245_after=self.after(160,self._poll_v245)
         except tk.TclError:pass
 
     def _check_update(self):
@@ -189,8 +197,9 @@ class V245Mixin:
         if self._dashboard_scanning:return
         self._dashboard_scanning=True
         self.dashboard_status.set('Scanning local library (read-only)...')
+        recursive=self.boolvars['recursive'].get()  # Tk variables only on main GUI thread
         def job():
-            try:data=scan_library(folder,self.boolvars['recursive'].get())
+            try:data=scan_library(folder,recursive)
             except (OSError,ValueError) as ex:data=ex
             self._v245_queue.put(('inventory',data))
         threading.Thread(target=job,daemon=True).start()
