@@ -73,7 +73,7 @@ class V245Mixin:
         if self.process is not None and self.process.poll() is None:
             self._dialog('showwarning','Search running','Stop the current search before starting another.')
             return
-        name='Quick Search (v2.4.5)'
+        name='Quick Search v2.4.5'
         if name in self.loaded_profiles and not self._dialog('askyesno','Replace quick profile?',
                 'Overwrite the existing Quick Search settings? Your music files will not be changed.'):
             return
@@ -96,6 +96,7 @@ class V245Mixin:
                     self.update_open_button.configure(state='normal' if self.update_page else 'disabled')
                 elif kind=='inventory':
                     if isinstance(data,Exception):
+                        self._dashboard_scanning=False
                         self.dashboard_status.set('Cannot scan library: '+str(data))
                     else:
                         self.dashboard_all_rows=data
@@ -200,6 +201,9 @@ class V245Mixin:
         self.dashboard_tree.delete(*self.dashboard_tree.get_children())
         self.dashboard_visible_rows={}
         state=self.dashboard_state.get()
+        from v245_translations import UI_V245_EL
+        state=next((key for key in ('All statuses','Has LRC','Needs review','Missing LRC','Ambiguous audio')
+                    if state in (key,UI_V245_EL.get(key,key))),state)
         query=self.dashboard_query.get().casefold().strip()
         for row in self.dashboard_all_rows:
             if state!='All statuses' and row['status']!=state:continue
