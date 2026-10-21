@@ -146,12 +146,17 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view v2.4.4 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo 'Release v2.4.4 already exists. Refusing to overwrite without inspection.'
-            exit 1
+            echo 'v2.4.4 is already published; verifying existing assets without replacing them.'
+          else
+            gh release create v2.4.4 publish-assets/*.zip publish-assets/*.pdf publish-assets/*.txt \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title 'LRC Bulk Finder v2.4.4 — English / Ελληνικά (Public Beta)' \
+              --notes-file RELEASE_NOTES_V2_4_4.md --latest
           fi
-          gh release create v2.4.4 publish-assets/*.zip publish-assets/*.pdf publish-assets/*.txt \
-            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title 'LRC Bulk Finder v2.4.4 — English / Ελληνικά (Public Beta)' \
-            --notes-file RELEASE_NOTES_V2_4_4.md --latest
-          gh release view v2.4.4 --repo "$GITHUB_REPOSITORY" --json tagName,isLatest,url
-          echo 'Published official bilingual v2.4.4 release.'
+          gh release view v2.4.4 --repo "$GITHUB_REPOSITORY" --json tagName,url
+          mkdir -p verified-published
+          gh release download v2.4.4 --repo "$GITHUB_REPOSITORY" --dir verified-published
+          cd verified-published
+          test "$(find . -maxdepth 1 -type f | wc -l)" -eq 5
+          sha256sum -c LRC_Bulk_Finder_v2_4_4_SHA256SUMS.txt
+          echo 'PASS: all five official release assets match the published SHA256 manifest.'
