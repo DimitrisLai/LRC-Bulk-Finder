@@ -132,7 +132,7 @@ class StopAndCounterTests(unittest.TestCase):
             self.assertFalse((music/"C.lrc").exists())
             self.assertIn("STOP REQUESTED",log)
             self.assertIn("STAGE FINAL:",log)
-            self.assertTrue((music/"LRC_Run_Checkpoint_v2_4_3.jsonl").exists())
+            self.assertTrue((music/f"LRC_Run_Checkpoint_v{app.VERSION.replace(chr(46),chr(95))}.jsonl").exists())
             self.assertTrue((music/"LRC_Timeouts.txt").exists())
             for name in ("A","B","C","D","E"):
                 self.assertEqual((music/(name+".mp3")).read_bytes(),b"PROTECTED MP3 "+name.encode())
