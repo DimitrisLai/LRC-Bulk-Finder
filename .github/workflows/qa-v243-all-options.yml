@@ -48,6 +48,9 @@ jobs:
       - name: Additional 27 GUI and adversarial checks via virtual desktop (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a python QA_EXTRA_GUI.py
+      - name: Run every approved Greek/English GUI language test under virtual desktop
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python -m unittest TEST_V244_LOCALIZATION -v
       - name: Actually execute Windows command launchers against safe disposable stubs
         if: runner.os == 'Windows'
         run: python QA_WINDOWS_CMD_PROBES.py
