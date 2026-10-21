@@ -37,10 +37,10 @@ jobs:
         id: baseline
         continue-on-error: true
         run: python -m unittest discover -p 'TEST_*.py' -v
-      - name: Additional 23 real GUI and adversarial option checks (Windows)
+      - name: Additional 27 real GUI and adversarial option checks (Windows)
         if: runner.os == 'Windows'
         run: python QA_EXTRA_GUI.py
-      - name: Additional 23 GUI and adversarial checks via virtual desktop (Linux)
+      - name: Additional 27 GUI and adversarial checks via virtual desktop (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a python QA_EXTRA_GUI.py
       - name: Actually execute Windows command launchers against safe disposable stubs
