@@ -1,0 +1,80 @@
+name: QA - STOP-verified frozen Windows executable
+
+on:
+  push:
+    branches: [qa/v243-full-option-audit]
+    paths:
+      - ".github/workflows/qa-stop-frozen-gui.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-stop-v243-frozen-standalone
+  cancel-in-progress: false
+
+jobs:
+  windows-exe:
+    if: github.repository == 'DimitrisLai/LRC-Bulk-Finder'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout v2.4.3 project
+        uses: actions/checkout@v4
+      - name: Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install application + packager dependencies
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check mutagen Unidecode syncedlyrics pyinstaller
+      - name: Run full regression suite including real Windows GUI widget tests
+        shell: pwsh
+        run: python -m unittest discover -p "TEST_*.py" -v
+      - name: Build small offline Greek word SQLite
+        shell: pwsh
+        run: python BUILD_GREEK_LEXICON_DB.py
+      - name: Freeze GUI and complete Python worker as TWO independent EXEs
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed --name LRC_Control_Center --collect-all syncedlyrics --collect-all mutagen --hidden-import LRC_Bulk_Finder --hidden-import incremental_library --hidden-import lyric_sync_lab --hidden-import tooltip_help --hidden-import stop_control --hidden-import stage_counters --hidden-import worker_stop LRC_Control_Center.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pyinstaller --noconfirm --clean --onefile --console --name LRC_Bulk_Finder_Worker --collect-all syncedlyrics --collect-all mutagen --hidden-import LRC_Bulk_Finder --hidden-import auto_install_lrclib_database --hidden-import incremental_library --hidden-import stop_control --hidden-import stage_counters run_saved_profile.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path dist/LRC_Control_Center.exe)) { throw "GUI EXE missing" }
+          if (-not (Test-Path dist/LRC_Bulk_Finder_Worker.exe)) { throw "Worker EXE missing" }
+      - name: Smoke test standalone worker without Python imports at runtime
+        shell: pwsh
+        run: |
+          $helpText= & dist/LRC_Bulk_Finder_Worker.exe --help
+          if ($LASTEXITCODE -ne 0) { throw "Worker --help smoke test failed" }
+          if (($helpText -join "`n") -notmatch 'setup-lrclib') { throw "Standalone worker missing consent-based LRCLIB downloader" }
+          python -c "import pathlib,json,tempfile,subprocess; d=pathlib.Path(tempfile.mkdtemp()); music=d/'music'; music.mkdir(); p=d/'profiles.json'; p.write_text(json.dumps({'schema':1,'profiles':{'Smoke':{'folder':str(music),'action':'1','greek':False,'local_ai':False,'musicbrainz':False,'provider_mode':'fast','order':'d','custom_order':'','recovery_wait':False,'recursive':False,'history':False,'limit':'1','exact_fallback':False,'auto_search':True,'database':''}}}),encoding='utf-8'); x=subprocess.run(['dist/LRC_Bulk_Finder_Worker.exe','--profile','Smoke','--profiles-path',str(p)],text=True,capture_output=True,timeout=75); print(x.stdout[-2500:]); print(x.stderr[-1500:]); assert x.returncode==0,(x.returncode,x.stderr); assert 'No eligible songs' in x.stdout or '0 eligible' in x.stdout or 'Found 0 MP3' in x.stdout"
+      - name: Actual frozen-worker STOP IPC test (no shared GUI console)
+        shell: pwsh
+        run: |
+          python TEST_V2_4_1_FROZEN_SMOKE.py dist/LRC_Bulk_Finder_Worker.exe
+          if ($LASTEXITCODE -ne 0) { throw "Frozen worker ignored GUI STOP request" }
+      - name: Smoke test GUI startup (Windows desktop test)
+        shell: pwsh
+        run: |
+          $p=Start-Process -FilePath (Resolve-Path dist/LRC_Control_Center.exe) -PassThru
+          Start-Sleep -Seconds 5
+          $p.Refresh()
+          if ($p.HasExited) { throw "GUI EXE exited during startup. Exit code: $($p.ExitCode)" }
+          Stop-Process -Id $p.Id -Force
+          Write-Host "PASS: GUI process opened without early crash"
+      - name: Assemble and inspect complete portable EXE ZIP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path portable | Out-Null
+          Copy-Item dist/LRC_Control_Center.exe,dist/LRC_Bulk_Finder_Worker.exe -Destination portable
+          Copy-Item Greek_Artists.csv,Greek_Aliases.csv,Greek_Words.csv,Greek_Words_Expanded.csv,Greek_Lexicon.sqlite3,LRCLIB_CONTACT.txt,LICENSE,README_STANDALONE_EXE_V2_4_3.txt -Destination portable
+          Copy-Item docs/manuals/LRC_Bulk_Finder_v2.4.3_Complete_Step_by_Step_User_Manual_EN.pdf -Destination portable
+          Compress-Archive -Path portable/* -DestinationPath "dist/LRC_Bulk_Finder_v2_4_3_Standalone_Windows_GUI.zip" -Force
+          python -c "import zipfile,hashlib; p='dist/LRC_Bulk_Finder_v2_4_3_Standalone_Windows_GUI.zip'; z=zipfile.ZipFile(p); assert z.testzip() is None; names=z.namelist(); required=['LRC_Control_Center.exe','LRC_Bulk_Finder_Worker.exe','Greek_Artists.csv','Greek_Lexicon.sqlite3','README_STANDALONE_EXE_V2_4_3.txt','LRC_Bulk_Finder_v2.4.3_Complete_Step_by_Step_User_Manual_EN.pdf']; assert all(n in names for n in required),names; print('PASS STANDALONE ZIP:', len(names),'files; SHA256:',hashlib.sha256(open(p,'rb').read()).hexdigest())"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v243-stop-patched-frozen-gui
+          path: dist/LRC_Bulk_Finder_v2_4_3_Standalone_Windows_GUI.zip
+          retention-days: 7
