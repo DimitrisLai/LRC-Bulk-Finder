@@ -1,0 +1,23 @@
+LRC Bulk Finder v2.4.5 — QUICK START (English / Ελληνικά)
+
+WINDOWS STANDALONE — no Python needed
+1. Download the v2.4.5 Standalone Windows GUI ZIP from the official GitHub Releases page.
+2. Extract ALL files to a writable directory. Keep LRC_Control_Center.exe and LRC_Bulk_Finder_Worker.exe together.
+3. Run LRC_Control_Center.exe; select English or Ελληνικά at the top-right.
+4. The new Quick Search tab is the default. Choose the music folder, choose 20-song test or All songs, and START QUICK SEARCH.
+5. Quick Search uses FAST online providers (search mode 1). A big LRCLIB database is NOT necessary.
+6. Monitor Live progress. Open Results dashboard, press Refresh results, and filter Has LRC / Needs review / Missing LRC.
+7. To fix consistently early or late lyrics, choose Timing repair, select the matching audio and .lrc files, enter seconds, preview and save NEW UNVERIFIED .candidate.lrc. Never overwrite original LRC or audio.
+
+ADVANCED
+- Saved searches: custom profiles, offline modes 4 and 5, optional database/AI and detailed provider settings.
+- Check for updates: manual GitHub check on Quick Search; never downloads an EXE automatically.
+- Save diagnostics: writes a local report without filenames, folder paths, songs, lyrics or credentials.
+- Existing audio files and existing .lrc are protected. Candidate files remain UNVERIFIED.
+- STOP warning means check Task Manager before starting another job.
+
+PYTHON/CMD
+Use the complete Python/CMD ZIP, install Python 3.10+ and documented dependencies, and run OPEN_CONTROL_CENTER.cmd.
+Full English and Greek PDF instructions ship in this release.
+
+Source: https://github.com/DimitrisLai/LRC-Bulk-Finder

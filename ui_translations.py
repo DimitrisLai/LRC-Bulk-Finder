@@ -1035,3 +1035,8 @@ UI_EL = {'20 for testing, or A for all': '20 για δοκιμή ή A για ό�
                                                                                                                                             'πηγών.',
  'd=DEFAULT  |  s=SMART  |  c=CUSTOM': 'd=Προεπιλογή  |  s=Έξυπνη σειρά  |  c=Προσαρμοσμένη',
  'Ελληνικά': 'Ελληνικά'}
+
+# v2.4.5 additions do not replace any of the 266 approved v2.4.4 entries.
+from v245_translations import UI_V245_EL
+for _english, _greek in UI_V245_EL.items():
+    UI_EL.setdefault(_english,_greek)

@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.4.5 — Quick Search, library overview, synchronization timing offset repair
+- Beginner Quick Search tab with 20-song test or whole-library scanning, advanced settings preserved.
+- Read-only Results dashboard with status/filename filtering and exclusive-create CSV export.
+- Uniform timing-offset preview for existing LRC and non-overwriting, clearly UNVERIFIED candidate LRC output.
+- User-initiated latest GitHub release check, with no automatic download or background telemetry.
+- One-click privacy-conscious diagnostics omitting personal paths, filenames, song metadata, lyrics and credentials.
+- Additive English/Greek labels and preserved 266 previously approved translation phrases.
+- New offline core and actual GUI tests for these workflows, along with existing strict file safeguards.
+- Refreshed Windows standalone/Python archives and English/Greek PDF guides.
+
+
 This changelog summarizes documented beta milestones; it is not a verbatim Git commit history.
 
 ## v2.4.4 — Approved bilingual Windows UI and safer STOP verification

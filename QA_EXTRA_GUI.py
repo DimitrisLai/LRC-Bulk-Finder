@@ -52,9 +52,12 @@ class QA(unittest.TestCase):
             a.setnchannels(1);a.setsampwidth(2);a.setframerate(8000);a.writeframes(b'\x00\x00'*8000*seconds)
         return p
 
-    def test_01_all_five_tabs_and_every_view_can_be_opened(self):
+    def test_01_all_eight_tabs_and_every_view_can_be_opened(self):
         tabs=self.a.notebook.tabs()
-        self.assertEqual(len(tabs),5)
+        self.assertEqual(len(tabs),8)
+        self.assertIn('Quick Search',[self.a.notebook.tab(t,'text').strip() for t in tabs])
+        self.assertIn('Results dashboard',[self.a.notebook.tab(t,'text').strip() for t in tabs])
+        self.assertIn('Timing repair',[self.a.notebook.tab(t,'text').strip() for t in tabs])
         for t in tabs:
             with self.subTest(tab=self.a.notebook.tab(t,'text')):
                 self.a.notebook.select(t);self.a.update_idletasks()
@@ -370,10 +373,14 @@ class QA(unittest.TestCase):
         self.assertEqual(self.a.counter_vars['total_found'].get(),'999')
         self.assertEqual(list(self.music.iterdir()),[])
 
-    def test_23_language_switch_not_released_yet(self):
-        self.assertFalse(hasattr(self.a,'language'))
-        self.assertFalse(hasattr(self.a,'set_language'))
-        self.assertEqual(self.a.notebook.tab(self.a.notebook.tabs()[0],'text').strip(),'Saved searches')
+    def test_23_bilingual_quick_search_and_dashboard_present(self):
+        self.assertEqual(self.a.notebook.tab(self.a.notebook.tabs()[0],'text').strip(),'Quick Search')
+        self.a.language_choice.set('Ελληνικά')
+        self.a._language_selected()
+        self.assertIn('Γρήγορη αναζήτηση',self.a.notebook.tab(self.a.quick_tab,'text'))
+        self.a.language_choice.set('English')
+        self.a._language_selected()
+        self.assertEqual(self.a.notebook.tab(self.a.quick_tab,'text').strip(),'Quick Search')
 
     def test_24_candidate_play_button_and_missing_selection(self):
         self.a._play_selected()  # Nothing selected: no crash

@@ -14,7 +14,9 @@ import LRC_Control_Center as gui
 
 class CatalogAndPreferences(unittest.TestCase):
     def test_266_approved_strings_have_two_nonblank_languages(self):
-        self.assertEqual(len(UI_EL),265) # 266 reviewed rows; one source phrase occurs twice
+        self.assertGreaterEqual(len(UI_EL),265) # Preserve 266 owner-approved rows and permit additive v2.4.5 translations
+        from ui_translations import APPROVED_UI_ROWS
+        self.assertEqual(APPROVED_UI_ROWS,266)
         for en,el in UI_EL.items():
             self.assertTrue(en.strip())
             self.assertTrue(el.strip())
