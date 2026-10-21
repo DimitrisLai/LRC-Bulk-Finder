@@ -33,12 +33,13 @@ from v243_resume import last_run, mark_run
 from v243_aliases import approve_alias
 from v243_contribution import export_contribution
 from ui_locale import GuiLocale, read_language, save_language
+from v245_gui import V245Mixin
 
 
-class ControlCenter(tk.Tk):
+class ControlCenter(V245Mixin,tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LRC Bulk Finder v2.4.4 — Control Center")
+        self.title("LRC Bulk Finder v2.4.5 — Control Center")
         self.gui_locale=GuiLocale(read_language())
         self._locale_widgets={}
         self._status_vars={}
@@ -116,8 +117,7 @@ class ControlCenter(tk.Tk):
     def _refresh_language(self):
         self._locale_is_refreshing=True
         try:
-            self.title(self._tr('LRC Bulk Finder v2.4.3 — Control Center')
-                .replace('v2.4.3','v2.4.4'))
+            self.title('LRC Bulk Finder v2.4.5 — Control Center')
             # Preserve active notebook tab and all fields; no _build() or profile reload.
             for widget in self._iter_ui_children(self):
                 if isinstance(widget,(ttk.Label,ttk.Button,ttk.Checkbutton,ttk.LabelFrame,
@@ -140,7 +140,8 @@ class ControlCenter(tk.Tk):
                         original=value
                         self._locale_widgets[('tab',tab)]=original
                     self.notebook.tab(tab,text=self._tr(original))
-            for tree in (getattr(self,'health_tree',None),getattr(self,'review_tree',None)):
+            for tree in (getattr(self,'health_tree',None),getattr(self,'review_tree',None),
+                         getattr(self,'dashboard_tree',None)):
                 if tree is None:continue
                 for key in tree['columns']:
                     original=self._locale_widgets.get(('heading',str(tree),key))
@@ -156,6 +157,13 @@ class ControlCenter(tk.Tk):
                 localized=self._tr(raw)
                 if var.get()!=localized:var.set(localized)
             if hasattr(self,'health_tree'):self._refresh_health()
+            if hasattr(self,'dashboard_filter_picker'):
+                from v245_translations import UI_V245_EL
+                keys=('All statuses','Has LRC','Needs review','Missing LRC','Ambiguous audio')
+                current=self.dashboard_state.get()
+                canonical=next((k for k in keys if current in (k,UI_V245_EL.get(k,k))),'All statuses')
+                self.dashboard_filter_picker.configure(values=[self._tr(k) for k in keys])
+                self.dashboard_state.set(self._tr(canonical))
             # Existing review results contain original English statuses; transform only
             # the presentation column and never the underlying selected file data.
             if hasattr(self,'review_tree'):
@@ -168,6 +176,7 @@ class ControlCenter(tk.Tk):
                             self._locale_widgets[('review_status',item)]=english
                         vals[2]=self._tr(english)
                         self.review_tree.item(item,values=vals)
+            if hasattr(self,'dashboard_tree'):self._dashboard_filter()
         finally:self._locale_is_refreshing=False
 
     def _dialog(self,method,title,message,*args,**kwargs):
@@ -201,21 +210,30 @@ class ControlCenter(tk.Tk):
         ttk.Label(header,text="Search profiles · honest per-round ETA · safe review of unverified lyrics",style="Hint.TLabel").pack(anchor="w")
         self.notebook=ttk.Notebook(self)
         self.notebook.pack(fill="both",expand=True,padx=15,pady=(0,15))
+        self.quick_tab=ttk.Frame(self.notebook,padding=12)
         self.search_tab=ttk.Frame(self.notebook,padding=12)
         self.run_tab=ttk.Frame(self.notebook,padding=12)
         self.review_tab=ttk.Frame(self.notebook,padding=12)
         self.sync_tab=ttk.Frame(self.notebook,padding=12)
         self.health_tab=ttk.Frame(self.notebook,padding=12)
+        self.dashboard_tab=ttk.Frame(self.notebook,padding=12)
+        self.repair_tab=ttk.Frame(self.notebook,padding=12)
+        self.notebook.add(self.quick_tab,text='  Quick Search  ')
         self.notebook.add(self.search_tab,text="  Saved searches  ")
         self.notebook.add(self.run_tab,text="  Live progress  ")
         self.notebook.add(self.review_tab,text="  Candidate review  ")
+        self.notebook.add(self.dashboard_tab,text='  Results dashboard  ')
         self.notebook.add(self.sync_tab,text="  Sync Lab (experimental)  ")
+        self.notebook.add(self.repair_tab,text='  Timing repair  ')
         self.notebook.add(self.health_tab,text="  Provider health  ")
         self._build_profiles()
+        self._build_quick_search()
         self._build_progress()
         self._build_review()
         self._build_sync_lab()
+        self._build_timing_repair()
         self._build_health()
+        self._build_results_dashboard()
 
     def _build_health(self):
         """States are derived from this run's actual provider output."""
