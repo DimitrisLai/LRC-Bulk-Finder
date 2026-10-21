@@ -44,6 +44,15 @@ jobs:
       - name: Actually execute Windows command launchers against safe disposable stubs
         if: runner.os == 'Windows'
         run: python QA_WINDOWS_CMD_PROBES.py
+      - name: Repeat real Windows STOP process-tree verification eight times
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          for ($i=1; $i -le 8; $i++) {
+            Write-Host "STOP adversarial trial $i of 8"
+            python -m unittest TEST_V2_4_2_IMMEDIATE_STOP.HardStopTests.test_real_long_running_worker_is_killed_without_killing_controller -v
+            if ($LASTEXITCODE -ne 0) { throw "STOP verification failed on trial $i; do not certify" }
+          }
       - name: Final gate - any baseline failures remain visible
         if: steps.baseline.outcome == 'failure'
         run: |
