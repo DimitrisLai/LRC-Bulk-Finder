@@ -353,4 +353,51 @@ class QA(unittest.TestCase):
         self.assertFalse(hasattr(self.a,'set_language'))
         self.assertEqual(self.a.notebook.tab(self.a.notebook.tabs()[0],'text').strip(),'Saved searches')
 
+    def test_24_candidate_play_button_and_missing_selection(self):
+        self.a._play_selected()  # Nothing selected: no crash
+        track=self.audio('Play.wav')
+        candidate=self.music/'Play.candidate.lrc'
+        candidate.write_text('[00:00.00] candidate\n[00:01.00] lyric\n')
+        self.a._refresh_review()
+        self.a.review_tree.selection_set(next(iter(self.a.review_rows)))
+        if sys.platform=='win32':
+            with mock.patch.object(gui.os,'startfile',create=True) as opener:
+                self.a._play_selected();opener.assert_called_once_with(track)
+        else:
+            with mock.patch.object(gui.subprocess,'Popen') as opener:
+                self.a._play_selected();opener.assert_called_once_with(['xdg-open',str(track)])
+        self.assertTrue(track.is_file())
+
+    def test_25_sync_choose_audio_cancel_select_then_error(self):
+        track=self.audio('Choose.wav')
+        with mock.patch.object(gui.filedialog,'askopenfilename',side_effect=['',str(track)]):
+            self.a._sync_choose_audio();self.assertEqual(self.a.sync_audio.get(),'')
+            self.a._sync_choose_audio();self.assertEqual(self.a.sync_audio.get(),str(track))
+        self.assertIn('Original audio will never be modified',self.a.sync_status.get())
+        self.a.sync_audio.set(str(self.music/'missing.wav'))
+        self.a._sync_play();self.assertTrue(any(x[1]=='Sync Lab' for x in self.errs))
+
+    def test_26_all_provider_health_states_and_history(self):
+        h=ProviderHealth(['SimpMusic'])
+        for i,(code,caption) in enumerate(h.STATES.items()):
+            with self.subTest(status=code):
+                text=f'  SimpMusic: {code} | HTTP 200 diagnostic | 0.1s'
+                self.assertEqual(h.observe(text,now=f'T{i}'),'SimpMusic')
+                self.assertEqual(h.rows['SimpMusic']['status'],caption)
+        self.assertEqual(h.rows['SimpMusic']['verified_count'],1)
+        self.assertEqual(h.rows['SimpMusic']['last_verified'],f'T{list(h.STATES).index("LRC_INSTALLED")}')
+        self.assertTrue(h.rows['SimpMusic']['last_http_success'])
+        self.assertIsNone(h.observe('Unknown: ERROR | HTTP 503 | 1.0s'))
+
+    def test_27_stop_cancel_stays_running_and_idle_stop_noop(self):
+        self.a._stop()  # No process, no dialog
+        p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(15)'],start_new_session=True)
+        self.addCleanup(lambda: (p.kill(),p.wait()) if p.poll() is None else None)
+        self.a.process=p
+        with mock.patch.object(gui.messagebox,'askyesno',return_value=False) as confirm:
+            self.a._stop();confirm.assert_called_once()
+        self.assertFalse(self.a.stop_requested)
+        self.assertIsNone(p.poll())
+        self.a.process=None
+
 if __name__=='__main__':unittest.main(verbosity=2)
