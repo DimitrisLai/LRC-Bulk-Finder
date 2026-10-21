@@ -82,7 +82,13 @@ def export_inventory(rows, destination):
         w = csv.writer(out)
         w.writerow(('Audio file', 'Folder', 'LRC status', 'Candidates'))
         for r in rows:
-            w.writerow((r['name'], r['folder'], r['status'], r['candidates']))
+            # Spreadsheet viewers may interpret attacker-controlled music
+            # filenames as formulas. Prefix dangerous CSV cells with an
+            # apostrophe; no source filename is changed.
+            def cell(value):
+                string = str(value)
+                return "'" + string if string.lstrip().startswith(('=', '+', '-', '@')) else string
+            w.writerow(tuple(cell(v) for v in (r['name'], r['folder'], r['status'], r['candidates'])))
     return path
 
 
