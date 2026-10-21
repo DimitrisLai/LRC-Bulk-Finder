@@ -11,6 +11,7 @@ on:
       - 'v245_gui.py'
       - 'v245_translations.py'
       - 'TEST_V245_FEATURES.py'
+      - 'TEST_V245_GUI.py'
       - 'LRC_Bulk_Finder.py'
       - 'LRC_Control_Center.py'
       - 'ui_locale.py'
@@ -56,6 +57,9 @@ jobs:
       - name: Run every approved Greek/English GUI language test under virtual desktop
         if: runner.os == 'Linux'
         run: xvfb-run -a python -m unittest TEST_V244_LOCALIZATION -v
+      - name: Exercise all twelve additional v2.4.5 GUI journeys on Linux desktop
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python -m unittest TEST_V245_GUI -v
       - name: Actually execute Windows command launchers against safe disposable stubs
         if: runner.os == 'Windows'
         run: python QA_WINDOWS_CMD_PROBES.py
