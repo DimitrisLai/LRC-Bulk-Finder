@@ -80,6 +80,18 @@ class V245CoreTests(unittest.TestCase):
             rows=list(csv.reader(stream))
         self.assertTrue(any('Γιώργος.mp3' in row for row in rows))
 
+    def test_csv_export_escapes_spreadsheet_formulas(self):
+        malicious = self.base/'=HYPERLINK(1).mp3'
+        malicious.write_bytes(b'audio')
+        dest = self.base/'safe.csv'
+        f.export_inventory(f.scan_library(self.base),dest)
+        with dest.open(encoding='utf-8-sig',newline='') as stream:
+            rows=list(csv.reader(stream))
+        formula_rows=[r for r in rows if 'HYPERLINK' in r[0]]
+        self.assertEqual(len(formula_rows),1)
+        self.assertTrue(formula_rows[0][0].startswith("'="))
+        self.assertEqual(malicious.name,'=HYPERLINK(1).mp3')
+
     def test_export_refuses_overwrite(self):
         target=self.base/'report.csv';target.write_bytes(b'IMPORTANT')
         with self.assertRaises(FileExistsError):f.export_inventory([],target)
