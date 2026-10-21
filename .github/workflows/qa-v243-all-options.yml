@@ -7,6 +7,7 @@ on:
       - 'QA_WINDOWS_CMD_PROBES.py'
       - 'worker_stop.py'
       - 'TEST_V2_4_3_STOP_VERIFICATION.py'
+      - 'LRC_Bulk_Finder.py'
       - 'LRC_Control_Center.py'
       - 'ui_locale.py'
       - 'ui_translations.py'
