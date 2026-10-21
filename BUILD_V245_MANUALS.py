@@ -148,7 +148,7 @@ greek_sections=[
 ]),
 ('02  Εγκατάσταση στα Windows',[
  '1. Ανοίξτε την επίσημη σελίδα GitHub Releases: https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/latest',
- '2. Κατεβάστε το αρχείο LRC_Bulk_Finder_v2_4_4_Standalone_Windows_GUI.zip, εφόσον θέλετε την εύκολη έκδοση χωρίς εγκατάσταση Python.',
+ '2. Κατεβάστε το αρχείο LRC_Bulk_Finder_v2_4_5_Standalone_Windows_GUI.zip, εφόσον θέλετε την εύκολη έκδοση χωρίς εγκατάσταση Python.',
  '3. Κάντε πλήρη αποσυμπίεση του ZIP σε έναν φάκελο όπου έχετε δικαίωμα εγγραφής. Μην εκκινήσετε το πρόγραμμα μέσα από το συμπιεσμένο αρχείο.',
  '4. Αφήστε μαζί τα LRC_Control_Center.exe και LRC_Bulk_Finder_Worker.exe, τα αρχεία ελληνικών λεξικών, τις οδηγίες και το εγχειρίδιο.',
  '5. Εκκινήστε το LRC_Control_Center.exe. Η απλή χρήση της αυτόνομης έκδοσης δεν απαιτεί Python.',
@@ -222,14 +222,14 @@ greek_sections=[
 
 def build():
     if not OLD.is_file():raise FileNotFoundError(OLD)
-    en_out=OUT/'LRC_Bulk_Finder_v2_4_4_Complete_User_Manual_EN.pdf'
-    gr_out=OUT/'LRC_Bulk_Finder_v2_4_4_User_Guide_EL.pdf'
+    en_out=OUT/'LRC_Bulk_Finder_v2_4_5_Complete_User_Manual_EN.pdf'
+    gr_out=OUT/'LRC_Bulk_Finder_v2_4_5_User_Guide_EL.pdf'
     addon=OUT/'_v245_en_addendum.pdf'
     make_pdf(addon,'English/Greek UI — v2.4.5 addendum','Please read these changes together with the complete 29-page original manual.',en_sections,'EN')
     src=fitz.open(str(OLD))
     for page_index,page in enumerate(src):
         # Both spellings keep their exact width; update references conservatively.
-        for old,new in [('2.4.3','2.4.5'),('2_4_3','2_4_4')]:
+        for old,new in [('2.4.3','2.4.5'),('2_4_3','2_4_5')]:
             for box in page.search_for(old):
                 # Modify the exact text region only, avoid white overlays on cover.
                 info=page.get_text('dict',clip=box)
