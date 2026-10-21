@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -47,6 +48,20 @@ class CatalogAndPreferences(unittest.TestCase):
             self.assertRaises(ValueError,save_language,'fr',p)
             self.assertEqual(read_language(p),'en')
 
+def _gui_display_available():
+    if sys.platform == "win32":
+        return True
+    import tkinter as tk
+    try:
+        probe=tk.Tk()
+        probe.withdraw()
+        probe.destroy()
+        return True
+    except tk.TclError:
+        return False
+
+@unittest.skipUnless(_gui_display_available(),
+                     "GUI tests require a Windows desktop or an Xvfb display")
 class WindowsGuiLocalization(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory()
