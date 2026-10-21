@@ -103,8 +103,8 @@ class V245Mixin:
                     self.update_page=data.get('url')
                     self.update_open_button.configure(state='normal' if self.update_page else 'disabled')
                 elif kind=='inventory':
+                    self._dashboard_scanning=False
                     if isinstance(data,Exception):
-                        self._dashboard_scanning=False
                         self.dashboard_status.set('Cannot scan library: '+str(data))
                     else:
                         self.dashboard_all_rows=data
@@ -206,7 +206,6 @@ class V245Mixin:
 
     def _dashboard_filter(self):
         if not hasattr(self,'dashboard_tree'):return
-        self._dashboard_scanning=False
         self.dashboard_tree.delete(*self.dashboard_tree.get_children())
         self.dashboard_visible_rows={}
         state=self.dashboard_state.get()
