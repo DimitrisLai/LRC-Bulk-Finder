@@ -1,4 +1,4 @@
-name: QA - every GUI option, all menu modes and safe Windows launcher probes
+name: QA - full v2.4.4 bilingual GUI and safe STOP matrix
 on:
   push:
     branches: [qa/v243-full-option-audit]
@@ -7,6 +7,10 @@ on:
       - 'QA_WINDOWS_CMD_PROBES.py'
       - 'worker_stop.py'
       - 'TEST_V2_4_3_STOP_VERIFICATION.py'
+      - 'LRC_Control_Center.py'
+      - 'ui_locale.py'
+      - 'ui_translations.py'
+      - 'TEST_V244_LOCALIZATION.py'
       - '.github/workflows/qa-v243-all-options.yml'
   workflow_dispatch:
 permissions:
