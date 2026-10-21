@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.4.3 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.4.4 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -16,9 +16,25 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
-## Current release — v2.4.3 (Public Beta)
+## Current release — v2.4.4 (English / Ελληνικά Public Beta)
 
-**v2.4.3 is the current recommended version.** Download from the [v2.4.3 release page](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/tag/v2.4.3), or choose the package you need:
+**English and Greek are both included in the same Windows application.** Select **Interface language / Γλώσσα εφαρμογής** at the top-right and choose **English** or **Ελληνικά**. Labels, buttons, tooltips, presets and common dialogs change immediately; the selection is remembered. Search settings, saved profiles, filenames and lyrics are unchanged.
+
+| Download | Who should use it |
+| --- | --- |
+| [**Standalone Windows GUI ZIP (EN + EL)**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.4.4/LRC_Bulk_Finder_v2_4_4_Standalone_Windows_GUI.zip) | Recommended: extract the complete ZIP, keep both EXEs together and run `LRC_Control_Center.exe`. Python is not needed. |
+| [**Complete Windows Python/CMD ZIP**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.4.4/LRC_Bulk_Finder_Public_v2_4_4_GitHub_Release_Windows.zip) | Python 3.10+, CLI launchers and optional local Greek AI setup. |
+| [**Full English PDF manual**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.4.4/LRC_Bulk_Finder_v2_4_4_Complete_User_Manual_EN.pdf) | Complete instructions, including v2.4.4 English/Greek addendum. |
+| [**Οδηγός χρήσης στα Ελληνικά (PDF)**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.4.4/LRC_Bulk_Finder_v2_4_4_User_Guide_EL.pdf) | Greek first-use instructions, settings, STOP and troubleshooting. |
+
+**Also in v2.4.4:** improved Windows STOP worker/child verification using a native process snapshot, with a conservative fallback and warnings if verification is uncertain. Strict artist/title/version/duration checks, audio/ID3 protection, separate `.candidate.lrc` files, and existing sidecar protection are unchanged. See [release notes](RELEASE_NOTES_V2_4_4.md), [quick start](HOW_TO_START_V2_4_4.txt), and [changelog](CHANGELOG.md).
+
+**New users:** first test 20 songs. Search mode 1 requires no large local LRCLIB database; modes 4 and 5 do. External providers can be unreliable. Windows executables are unsigned.
+
+## Previous release — v2.4.3 (historical)
+
+
+**Previous version:** v2.4.3 remains available for compatibility. Download from the [v2.4.3 release page](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/tag/v2.4.3), or choose the package you need:
 
 | Download | Who should use it |
 | --- | --- |
