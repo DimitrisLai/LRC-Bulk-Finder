@@ -122,7 +122,7 @@ class V245GuiJourneys(unittest.TestCase):
             while self.app._v245_queue.empty() and time.monotonic()<deadline:time.sleep(.02)
             self.app._poll_v245()
         self.assertIn('v2.4.6',self.app.update_notice.get())
-        self.assertEqual(self.app.update_open_button.cget('state'),'normal')
+        self.assertEqual(str(self.app.update_open_button.cget('state')),'normal')
 
     def test_timing_preview_and_save_safe_separate_candidate(self):
         self.app.repair_audio.set(str(self.track))
