@@ -32,12 +32,17 @@ from v243_health import ProviderHealth
 from v243_resume import last_run, mark_run
 from v243_aliases import approve_alias
 from v243_contribution import export_contribution
+from ui_locale import GuiLocale, read_language, save_language
 
 
 class ControlCenter(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LRC Bulk Finder v2.4.3 — Control Center")
+        self.title("LRC Bulk Finder v2.4.4 — Control Center")
+        self.gui_locale=GuiLocale(read_language())
+        self._locale_widgets={}
+        self._status_vars={}
+        self._locale_is_refreshing=False
         self.geometry("1140x910")
         self.minsize(970,770)
         self.process=None
@@ -53,8 +58,130 @@ class ControlCenter(tk.Tk):
         self.loaded_profiles={}
         self._build()
         self._refresh_profiles()
+        self._init_language_status_tracking()
+        self._refresh_language()
         self.after(110,self._poll)
         self.protocol("WM_DELETE_WINDOW",self._close)
+
+    def _tr(self,value):
+        return self.gui_locale.tr(value)
+
+    def _tool_tip(self,widget,english):
+        tooltip=ToolTip(widget,self._tr(english))
+        self._locale_widgets[widget]=english
+        widget._lrc_original_tooltip=english
+        widget._lrc_tooltip=tooltip
+        return tooltip
+
+    def _preset_key(self,display):
+        if display in PRESET_TEMPLATES:return display
+        # Display text is independent of the persisted/internal preset key.
+        for original in PRESET_TEMPLATES:
+            if GuiLocale('el').tr(original)==display:return original
+        return display
+
+    def _language_selected(self,_event=None):
+        new='el' if self.language_choice.get()=='Ελληνικά' else 'en'
+        if new==self.gui_locale.language:return
+        old=self.gui_locale.language
+        self.gui_locale.language=new
+        self._refresh_language()
+        try:save_language(new)
+        except OSError as error:
+            # Do not falsely claim the preference was saved.
+            messagebox.showwarning(self._tr('Interface language'),str(error))
+
+    def _iter_ui_children(self,parent):
+        for child in parent.winfo_children():
+            yield child
+            yield from self._iter_ui_children(child)
+
+    def _status_changed(self,var):
+        if self._locale_is_refreshing:return
+        raw=var.get()
+        self._status_vars[str(var)]=(var,raw)
+        localized=self._tr(raw)
+        if localized!=raw:
+            self._locale_is_refreshing=True
+            try:var.set(localized)
+            finally:self._locale_is_refreshing=False
+
+    def _init_language_status_tracking(self):
+        # Keep the canonical status text, so reversing Greek to English never
+        # damages file paths, counters, logs or current search state.
+        for var in (self.phase,self.progress_text,self.sync_status,self.preset_description):
+            self._status_vars[str(var)]=(var,var.get())
+            var.trace_add('write',lambda *args,v=var:self._status_changed(v))
+
+    def _refresh_language(self):
+        self._locale_is_refreshing=True
+        try:
+            self.title(self._tr('LRC Bulk Finder v2.4.3 — Control Center')
+                .replace('v2.4.3','v2.4.4'))
+            # Preserve active notebook tab and all fields; no _build() or profile reload.
+            for widget in self._iter_ui_children(self):
+                if isinstance(widget,(ttk.Label,ttk.Button,ttk.Checkbutton,ttk.LabelFrame,
+                                      ttk.Radiobutton,tk.Label,tk.Button,tk.Checkbutton,tk.LabelFrame)):
+                    try:shown=widget.cget('text')
+                    except tk.TclError:continue
+                    base=getattr(widget,'_lrc_original_text',None)
+                    if base is None:
+                        base=shown
+                        widget._lrc_original_text=base
+                    translated=self._tr(base)
+                    if shown!=translated:widget.configure(text=translated)
+                original=getattr(widget,'_lrc_original_tooltip',None)
+                if original is not None:widget._lrc_tooltip.message=self._tr(original)
+            if hasattr(self,'notebook'):
+                for tab in self.notebook.tabs():
+                    value=self.notebook.tab(tab,'text')
+                    original=self._locale_widgets.get(('tab',tab))
+                    if original is None:
+                        original=value
+                        self._locale_widgets[('tab',tab)]=original
+                    self.notebook.tab(tab,text=self._tr(original))
+            for tree in (getattr(self,'health_tree',None),getattr(self,'review_tree',None)):
+                if tree is None:continue
+                for key in tree['columns']:
+                    original=self._locale_widgets.get(('heading',str(tree),key))
+                    if original is None:
+                        original=tree.heading(key,'text')
+                        self._locale_widgets[('heading',str(tree),key)]=original
+                    tree.heading(key,text=self._tr(original))
+            if hasattr(self,'preset_choice'):
+                current=self._preset_key(self.preset_name.get())
+                self.preset_choice.configure(values=[self._tr(k) for k in PRESET_TEMPLATES])
+                if current in PRESET_TEMPLATES:self.preset_name.set(self._tr(current))
+            for var,raw in self._status_vars.values():
+                localized=self._tr(raw)
+                if var.get()!=localized:var.set(localized)
+            if hasattr(self,'health_tree'):self._refresh_health()
+            # Existing review results contain original English statuses; transform only
+            # the presentation column and never the underlying selected file data.
+            if hasattr(self,'review_tree'):
+                for item in self.review_tree.get_children():
+                    vals=list(self.review_tree.item(item,'values'))
+                    if len(vals)>2:
+                        english=self._locale_widgets.get(('review_status',item))
+                        if english is None:
+                            english=vals[2]
+                            self._locale_widgets[('review_status',item)]=english
+                        vals[2]=self._tr(english)
+                        self.review_tree.item(item,values=vals)
+        finally:self._locale_is_refreshing=False
+
+    def _dialog(self,method,title,message,*args,**kwargs):
+        # Translate at the display edge; all internal error/report codes are untouched.
+        return getattr(messagebox,method)(self._tr(title),self._tr(message),*args,**kwargs)
+
+    def _askstring(self,title,prompt,*args,**kwargs):
+        return simpledialog.askstring(self._tr(title),self._tr(prompt),*args,**kwargs)
+
+    def _file_dialog(self,method,*args,**kwargs):
+        if 'title' in kwargs:kwargs['title']=self._tr(kwargs['title'])
+        if 'filetypes' in kwargs:
+            kwargs['filetypes']=[(self._tr(caption),mask) for caption,mask in kwargs['filetypes']]
+        return getattr(filedialog,method)(*args,**kwargs)
 
     def _build(self):
         style=ttk.Style(self)
@@ -64,7 +191,13 @@ class ControlCenter(tk.Tk):
         style.configure("TButton",padding=5)
         header=ttk.Frame(self,padding=(18,16,18,8))
         header.pack(fill="x")
-        ttk.Label(header,text="LRC Bulk Finder",style="Header.TLabel").pack(anchor="w")
+        ttk.Label(header,text="LRC Bulk Finder",style="Header.TLabel").pack(side="left",anchor="w")
+        self.language_choice=tk.StringVar(value="Ελληνικά" if self.gui_locale.language=='el' else "English")
+        self.language_control=ttk.Combobox(header,textvariable=self.language_choice,
+                                           values=("English","Ελληνικά"),state="readonly",width=13)
+        self.language_control.pack(side="right",padx=(8,0))
+        self.language_control.bind("<<ComboboxSelected>>",self._language_selected)
+        ttk.Label(header,text="Interface language").pack(side="right",padx=4)
         ttk.Label(header,text="Search profiles · honest per-round ETA · safe review of unverified lyrics",style="Hint.TLabel").pack(anchor="w")
         self.notebook=ttk.Notebook(self)
         self.notebook.pack(fill="both",expand=True,padx=15,pady=(0,15))
@@ -101,39 +234,39 @@ class ControlCenter(tk.Tk):
     def _refresh_health(self):
         self.health_tree.delete(*self.health_tree.get_children())
         for provider,data in self.provider_health.rows.items():
-            self.health_tree.insert("","end",values=(provider,data["status"],data["last_http_success"],data["last_verified"],data["verified_count"],data["detail"]))
+            self.health_tree.insert("","end",values=(provider,self._tr(data["status"]),data["last_http_success"],data["last_verified"],data["verified_count"],data["detail"]))
 
     def _approve_alias(self):
         if self.process is not None and self.process.poll() is None:
-            messagebox.showwarning("Search running","Finish the current search before editing aliases.")
+            self._dialog("showwarning","Search running","Finish the current search before editing aliases.")
             return
-        kind=simpledialog.askstring("Approve Greek alias","Type artist or title:",parent=self)
+        kind=self._askstring("Approve Greek alias","Type artist or title:",parent=self)
         if kind is None:return
         kind=kind.strip().lower()
         if kind not in ("artist","title"):
-            messagebox.showerror("Invalid type","Choose artist or title.");return
-        original=simpledialog.askstring("Greeklish original","Enter exact original artist/title:",parent=self)
+            self._dialog("showerror","Invalid type","Choose artist or title.");return
+        original=self._askstring("Greeklish original","Enter exact original artist/title:",parent=self)
         if original is None:return
-        approved=simpledialog.askstring("Approved Greek spelling","Enter reviewed Greek spelling:",parent=self)
+        approved=self._askstring("Approved Greek spelling","Enter reviewed Greek spelling:",parent=self)
         if approved is None:return
-        if not messagebox.askyesno("Confirm reviewed spelling",f"Save {kind} alias?\n\n{original}  →  {approved}\n\nIt will be used by NEW searches only."):
+        if not self._dialog("askyesno","Confirm reviewed spelling",f"Save {kind} alias?\n\n{original}  →  {approved}\n\nIt will be used by NEW searches only."):
             return
         try:
             changed=approve_alias(program_folder()/"Greek_Aliases.csv",kind,original,approved)
-            messagebox.showinfo("Greek aliases","Saved. Restart the search to apply." if changed else "Already approved.")
-        except (OSError,ValueError) as error:messagebox.showerror("Alias error",str(error))
+            self._dialog("showinfo","Greek aliases","Saved. Restart the search to apply." if changed else "Already approved.")
+        except (OSError,ValueError) as error:self._dialog("showerror","Alias error",str(error))
 
     def _resume_previous(self):
         if self.process is not None and self.process.poll() is None:
-            messagebox.showwarning("Search running","Stop the current search first.");return
+            self._dialog("showwarning","Search running","Stop the current search first.");return
         record=last_run()
         if not record or record["status"]=="finished":
-            messagebox.showinfo("Resume","No interrupted search has been recorded.");return
+            self._dialog("showinfo","Resume","No interrupted search has been recorded.");return
         name=record["profile"]
         profiles=load_profiles()
         if name not in profiles or profiles[name]["folder"]!=record["folder"]:
-            messagebox.showerror("Resume","Saved profile was moved or changed; review it manually.");return
-        if not messagebox.askyesno("Resume earlier search",f"Resume saved profile {name}?\n\nCompleted matching checkpoints will be reused; unfinished work retried."):
+            self._dialog("showerror","Resume","Saved profile was moved or changed; review it manually.");return
+        if not self._dialog("askyesno","Resume earlier search",f"Resume saved profile {name}?\n\nCompleted matching checkpoints will be reused; unfinished work retried."):
             return
         self.name.set(name)
         self._set_values(profiles[name])
@@ -159,10 +292,11 @@ class ControlCenter(tk.Tk):
         ttk.Label(outer,text="Ready-made preset").grid(row=row,column=0,sticky="w",padx=5,pady=5)
         preset_choice=ttk.Combobox(outer,textvariable=self.preset_name,
                                    values=list(PRESET_TEMPLATES),state="readonly",width=44)
+        self.preset_choice=preset_choice
         preset_choice.grid(row=row,column=1,sticky="ew",padx=5)
         preset_choice.bind("<<ComboboxSelected>>",self._preset_selected)
         ttk.Button(outer,text="Apply preset",command=self._apply_preset).grid(row=row,column=2,sticky="ew",padx=5)
-        ToolTip(preset_choice,"Built-in examples: Greek full search, Greek overnight maximum coverage, offline only, quick 20-song test, optional local AI and international FAST. Saved profiles remain yours.")
+        self._tool_tip(preset_choice,"Built-in examples: Greek full search, Greek overnight maximum coverage, offline only, quick 20-song test, optional local AI and international FAST. Saved profiles remain yours.")
         row+=1
         ttk.Label(outer,textvariable=self.preset_description,wraplength=950,
                   style="Hint.TLabel").grid(row=row,column=0,columnspan=3,sticky="w",padx=5,pady=(0,8))
@@ -237,7 +371,7 @@ class ControlCenter(tk.Tk):
         for i,(key,label) in enumerate(toggles):
             widget=ttk.Checkbutton(frame,text=label,variable=self.boolvars[key])
             widget.grid(row=i//2,column=i%2,sticky="w",padx=12,pady=4)
-            ToolTip(widget,descriptions[key])
+            self._tool_tip(widget,descriptions[key])
         row+=1
         setup=ttk.LabelFrame(outer,text="Downloads & local setup",padding=8)
         setup.grid(row=row,column=0,columnspan=3,sticky="ew",pady=5)
@@ -247,8 +381,8 @@ class ControlCenter(tk.Tk):
         ai_button=ttk.Button(setup,text="Download / set up Greek G2G AI",
                              command=lambda:self._launch_setup("SETUP_GREEK_AI.cmd"))
         ai_button.pack(side="left",padx=5)
-        ToolTip(lrclib_button,"Starts the bundled LRCLIB setup script in a separate Windows terminal, with its own prompts. Already downloaded? Use Choose database instead.")
-        ToolTip(ai_button,"Starts the bundled local Greek AI installation guide/setup. Optional and model-heavy; standalone EXE cannot embed this model.")
+        self._tool_tip(lrclib_button,"Starts the bundled LRCLIB setup script in a separate Windows terminal, with its own prompts. Already downloaded? Use Choose database instead.")
+        self._tool_tip(ai_button,"Starts the bundled local Greek AI installation guide/setup. Optional and model-heavy; standalone EXE cannot embed this model.")
         row+=1
         ttk.Button(outer,text="Save profile and START SEARCH",
                    command=self._run_profile).grid(row=row,column=0,columnspan=3,sticky="ew",padx=5,pady=8)
@@ -323,10 +457,10 @@ class ControlCenter(tk.Tk):
         ttk.Label(buttons,text="Numbered alternatives are read-only until they become primary.").pack(side="right")
 
     def _preset_selected(self,_event=None):
-        self.preset_description.set(PRESET_DESCRIPTIONS.get(self.preset_name.get(),""))
+        self.preset_description.set(self._tr(PRESET_DESCRIPTIONS.get(self._preset_key(self.preset_name.get()),"")))
 
     def _apply_preset(self):
-        name=self.preset_name.get()
+        name=self._preset_key(self.preset_name.get())
         if name not in PRESET_TEMPLATES:return
         folder=self.folder.get()
         database=self.database.get()
@@ -341,38 +475,38 @@ class ControlCenter(tk.Tk):
         path=program_folder()/script
         if sys.platform=="win32" and path.is_file() and not getattr(sys,"frozen",False):
             if self.process is not None and self.process.poll() is None:
-                messagebox.showwarning("Search running","Finish your music scan before changing the setup.")
+                self._dialog("showwarning","Search running","Finish your music scan before changing the setup.")
                 return
-            if not messagebox.askyesno("Run setup",f"Open {script} in a separate terminal?\n\nRead the installer prompts before confirming downloads."):
+            if not self._dialog("askyesno","Run setup",f"Open {script} in a separate terminal?\n\nRead the installer prompts before confirming downloads."):
                 return
             try:
                 subprocess.Popen(["cmd.exe","/c",str(path)],cwd=str(program_folder()),
                     creationflags=subprocess.CREATE_NEW_CONSOLE)
             except OSError as error:
-                messagebox.showerror("Setup launcher",str(error))
+                self._dialog("showerror","Setup launcher",str(error))
         elif sys.platform=="win32" and getattr(sys,"frozen",False) and script=="SETUP_LRCLIB_DATABASE.cmd":
-            if not messagebox.askyesno("Download LRCLIB SQLite",
+            if not self._dialog("askyesno","Download LRCLIB SQLite",
                 "Open the official LRCLIB downloader in a separate console? "
                 "You will choose the destination and confirm before large downloads."):
                 return
             worker=program_folder()/"LRC_Bulk_Finder_Worker.exe"
             if not worker.is_file():
-                messagebox.showerror("Missing worker","Cannot find LRC_Bulk_Finder_Worker.exe")
+                self._dialog("showerror","Missing worker","Cannot find LRC_Bulk_Finder_Worker.exe")
                 return
             subprocess.Popen([str(worker),"--setup-lrclib"],cwd=str(program_folder()),
                              creationflags=subprocess.CREATE_NEW_CONSOLE)
         else:
-            if messagebox.askyesno("Python package required",
+            if self._dialog("askyesno","Python package required",
                 "The optional local Greek AI requires Python and its external model. "
                 "Open the official GitHub releases to obtain the complete setup ZIP?"):
                 webbrowser.open("https://github.com/DimitrisLai/LRC-Bulk-Finder/releases")
 
     def _browse_music(self):
-        selected=filedialog.askdirectory(title="Select audio library folder",initialdir=self.folder.get() or str(Path.home()))
+        selected=self._file_dialog("askdirectory",title="Select audio library folder",initialdir=self.folder.get() or str(Path.home()))
         if selected:self.folder.set(selected)
 
     def _browse_database(self):
-        selected=filedialog.askopenfilename(title="Existing LRCLIB SQLite database",
+        selected=self._file_dialog("askopenfilename",title="Existing LRCLIB SQLite database",
               filetypes=[("SQLite database","*.sqlite3 *.db"),("All files","*.*")])
         if selected:self.database.set(selected)
 
@@ -398,7 +532,7 @@ class ControlCenter(tk.Tk):
     def _refresh_profiles(self):
         try:self.loaded_profiles=load_profiles()
         except ValueError as error:
-            messagebox.showerror("Profiles",str(error))
+            self._dialog("showerror","Profiles",str(error))
             self.loaded_profiles={}
         self.name_choice.configure(values=list(sorted(self.loaded_profiles)))
         if self.name.get() in self.loaded_profiles:
@@ -411,7 +545,7 @@ class ControlCenter(tk.Tk):
     def _save(self):
         name=self.name.get().strip()
         if not name:
-            messagebox.showerror("Profile","Choose a profile name")
+            self._dialog("showerror","Profile","Choose a profile name")
             return False
         try:
             profile=self._values()
@@ -422,13 +556,13 @@ class ControlCenter(tk.Tk):
             self._refresh_profiles()
             return True
         except (OSError,ValueError) as error:
-            messagebox.showerror("Save profile",str(error))
+            self._dialog("showerror","Save profile",str(error))
             return False
 
     def _delete(self):
         name=self.name.get().strip()
         if name not in self.loaded_profiles:return
-        if not messagebox.askyesno("Delete profile","Delete saved settings for "+name+"? No music files are affected."):
+        if not self._dialog("askyesno","Delete profile","Delete saved settings for "+name+"? No music files are affected."):
             return
         try:
             profiles=load_profiles()
@@ -437,19 +571,19 @@ class ControlCenter(tk.Tk):
             self.name.set("")
             self._refresh_profiles()
         except (OSError,ValueError) as error:
-            messagebox.showerror("Delete profile",str(error))
+            self._dialog("showerror","Delete profile",str(error))
 
     def _run_profile(self):
         if self.process is not None and self.process.poll() is None:
-            messagebox.showwarning("Search running","Stop the current search before starting another.")
+            self._dialog("showwarning","Search running","Stop the current search before starting another.")
             return
         if not self._save():return
         profile=self.loaded_profiles[self.name.get()]
         if not Path(profile["folder"]).is_dir():
-            messagebox.showerror("Missing folder","Selected MP3 folder does not exist.")
+            self._dialog("showerror","Missing folder","Selected MP3 folder does not exist.")
             return
         if getattr(sys,"frozen",False) and profile["local_ai"]:
-            messagebox.showerror("Optional local AI requires Python build",
+            self._dialog("showerror","Optional local AI requires Python build",
                 "The standalone EXE does not contain the external G2G transformer "
                 "model or its Python dependencies. For local AI, run "
                 "OPEN_CONTROL_CENTER.cmd from the complete Python Windows ZIP.")
@@ -458,12 +592,12 @@ class ControlCenter(tk.Tk):
             # If already configured by the standard application, this is OK.
             configured=program_folder()/"LRCLIB_LOCAL_DB.txt"
             if not configured.is_file():
-                messagebox.showerror("Missing database","Option 4/5 requires your existing LRCLIB SQLite database. Choose it above.")
+                self._dialog("showerror","Missing database","Option 4/5 requires your existing LRCLIB SQLite database. Choose it above.")
                 return
         if getattr(sys,"frozen",False):
             worker=program_folder()/"LRC_Bulk_Finder_Worker.exe"
             if not worker.is_file():
-                messagebox.showerror("Missing worker",
+                self._dialog("showerror","Missing worker",
                     "The standalone GUI requires LRC_Bulk_Finder_Worker.exe "
                     "in the same folder. Extract the complete EXE ZIP.")
                 return
@@ -485,7 +619,7 @@ class ControlCenter(tk.Tk):
                start_new_session=(os.name!="nt"))
         except OSError as error:
             self._cleanup_stop_marker()
-            messagebox.showerror("Cannot start search",str(error))
+            self._dialog("showerror","Cannot start search",str(error))
             return
         self._clear_log()
         self.active_profile=self.name.get()
@@ -584,7 +718,7 @@ class ControlCenter(tk.Tk):
         process=self.process
         if process is None or process.poll() is not None or self.stop_requested:
             return
-        if not messagebox.askyesno(
+        if not self._dialog("askyesno",
                 "Stop search now?",
                 "Immediately KILL the running lyrics-search worker?\n\n"
                 "The CONTROL CENTER will stay open. Finished-song checkpoints "
@@ -628,9 +762,9 @@ class ControlCenter(tk.Tk):
                 key=str(i)
                 self.review_rows[key]=item
                 self.review_tree.insert("","end",iid=key,
-                    values=(item["mp3"].name,path.name,status))
+                    values=(item["mp3"].name,path.name,self._tr(status)))
         except (OSError,ValueError) as error:
-            messagebox.showerror("Candidate scan",str(error))
+            self._dialog("showerror","Candidate scan",str(error))
 
     def _selection(self):
         items=self.review_tree.selection()
@@ -656,27 +790,27 @@ class ControlCenter(tk.Tk):
             elif sys.platform=="darwin":subprocess.Popen(["open",str(path)])
             else:subprocess.Popen(["xdg-open",str(path)])
         except (OSError,AttributeError) as error:
-            messagebox.showerror("Open audio",str(error))
+            self._dialog("showerror","Open audio",str(error))
 
     def _promote_selected(self):
         if self.process is not None and self.process.poll() is None:
-            messagebox.showwarning("Search running","Finish the search before reviewing files.")
+            self._dialog("showwarning","Search running","Finish the search before reviewing files.")
             return
         item=self._selection()
         if not item:return
         if item["index"]!=1 or not item["has_mp3"] or item["has_lrc"]:
-            messagebox.showinfo("Not eligible","Only a primary candidate with exactly one matching audio file and no existing LRC can be promoted.")
+            self._dialog("showinfo","Not eligible","Only a primary candidate with exactly one matching audio file and no existing LRC can be promoted.")
             return
-        if not messagebox.askyesno("Install UNVERIFIED candidate?",
+        if not self._dialog("askyesno","Install UNVERIFIED candidate?",
             f"Install {item['path'].name} as a MARKED .lrc?\n\n"
             "It will contain [00:00.00] candidate and remain UNVERIFIED.\n"
             "Original audio/metadata will NOT change. Numbered alternatives shift forward."):
             return
         try:
             status,detail=explicitly_promote(item["path"],approved=True)
-            messagebox.showinfo("Candidate result",status+": "+detail)
+            self._dialog("showinfo","Candidate result",status+": "+detail)
         except (ValueError,PermissionError,OSError) as error:
-            messagebox.showerror("Candidate result",str(error))
+            self._dialog("showerror","Candidate result",str(error))
         self._refresh_review()
 
     def _build_sync_lab(self):
@@ -711,7 +845,7 @@ class ControlCenter(tk.Tk):
         self.sync_position=0
 
     def _sync_choose_audio(self):
-        path=filedialog.askopenfilename(title="Choose an audio track",
+        path=self._file_dialog("askopenfilename",title="Choose an audio track",
             filetypes=[("Supported audio","*.mp3 *.flac *.m4a *.mp4 *.ogg *.opus *.wav"),("All files","*.*")])
         if path:
             self.sync_audio.set(path)
@@ -720,16 +854,16 @@ class ControlCenter(tk.Tk):
     def _sync_play(self):
         path=Path(self.sync_audio.get())
         if not path.is_file():
-            messagebox.showerror("Sync Lab","Choose an existing audio track first.")
+            self._dialog("showerror","Sync Lab","Choose an existing audio track first.")
             return
         try:
             if sys.platform=="win32":os.startfile(path)
             elif sys.platform=="darwin":subprocess.Popen(["open",str(path)])
             else:subprocess.Popen(["xdg-open",str(path)])
-        except (OSError,AttributeError) as error:messagebox.showerror("Audio player",str(error))
+        except (OSError,AttributeError) as error:self._dialog("showerror","Audio player",str(error))
 
     def _sync_import(self):
-        path=filedialog.askopenfilename(title="Open untimed lyrics",
+        path=self._file_dialog("askopenfilename",title="Open untimed lyrics",
             filetypes=[("Text or LRC","*.txt *.lrc"),("Text files","*.txt"),("All files","*.*")])
         if not path:return
         try:
@@ -739,7 +873,7 @@ class ControlCenter(tk.Tk):
             self.sync_source.delete("1.0","end")
             self.sync_source.insert("1.0",source)
             self.sync_status.set("Imported text. Generate estimates or start tapping.")
-        except (OSError,ValueError) as error:messagebox.showerror("Import",str(error))
+        except (OSError,ValueError) as error:self._dialog("showerror","Import",str(error))
 
     def _sync_estimate(self):
         try:
@@ -757,13 +891,13 @@ class ControlCenter(tk.Tk):
             self.sync_draft.insert("1.0",draft)
             self.sync_status.set(f"ESTIMATE ONLY: {len(lines)} lines across {duration:.1f}s. "
                  "Review and edit timestamps; not aligned to speech.")
-        except (OSError,ValueError,TypeError) as error:messagebox.showerror("Timing estimate",str(error))
+        except (OSError,ValueError,TypeError) as error:self._dialog("showerror","Timing estimate",str(error))
 
     def _sync_start_tap(self):
         try:
             self.sync_lines=plain_lines(self.sync_source.get("1.0","end"))
         except ValueError as error:
-            messagebox.showerror("Tap timing",str(error))
+            self._dialog("showerror","Tap timing",str(error))
             return
         self.sync_times=[]
         self.sync_position=0
@@ -793,16 +927,16 @@ class ControlCenter(tk.Tk):
 
     def _sync_save(self):
         if self.process is not None and self.process.poll() is None:
-            messagebox.showwarning("Search running","Finish your search before writing candidate files.")
+            self._dialog("showwarning","Search running","Finish your search before writing candidate files.")
             return
         if not self.sync_lines or len(self.sync_times)!=len(self.sync_lines):
-            messagebox.showerror("Incomplete timings","Generate estimates or tap ALL lyric lines first.")
+            self._dialog("showerror","Incomplete timings","Generate estimates or tap ALL lyric lines first.")
             return
         track=Path(self.sync_audio.get())
         if not track.is_file():
-            messagebox.showerror("Missing audio","Choose an existing audio file first.")
+            self._dialog("showerror","Missing audio","Choose an existing audio file first.")
             return
-        if not messagebox.askyesno("SAVE UNVERIFIED candidate",
+        if not self._dialog("askyesno","SAVE UNVERIFIED candidate",
             "Create an additional .candidate.lrc next to this audio file?\n\n"
             "These timings are EXPERIMENTAL and have NOT been aligned or verified. "
             "The candidate marker will stay. Existing lyrics and audio are protected."):
@@ -811,14 +945,14 @@ class ControlCenter(tk.Tk):
             target=save_unverified_draft(track,self.sync_draft.get("1.0","end"),
                                         self.sync_lines,self.sync_times)
             self.sync_status.set("Saved UNVERIFIED candidate: "+str(target))
-            messagebox.showinfo("Candidate saved",f"Saved:\n{target}\n\nUnverified timing — review before promotion.")
+            self._dialog("showinfo","Candidate saved",f"Saved:\n{target}\n\nUnverified timing — review before promotion.")
             self._refresh_review()
         except (OSError,ValueError,FileExistsError) as error:
-            messagebox.showerror("Cannot save candidate",str(error))
+            self._dialog("showerror","Cannot save candidate",str(error))
 
     def _close(self):
         if self.process is not None and self.process.poll() is None:
-            messagebox.showwarning("Search running",
+            self._dialog("showwarning","Search running",
                 "Stop the current search before closing the Control Center.")
             return
         self.destroy()
