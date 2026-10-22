@@ -48,7 +48,7 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.9.1'
+VERSION = '2.9.2'
 HEADERS = {'User-Agent': 'LRCBulkFinder/2.5.0',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
@@ -2354,18 +2354,41 @@ def main():
     it=folder.rglob('*') if recursive else folder.iterdir()
     all_mp3,collisions=safe_audio_files(folder,recursive)
     if collisions:print('Skipping ambiguous sidecar stems (multiple formats):',len(collisions))
-    start_incremental_index(folder,all_mp3)
-    # LIVE is excluded BEFORE limiting the test size and BEFORE any provider request.
-    # Tag-only LIVE also counts, even if the file is named without the word.
-    missing=[]; live_skipped=[]; already_have=0; metadata_cache={}
-    for track in all_mp3:
+    # A bounded test must not parse ID3/duration metadata for thousands of
+    # unselected songs. Inventory cheap filenames first, then validate LIVE
+    # title tags only until enough eligible songs have been selected.
+    # Existing primary LRC files and filename-LIVE are always excluded first.
+    print(f'PREFLIGHT DISCOVERY: {len(all_mp3):,} audio paths found; checking filenames...',flush=True)
+    candidates=[]; live_skipped=[]; already_have=0; metadata_cache={}
+    for scanned,track in enumerate(all_mp3,1):
         check_stop()
         if is_live_track(track.stem):
             live_skipped.append(track)
-            continue
-        if track.with_suffix('.lrc').exists():
+        elif track.with_suffix('.lrc').exists():
             already_have+=1
-            continue
+        else:
+            candidates.append(track)
+        if scanned%250==0 or scanned==len(all_mp3):
+            print(f'PREFLIGHT DISCOVERY: {scanned:,}/{len(all_mp3):,} filenames checked; '
+                  f'{len(candidates):,} possible missing LRC',flush=True)
+    selected_manifest=os.environ.get('LRC_SELECTED_TRACKS_FILE','')
+    if selected_manifest:
+        if action not in ('','1'):
+            raise ValueError('Selective retry supports normal online action 1 only')
+        candidates=filter_selected_tracks(folder,candidates,selected_manifest)
+        print(f'EXPLICIT SELECTIVE RETRY: exactly {len(candidates)} requested eligible tracks; never whole-folder fallback.',flush=True)
+    if not candidates:return
+    howmany=input('How many missing songs? [20 for test, A for all]: ').strip().lower()
+    limit=None
+    if howmany!='a':
+        try:limit=int(howmany) if howmany else 20
+        except ValueError:limit=20
+        if limit<=0:return
+    print(f'PREFLIGHT METADATA: reading up to {limit if limit is not None else "ALL"} eligible songs '
+          f'({len(candidates):,} candidates); cancellation available.',flush=True)
+    missing=[]
+    for inspected,track in enumerate(candidates,1):
+        check_stop()
         try:
             info=song_info(track)
             metadata_cache[track]=info
@@ -2373,24 +2396,21 @@ def main():
                 live_skipped.append(track)
                 continue
         except Exception:
-            # A malformed MP3 will be reported in the normal error path.
+            # A malformed MP3 is reported in the ordinary per-song error path.
             pass
         missing.append(track)
-    print(f'Found {len(all_mp3)} supported audio tracks; skipped {len(live_skipped)} LIVE songs; '
-          f'{already_have} already had LRC; {len(missing)} eligible songs without .lrc.')
-    selected_manifest=os.environ.get('LRC_SELECTED_TRACKS_FILE','')
-    if selected_manifest:
-        if action not in ('','1'):
-            raise ValueError('Selective retry supports normal online action 1 only')
-        missing=filter_selected_tracks(folder,missing,selected_manifest)
-        print(f'EXPLICIT SELECTIVE RETRY: exactly {len(missing)} requested eligible tracks; never whole-folder fallback.',flush=True)
+        if inspected%25==0 or (limit is not None and len(missing)>=limit):
+            print(f'PREFLIGHT METADATA: checked {inspected:,}/{len(candidates):,}; '
+                  f'{len(missing):,} eligible songs selected',flush=True)
+        if limit is not None and len(missing)>=limit:
+            break
+    print(f'PREFLIGHT COMPLETE: {len(missing):,} songs queued; '
+          f'{already_have:,} existing LRC; {len(live_skipped):,} LIVE skipped '
+          f'(metadata checked only for selected range).',flush=True)
     if not missing:return
-    howmany=input('How many missing songs? [20 for test, A for all]: ').strip().lower()
-    if howmany!='a':
-        try: limit=int(howmany) if howmany else 20
-        except ValueError:limit=20
-        if limit<=0:return
-        missing=missing[:limit]
+    # Build the incremental index only for the selected run. Smart Library's
+    # separate full-library scan remains the way to index the entire collection.
+    start_incremental_index(folder,missing)
     global LRCLIB_EXACT_FALLBACK
     LRCLIB_EXACT_FALLBACK = input('Optional LRCLIB exact-signature fallback after existing searches? [y/N] (extra HTTP request): ').strip().lower()=='y'
     # All user choices are collected here, BEFORE local AI inference or network calls.
