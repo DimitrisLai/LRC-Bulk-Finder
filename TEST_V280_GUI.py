@@ -108,6 +108,15 @@ class KaraokeUITests(unittest.TestCase):
         self.assertEqual(self.app.studio_audio.get(),str(song))
         self.app._v280_step(-1)
         self.assertEqual(self.app.studio_audio.get(),str(self.track))
+    def test_optional_native_windows_drag_and_drop(self):
+        if sys.platform!="win32":self.skipTest("Native Windows TkDnD acceptance")
+        try:
+            import tkinterdnd2
+        except ImportError:
+            self.skipTest("Optional tkinterdnd2 not installed (available in release build)")
+        self.assertTrue(self.app._v280_drop_ready,
+            "When tkinterdnd2 is packaged on Windows the real Treeview must register as native drop target.")
+
     def test_unsupported_drop_filename_preserves_session(self):
         self.app._v280_add_files([str(Path(self.tmp.name)/"suspicious.exe")])
         self.assertEqual(len(self.app._v280_session.entries),0)
