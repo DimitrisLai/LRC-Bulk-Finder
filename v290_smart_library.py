@@ -374,3 +374,34 @@ def export_issues(root,destination,*,status="Issues only",query="",db_path=None)
             raise
         return count
     finally:db.close()
+
+
+def set_review_state(root,audio_path,decision,db_path=None):
+    if decision not in ("bookmarked","reviewed","clear"):
+        raise ValueError("Invalid review state")
+    resolved=canonical_root(root)
+    audio=Path(audio_path)
+    try:rel=str(audio.relative_to(resolved))
+    except ValueError as ex:raise ValueError("Track is outside chosen library") from ex
+    db=_open_db(db_path)
+    key=root_id(resolved)
+    try:
+        db.execute("BEGIN IMMEDIATE")
+        if not db.execute("SELECT 1 FROM tracks WHERE root_key=? AND rel_path=?",(key,rel)).fetchone():
+            raise ValueError("Choose an indexed track")
+        if decision=="clear":
+            db.execute("DELETE FROM review_state WHERE root_key=? AND rel_path=?",(key,rel))
+        else:
+            db.execute("INSERT INTO review_state(root_key,rel_path,decision) VALUES(?,?,?) ON CONFLICT(root_key,rel_path) DO UPDATE SET decision=excluded.decision",(key,rel,decision))
+        db.commit()
+    except BaseException:
+        db.rollback();raise
+    finally:db.close()
+
+def history(root,db_path=None):
+    db=_open_db(db_path)
+    try:
+        key=root_id(canonical_root(root))
+        return [{"scanned":row[0],"total":row[1],"issues":row[2],"audited":row[3],"cached":row[4]}
+                for row in db.execute("SELECT scanned,total,issues,audited,cached FROM scan_history WHERE root_key=? ORDER BY scanned DESC LIMIT 25",(key,))]
+    finally:db.close()
