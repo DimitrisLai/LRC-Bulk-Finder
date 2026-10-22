@@ -16,6 +16,14 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
+## v2.8.0 — Karaoke Edition (release candidate)
+
+The new **Karaoke Edition** fourth nested Sync Lab tab turns local instrumental plus LRC playback into a performer-friendly workflow. It offers a saved 500-track operator playlist, guarded automatic instrumental/LRC pairing and manual pairing, optional native drag-and-drop, projector/audience-only lyrics window with target display selection, themes/font/next-line/background, playback countdown, previous/next keyboard controls, global display offset ±30 seconds, separately confirmed undoable timing apply, persisted A–B loops, last-song restoration, precise read-only LRC export preview and redacted support reports.
+
+**Source/QA:** [v2.8 development PR #13](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/13), [v2.8 release notes](RELEASE_NOTES_V2_8_0.md), [v2.8 audit](TEST_AUDIT_V2_8_0.md), [English/Greek quick start](HOW_TO_START_V2_8_0.txt).
+
+All audio, ID3, source LRC and previous candidates remain protected. Instrumental karaoke displays EXISTING line-level lyrics; no word-by-word highlighting or vocal removal. **Until the v2.8 release is publicly published and SHA-verified, v2.7.0 remains the official downloadable release.**
+
 ## Current release — v2.7.0 Karaoke & Precision (English / Ελληνικά Public Beta)
 
 Version 2.7 adds karaoke for instrumental audio + your timed LRC, fullscreen current/next lyric display, A–B repeat, optional pitch-preserving VLC speed controls, bounded waveform visualization, timestamp warnings, recovery drafts, nudge sizes/shortcuts, car-radio export profiles and one-click navigation from Results/Candidate review. See [release notes](RELEASE_NOTES_V2_7_0.md), [quick start](HOW_TO_START_V2_7_0.txt), [post-v2.7 roadmap](ROADMAP_V2_8_V2_9_V3_0.md), and [PR #12](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/12). The primary and secondary LRC files remain protected; only new UNVERIFIED numbered candidates are written. 0.75x/1.25x requires a compatible locally installed VLC player (not bundled); compressed waveform display depends on optional soundfile support.
