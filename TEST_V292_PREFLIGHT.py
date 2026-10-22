@@ -30,10 +30,7 @@ class RealWorldPreflightTests(unittest.TestCase):
         self.assertIn("PREFLIGHT DISCOVERY:",block)
         self.assertIn("PREFLIGHT METADATA:",block)
         self.assertIn("PREFLIGHT COMPLETE:",block)
-        self.assertLess(block.index("howmany=input('How many missing songs?"),block.index("info=song_info(track)"))
-        self.assertLess(block.index("if limit is not None and len(missing)>=limit:"),block.index("start_incremental_index(folder,missing)"))
         self.assertIn("check_stop()",block)
-        self.assertIn("if is_live_track(info[0])",block)
     def test_realworld_missing_artist_not_invented_from_placeholder(self):
         import LRC_Bulk_Finder as finder
         from types import SimpleNamespace
@@ -45,6 +42,36 @@ class RealWorldPreflightTests(unittest.TestCase):
         self.assertEqual(title,". Aniko Se Mena")
         self.assertEqual(artist,"")
         self.assertAlmostEqual(sec,38.9827,places=3)
+
+    def test_3183_song_limit_20_reads_only_23_tagged_mp3s(self):
+        from LRC_Bulk_Finder import bounded_preflight_metadata
+        tracks=[Path(f"Greek Song {i:04d}.mp3") for i in range(3183)]
+        calls=[]
+        def read(track):
+            calls.append(track)
+            number=int(track.stem[-4:])
+            return ("LIVE performance" if number in (0,1,4) else "Τραγούδι","Καλλιτέχνης","",201.5)
+        output=[]
+        selected,cache,excluded=bounded_preflight_metadata(
+            tracks,20,read,lambda s:s.startswith("LIVE"),lambda:None,output.append)
+        self.assertEqual(len(selected),20)
+        self.assertEqual(len(excluded),3)
+        self.assertEqual(len(calls),23)
+        self.assertEqual(len(cache),23)
+        self.assertTrue(any("PREFLIGHT METADATA" in x for x in output))
+
+    def test_stop_during_preflight(self):
+        from LRC_Bulk_Finder import bounded_preflight_metadata
+        calls=[]
+        def read(track):
+            calls.append(track)
+            return ("song","artist","",100)
+        def cancel():
+            if len(calls)>=7:raise KeyboardInterrupt("STOP")
+        with self.assertRaises(KeyboardInterrupt):
+            bounded_preflight_metadata([Path(f"{i}.mp3") for i in range(100)],20,
+                                       read,lambda s:False,cancel)
+        self.assertEqual(len(calls),7)
 
     def test_private_recordings_never_packaged(self):
         build=Path(__file__).with_name("BUILD_V292_RELEASE.py").read_text(encoding="utf-8")
