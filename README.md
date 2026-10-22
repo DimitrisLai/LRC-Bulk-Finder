@@ -16,6 +16,14 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
+## v2.9.0 — Smart Library & Stability (release candidate)
+
+The new fifth **nested** Sync Lab workspace, Smart Library, adds an incremental SQLite local inventory, conservative LRC quality checks, Greek Unicode indexed search, a 200-record paginated review queue, Bookmarked/Reviewed markers, optional audio duration checks, cancellation-safe rollback, recent scan history, and confirmed formula-safe CSV export. No original music, ID3, primary LRC or existing candidate files are modified.
+
+**Stability improvement:** switching songs after optional VLC variable-speed playback now recreates the default pygame 1x backend instead of reusing a released VLC instance. Existing search providers, STOP, safe Undo, and v2.8 karaoke are retained.
+
+**Development:** [v2.9 pull request #14](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/14) · [Release notes](RELEASE_NOTES_V2_9_0.md) · [QA audit and full-day Windows test checklist](TEST_AUDIT_V2_9_0.md). Until the new five-file release has succeeded and been SHA-256 verified, the published v2.8.0 ZIP remains the recommended download.
+
 ## Current release — v2.8.0 Karaoke Edition (English / Ελληνικά Public Beta)
 
 The new **Karaoke Edition** fourth nested Sync Lab tab turns local instrumental plus LRC playback into a performer-friendly workflow. It offers a saved 500-track operator playlist, guarded automatic instrumental/LRC pairing and manual pairing, optional native drag-and-drop, projector/audience-only lyrics window with target display selection, themes/font/next-line/background, playback countdown, previous/next keyboard controls, global display offset ±30 seconds, separately confirmed undoable timing apply, persisted A–B loops, last-song restoration, precise read-only LRC export preview and redacted support reports.
