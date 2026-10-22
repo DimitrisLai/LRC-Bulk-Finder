@@ -36,6 +36,19 @@ def _descendants(pairs, parent_pid):
     return known
 
 
+def _prune_reused_windows_parents(pairs,creation_times):
+    """A child cannot predate its parent; sever stale PPIDs after Windows PID reuse.
+
+    Windows retains the numeric inherited PPID of an orphan, even if that old
+    parent has exited and the PID has since been assigned to a new process.
+    Never classify an older orphan as a child of the newer worker.
+    Missing/inaccessible creation times leave the edge intact, conservatively.
+    """
+    return {pid:(0 if pid in creation_times and ppid in creation_times
+                     and creation_times[pid] < creation_times[ppid] else ppid)
+            for pid,ppid in pairs.items()}
+
+
 def _windows_process_table_toolhelp():
     """Fast, dependency-free Windows PID/PPID snapshot using the native API.
 
@@ -86,7 +99,34 @@ def _windows_process_table_toolhelp():
                 pairs[int(entry.th32ProcessID)] = int(entry.th32ParentProcessID)
                 if not kernel32.Process32NextW(handle, ctypes.byref(entry)):
                     break
-            return pairs if pairs else None
+            if not pairs:
+                return None
+            # Disambiguate reused parent PIDs without extra PowerShell calls.
+            # Querying process creation times is native, fast and read-only.
+            kernel32.OpenProcess.argtypes=(wintypes.DWORD,wintypes.BOOL,wintypes.DWORD)
+            kernel32.OpenProcess.restype=wintypes.HANDLE
+            kernel32.GetProcessTimes.argtypes=(
+                wintypes.HANDLE,ctypes.POINTER(wintypes.FILETIME),
+                ctypes.POINTER(wintypes.FILETIME),ctypes.POINTER(wintypes.FILETIME),
+                ctypes.POINTER(wintypes.FILETIME))
+            kernel32.GetProcessTimes.restype=wintypes.BOOL
+            born={}
+            for pid in pairs:
+                if pid<=0:continue
+                ph=kernel32.OpenProcess(0x1000,False,pid)  # QUERY_LIMITED_INFORMATION
+                if not ph:continue
+                try:
+                    created=wintypes.FILETIME()
+                    exited=wintypes.FILETIME()
+                    kernel=wintypes.FILETIME()
+                    user=wintypes.FILETIME()
+                    if kernel32.GetProcessTimes(ph,ctypes.byref(created),
+                                               ctypes.byref(exited),ctypes.byref(kernel),
+                                               ctypes.byref(user)):
+                        born[pid]=(created.dwHighDateTime<<32)|created.dwLowDateTime
+                finally:
+                    kernel32.CloseHandle(ph)
+            return _prune_reused_windows_parents(pairs,born)
         finally:
             kernel32.CloseHandle(handle)
     except (OSError, ValueError, TypeError, AttributeError):
