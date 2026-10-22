@@ -26,6 +26,8 @@ class KaraokeCoreTests(unittest.TestCase):
     def test_ambiguous_instrumental_refuses_guess(self):
         second=self.root/"ΠΡΏΤΟ - TRACK.lrc"
         second.write_text("[00:00.20] duplicate",encoding="utf-8")
+        if len(list(self.root.glob("*.lrc")))<2:
+            self.skipTest("Case-insensitive filesystem cannot represent two same-name LRCs")
         self.assertIsNone(find_lyrics(self.audio))
     def test_candidate_ignored_as_automatic_lyric(self):
         self.original.unlink()
