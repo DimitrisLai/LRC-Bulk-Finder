@@ -277,6 +277,7 @@ class V280Mixin(V270Mixin):
         s.countdown=int(self._v280_count.get())
         self._v280_persist()
         self._v280_style_karaoke()
+        self._v270_karaoke_refresh()
 
     def _v280_change_offset(self,delta):
         s=self._v280_session
