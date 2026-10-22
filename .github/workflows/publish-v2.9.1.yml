@@ -72,7 +72,7 @@ permissions:
 
 concurrency:
   group: publish-v291-startup-stability
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   windows-package:
