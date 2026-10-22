@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.7.0 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.8.0 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -16,15 +16,25 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
-## v2.8.0 — Karaoke Edition (release candidate)
+## Current release — v2.8.0 Karaoke Edition (English / Ελληνικά Public Beta)
 
 The new **Karaoke Edition** fourth nested Sync Lab tab turns local instrumental plus LRC playback into a performer-friendly workflow. It offers a saved 500-track operator playlist, guarded automatic instrumental/LRC pairing and manual pairing, optional native drag-and-drop, projector/audience-only lyrics window with target display selection, themes/font/next-line/background, playback countdown, previous/next keyboard controls, global display offset ±30 seconds, separately confirmed undoable timing apply, persisted A–B loops, last-song restoration, precise read-only LRC export preview and redacted support reports.
 
 **Source/QA:** [v2.8 development PR #13](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/13), [v2.8 release notes](RELEASE_NOTES_V2_8_0.md), [v2.8 audit](TEST_AUDIT_V2_8_0.md), [English/Greek quick start](HOW_TO_START_V2_8_0.txt).
 
-All audio, ID3, source LRC and previous candidates remain protected. Instrumental karaoke displays EXISTING line-level lyrics; no word-by-word highlighting or vocal removal. **Until the v2.8 release is publicly published and SHA-verified, v2.7.0 remains the official downloadable release.**
+All audio, ID3, source LRC and previous candidates remain protected. Instrumental karaoke displays EXISTING line-level lyrics; no word-by-word highlighting or vocal removal. **Official release v2.8.0 — all assets published and verified against SHA-256:**
 
-## Current release — v2.7.0 Karaoke & Precision (English / Ελληνικά Public Beta)
+| Download | Details |
+| --- | --- |
+| [**Windows standalone GUI ZIP v2.8.0**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.8.0/LRC_Bulk_Finder_v2_8_0_Standalone_Windows_GUI.zip) | Recommended, 86.7 MB, includes two EXEs; no Python installation needed. |
+| [**Python and CMD source ZIP**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.8.0/LRC_Bulk_Finder_Public_v2_8_0_GitHub_Release_Windows.zip) | Full code, tests and launchers. |
+| [**Complete English manual**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.8.0/LRC_Bulk_Finder_v2_8_0_Complete_User_Manual_EN.pdf) | PDF updated for Karaoke Edition. |
+| [**Αναλυτικός ελληνικός οδηγός**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.8.0/LRC_Bulk_Finder_v2_8_0_User_Guide_EL.pdf) | Greek PDF including projector, playlists and timing correction. |
+| [**SHA-256 checksums**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.8.0/LRC_Bulk_Finder_v2_8_0_SHA256SUMS.txt) | Official file hashes reverified after public download. |
+
+
+
+## Previous release — v2.7.0 Karaoke & Precision (English / Ελληνικά Public Beta)
 
 Version 2.7 adds karaoke for instrumental audio + your timed LRC, fullscreen current/next lyric display, A–B repeat, optional pitch-preserving VLC speed controls, bounded waveform visualization, timestamp warnings, recovery drafts, nudge sizes/shortcuts, car-radio export profiles and one-click navigation from Results/Candidate review. See [release notes](RELEASE_NOTES_V2_7_0.md), [quick start](HOW_TO_START_V2_7_0.txt), [post-v2.7 roadmap](ROADMAP_V2_8_V2_9_V3_0.md), and [PR #12](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/12). The primary and secondary LRC files remain protected; only new UNVERIFIED numbered candidates are written. 0.75x/1.25x requires a compatible locally installed VLC player (not bundled); compressed waveform display depends on optional soundfile support.
 
