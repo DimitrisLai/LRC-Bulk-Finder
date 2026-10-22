@@ -11,15 +11,25 @@ from stop_control import check_stop
 
 AUDIO_EXTENSIONS=frozenset({".mp3",".flac",".m4a",".mp4",".ogg",".opus",".wav"})
 
-def audio_files(folder,recursive=True):
+def audio_files(folder,recursive=True,progress=None):
     path=Path(folder)
     iterator=path.rglob("*") if recursive else path.iterdir()
-    return sorted((p for p in iterator if p.is_file() and p.suffix.casefold() in AUDIO_EXTENSIONS),
-                  key=lambda p:str(p).casefold())
+    found=[]
+    inspected=0
+    for item in iterator:
+        inspected+=1
+        if inspected%250==0:
+            check_stop()
+            if progress:progress(inspected,len(found))
+        if item.is_file() and item.suffix.casefold() in AUDIO_EXTENSIONS:
+            found.append(item)
+    check_stop()
+    if progress:progress(inspected,len(found))
+    return sorted(found,key=lambda p:str(p).casefold())
 
-def safe_audio_files(folder,recursive=True):
+def safe_audio_files(folder,recursive=True,progress=None):
     """Do not guess which audio file should own a colliding .lrc sidecar."""
-    candidates=audio_files(folder,recursive)
+    candidates=audio_files(folder,recursive,progress=progress)
     counts={}
     for path in candidates:
         key=str(path.with_suffix("")).casefold()
@@ -44,9 +54,11 @@ class IncrementalLibrary:
                     "metadata_hits":0,"metadata_misses":0}
         self._inventoried=set()
 
-    def inventory(self,paths):
+    def inventory(self,paths,progress=None):
         self._inventoried=set()
-        for p in paths:
+        total=len(paths)
+        if progress:progress(0,total)
+        for index,p in enumerate(paths,1):
             check_stop()
             path=Path(p)
             try:stat=path.stat()
@@ -71,6 +83,7 @@ class IncrementalLibrary:
                      stat.st_size,stat.st_mtime_ns,key))
             else:
                 self.stats["unchanged"]+=1
+            if progress and (index%250==0 or index==total):progress(index,total)
         self.connection.commit()
         # Removed files only within the folder; don't erase another subfolder
         # that was intentionally excluded by recursive=False.

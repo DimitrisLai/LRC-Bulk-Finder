@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.9.2 — Responsive preflight and actual MP3 compatibility
+
+- Apply 20-song limit during ID3 metadata preflight instead of after inspecting every candidate in a large library.
+- Show live discovery/indexing/metadata preparation progress and leave search-result counters honest; improve STOP responsiveness.
+- Safely handle unknown-artist placeholders for Greeklish MP3s whose title tags show Song - Artist filenames, while retaining existing Artist - Song fallbacks.
+- Privately test three genuine MP3s (metadata, short audio decode, unchanged SHA-256). Do NOT ship the user's audio in GitHub.
+- Add synthetic 3,200-file tests, native Tk progress regressions, optional local real-MP3 QA tool, updated EN/EL manuals, and full Windows packaging gates.
+
+
+
 ## v2.9.1 — Windows Startup and Version Display
 
 - Fixed old v2.7.0 title appearing after the v2.9.0 app completed interface language initialization.

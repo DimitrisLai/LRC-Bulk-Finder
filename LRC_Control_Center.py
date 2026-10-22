@@ -742,6 +742,40 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self.log.delete("1.0","2000.0")
         self.log.see("end")
         self.log.configure(state="disabled")
+        # Preflight is a real stage, not an invisible five-minute zero bar.
+        # It uses distinct progress state; timed lyrics counters stay at zero
+        # until at least one search result has actually completed.
+        prepare=re.fullmatch(
+            r'PREFLIGHT: inspected=(\d+) candidates=(\d+) selected=(\d+) target=(ALL|\d+)',line)
+        indexing=re.fullmatch(r'INDEXING: inspected=(\d+) total=(\d+)',line)
+        discovery=re.fullmatch(r'DISCOVERY: inspected=(\d+) audio=(\d+)',line)
+        if prepare:
+            inspected,total,selected,target=prepare.groups()
+            n,count,chosen=int(inspected),int(total),int(selected)
+            desired=total if target=='ALL' else target
+            if target=='ALL':
+                percent=(100*n/count) if count else 100
+            else:
+                percent=(100*chosen/max(1,int(target)))
+            self.phase.set(f'Selecting search songs: {chosen}/{desired}')
+            self.progress_text.set(f'Metadata preflight: inspected {n:,} of {count:,} candidates; '
+                                   'search will start after this selection.')
+            self.bar['value']=min(100,percent)
+        elif indexing:
+            current,total=map(int,indexing.groups())
+            self.phase.set('Preparing incremental music library')
+            self.progress_text.set(f'Indexing metadata: {current:,} / {total:,} audio files')
+            self.bar['value']=100*current/total if total else 100
+        elif discovery:
+            visited,music=map(int,discovery.groups())
+            self.phase.set('Finding audio files')
+            self.progress_text.set(f'Discovered {music:,} audio files in {visited:,} filesystem entries (total not known yet).')
+            self.bar['value']=0
+        elif line.startswith('PREFLIGHT COMPLETE:'):
+            self.progress_text.set('Preflight complete — preparing the selected search. See log for counts.')
+        elif line.startswith('DISCOVERY COMPLETE:'):
+            self.phase.set('Preparing incremental metadata index')
+            self.progress_text.set('Discovery finished. Index and metadata preparation in progress.')
         match=re.search(r"PROGRESS ROUND (\w+): (\d+)/(\d+) \(([\d.]+)%\) \| elapsed (.*?) \| THIS ROUND ETA: (.*?)(?: \||$)",line)
         if match:
             stage,done,total,pct,elapsed,eta=match.groups()

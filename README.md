@@ -16,6 +16,14 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
+## v2.9.2 — Responsive Search Preflight (release candidate)
+
+Fixes a real 3,183-file Greek music library test where the search showed zero progress while reading **every MP3's ID3 metadata before limiting the search to 20 songs**. Search preparation now applies the selected limit **as it inspects** candidates, while preserving filename/tagged LIVE exclusions, provider matching and original track order. **Live progress** now shows the discovery, incremental index and ID3 preflight phases, plus how many eligible songs have been selected. Safe STOP works through all preparation stages.
+
+Real private Greek MP3s were successfully read and decoded without source changes, including a 39-second song with missing artist ID3. An unknown-artist placeholder is not treated as verified performer data. **Uploaded MP3 audio is never committed or distributed.**
+
+[Release notes](RELEASE_NOTES_V2_9_2.md) · [QA audit](TEST_AUDIT_V2_9_2.md) · [Hotfix PR](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/16). **v2.9.1 remains the recommended public download until GitHub's v2.9.2 release is published and SHA-256-verified.**
+
 ## Current release — v2.9.1 Windows Startup & Version Display Stability Patch
 
 **If you see a black terminal saying `LRC_Bulk_Finder_Worker.exe: --profile is required`, you've launched the background search worker instead of the main app.** Extract the **entire** Windows standalone ZIP and run **`LAUNCH_LRC_BULK_FINDER_WINDOWS.cmd`** (or **`LRC_Control_Center.exe`**). The worker is launched automatically by the Control Center when you start a search profile.
