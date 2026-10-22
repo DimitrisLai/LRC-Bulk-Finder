@@ -60,7 +60,9 @@ def main(argv=None):
         install_lrclib()
         return 0
     if not args.profile:
-        parser.error('--profile is required for searches')
+        parser.error('This is the background search worker, not the main app. '
+                     'Start LRC_Control_Center.exe for the graphical interface. '
+                     '--profile is required for command-line searches.')
     try:
         run_profile(args.profile,args.profiles_path)
     except KeyboardInterrupt:
