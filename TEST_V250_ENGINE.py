@@ -28,8 +28,8 @@ class FinderJournalTests(unittest.TestCase):
         dest=self.audio.with_suffix('.lrc')
         self.assertTrue(dest.is_file())
         items=session_entries(self.sid,expected_root=self.root,appdata=self.temp.name)
-        self.assertEqual([p['path'] for p in items if p['eligible']],[dest])
-        self.assertEqual(undo_session(self.sid,expected_root=self.root,appdata=self.temp.name)['removed'],[dest])
+        self.assertEqual([p['path'].resolve() for p in items if p['eligible']],[dest.resolve()])
+        self.assertEqual([p.resolve() for p in undo_session(self.sid,expected_root=self.root,appdata=self.temp.name)['removed']],[dest.resolve()])
         self.assertEqual(self.audio.read_bytes(),self.expected_audio)
 
     def test_candidate_export_gets_journaled_not_confused_with_existing_lrc(self):
@@ -37,7 +37,7 @@ class FinderJournalTests(unittest.TestCase):
         records=finder.export_review_candidates(self.audio,1,review)
         self.assertTrue(records[0][-1].endswith('.candidate.lrc'))
         candidate=self.audio.with_suffix('.candidate.lrc')
-        self.assertEqual(session_entries(self.sid,expected_root=self.root,appdata=self.temp.name)[0]['path'],candidate)
+        self.assertEqual(session_entries(self.sid,expected_root=self.root,appdata=self.temp.name)[0]['path'].resolve(),candidate.resolve())
         self.assertEqual(len(undo_session(self.sid,expected_root=self.root,appdata=self.temp.name)['removed']),1)
         self.assertEqual(self.audio.read_bytes(),self.expected_audio)
 
