@@ -16,6 +16,14 @@ import time
 def visible_control_center_titles():
     user32=ctypes.windll.user32
     callback=ctypes.WINFUNCTYPE(wintypes.BOOL,wintypes.HWND,wintypes.LPARAM)
+    user32.IsWindowVisible.argtypes=(wintypes.HWND,)
+    user32.IsWindowVisible.restype=wintypes.BOOL
+    user32.GetWindowTextLengthW.argtypes=(wintypes.HWND,)
+    user32.GetWindowTextLengthW.restype=ctypes.c_int
+    user32.GetWindowTextW.argtypes=(wintypes.HWND,wintypes.LPWSTR,ctypes.c_int)
+    user32.GetWindowTextW.restype=ctypes.c_int
+    user32.EnumWindows.argtypes=(callback,wintypes.LPARAM)
+    user32.EnumWindows.restype=wintypes.BOOL
     seen=[]
     def collect(hwnd,lparam):
         if user32.IsWindowVisible(hwnd):
@@ -53,7 +61,10 @@ def main():
             time.sleep(.4)
         raise AssertionError(f"Expected v2.9.1 Control Center title not seen. Visible titles: {seen!r}")
     finally:
-        proc.terminate()
+        # PyInstaller --onefile has a parent and child; kill both to avoid
+        # leaving a background GUI running on GitHub's Windows runner.
+        subprocess.run(["taskkill","/T","/F","/PID",str(proc.pid)],
+                       stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=False)
         try:proc.wait(timeout=8)
         except subprocess.TimeoutExpired:proc.kill()
 
