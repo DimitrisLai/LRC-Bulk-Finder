@@ -1055,3 +1055,8 @@ for _english, _greek in UI_V260_EL.items():
 from v270_translations import UI_V270_EL
 for _english, _greek in UI_V270_EL.items():
     UI_EL.setdefault(_english,_greek)
+
+# v2.8 Karaoke Edition adds labels without overwriting any previously approved string.
+from v280_translations import UI_V280_EL
+for _english, _greek in UI_V280_EL.items():
+    UI_EL.setdefault(_english, _greek)
