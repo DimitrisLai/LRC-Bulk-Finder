@@ -15,7 +15,7 @@ import urllib.request
 from pathlib import Path
 
 AUDIO_EXTS = frozenset(('.mp3', '.flac', '.m4a', '.mp4', '.ogg', '.opus', '.wav'))
-VERSION = '2.4.5'
+VERSION = '2.5.0'
 MAX_TRACKS = 100_000
 MAX_LRC_BYTES = 150_000
 STAMP = re.compile(r'\[(\d{1,4}):([0-5]\d)\.(\d{2,3})\]')
@@ -103,7 +103,7 @@ def check_github_update(current=VERSION, opener=None):
         raise ValueError('Current application version is invalid')
     url = 'https://api.github.com/repos/DimitrisLai/LRC-Bulk-Finder/releases/latest'
     req = urllib.request.Request(url, headers={'Accept': 'application/vnd.github+json',
-                                                 'User-Agent': 'LRC-Bulk-Finder-update-check/2.4.5'})
+                                                 'User-Agent': 'LRC-Bulk-Finder-update-check/2.5.0'})
     fetch = opener or urllib.request.urlopen
     with fetch(req, timeout=7) as response:
         raw = response.read(64_001)
