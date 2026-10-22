@@ -8,7 +8,6 @@ import math
 from pathlib import Path
 import time
 
-from v260_studio import _validate_audio
 
 PLAYER_EXTENSIONS = {".mp3", ".wav", ".ogg", ".flac"}
 
@@ -45,7 +44,8 @@ class StudioPlayer:
         path = Path(audio_file)
         if path.suffix.lower() not in PLAYER_EXTENSIONS:
             raise PlaybackError("This format is not supported by the embedded player; use Open audio player.")
-        path = _validate_audio(path)
+        if not path.is_file() or path.is_symlink():
+            raise PlaybackError("Choose a regular local audio track")
         music = self._mixer()
         try:
             music.stop()
