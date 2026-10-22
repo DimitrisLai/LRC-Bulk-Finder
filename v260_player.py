@@ -145,5 +145,6 @@ def duration_seconds(audio_file):
         audio = MutagenFile(str(audio_file))
         length = float(audio.info.length)
         return length if math.isfinite(length) and length > 0 else 0.0
-    except (ImportError, AttributeError, TypeError, ValueError, OSError):
+    except Exception:
+        # Malformed, unsupported or DRM audio is not a reason to crash the editor.
         return 0.0
