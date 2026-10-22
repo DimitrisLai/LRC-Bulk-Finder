@@ -269,46 +269,63 @@ def filter_selected_tracks(root, eligible, manifest_path):
 
 
 def load_rejection_explanations(root, selected=None):
-    """Read current engine's detailed CSVs; reports may be stale, and say so.
+    """Read current and archived CSV reasons, newest matching run per song.
 
-    Only per-track reason fields produced by the engine, not inferred verification.
-    Avoid following symlinked reports, reading huge or untrusted CSV files.
+    Reports are historical, not fresh provider verification. Older runs are
+    searched only when a song is absent from the newest report; no more than
+    twelve archives are opened, and every CSV has a bounded read limit.
     """
     folder=Path(root).resolve(strict=True)
-    paths=(('LRC_Finder_Report_v2_1_15.csv','report'),('LRC_Finder_Review_v2_1_15.csv','review'))
+    names=(('LRC_Finder_Report_v2_1_15.csv','report'),
+           ('LRC_Finder_Review_v2_1_15.csv','review'))
     selected_paths={str(Path(x).resolve()) for x in selected} if selected else None
+    bases=[folder]
+    archive_root=folder/'LRC_Run_Reports'
+    if archive_root.is_dir() and not archive_root.is_symlink():
+        candidates=[]
+        for p in archive_root.iterdir():
+            if p.is_dir() and not p.is_symlink() and p.name.startswith('Run_'):
+                try:
+                    if _inside(p.resolve(strict=True),folder):candidates.append(p)
+                except OSError:pass
+        bases.extend(sorted(candidates,key=lambda x:x.stat().st_mtime_ns,reverse=True)[:12])
     result={}
-    for basename,kind in paths:
-        filename=folder/basename
-        if not filename.is_file() or filename.is_symlink() or filename.stat().st_size>MAX_REPORT_BYTES:continue
-        read=0
-        try:
-            with filename.open(encoding='utf-8-sig',newline='') as stream:
-                for row in csv.DictReader(stream):
-                    read+=1
-                    if read>250_000:break
-                    path=row.get('MP3 path','')
-                    if not path:continue
-                    match=Path(path)
-                    if not match.is_absolute() or not _inside(match.resolve(),folder):continue
-                    canonical=str(match.resolve())
-                    if selected_paths is not None and canonical not in selected_paths:continue
-                    entry=result.setdefault(canonical,{'status':'','reason':'','provider_outcomes':'',
-                                                        'rejections':[],'last_reported':None})
-                    if kind=='report':
-                        entry['status']=str(row.get('status',''))[:80]
-                        entry['reason']=str(row.get('reason',''))[:MAX_REASON_LENGTH]
-                        entry['provider_outcomes']=str(row.get('provider outcomes',''))[:2500]
-                    else:
-                        why=str(row.get('rejected because','')).strip()
-                        if why and len(entry['rejections'])<12:
-                            entry['rejections'].append({'provider':str(row.get('provider',''))[:80],
-                                'reason':why[:MAX_REASON_LENGTH],
-                                'title':str(row.get('candidate title',''))[:100]})
-                    entry['last_reported']=filename.stat().st_mtime
-        except (OSError, UnicodeError, csv.Error):continue
+    for base in bases:
+        already=set(result)
+        for basename,kind in names:
+            filename=base/basename
+            if not filename.is_file() or filename.is_symlink() or filename.stat().st_size>MAX_REPORT_BYTES:
+                continue
+            read=0
+            try:
+                with filename.open(encoding='utf-8-sig',newline='') as stream:
+                    for row in csv.DictReader(stream):
+                        read+=1
+                        if read>250_000:break
+                        path=row.get('MP3 path','')
+                        if not path:continue
+                        match=Path(path)
+                        if not match.is_absolute() or not _inside(match.resolve(),folder):continue
+                        canonical=str(match.resolve())
+                        if selected_paths is not None and canonical not in selected_paths:continue
+                        if canonical in already:continue # newest per-song report wins
+                        entry=result.setdefault(canonical,{'status':'','reason':'','provider_outcomes':'',
+                                                          'rejections':[],'last_reported':None})
+                        if kind=='report':
+                            entry['status']=str(row.get('status',''))[:80]
+                            entry['reason']=str(row.get('reason',''))[:MAX_REASON_LENGTH]
+                            entry['provider_outcomes']=str(row.get('provider outcomes',''))[:2500]
+                        else:
+                            why=str(row.get('rejected because','')).strip()
+                            if why and len(entry['rejections'])<12:
+                                entry['rejections'].append({'provider':str(row.get('provider',''))[:80],
+                                    'reason':why[:MAX_REASON_LENGTH],
+                                    'title':str(row.get('candidate title',''))[:100]})
+                        entry['last_reported']=filename.stat().st_mtime
+            except (OSError,UnicodeError,csv.Error):continue
+        if selected_paths is not None and selected_paths.issubset(set(result)):
+            break
     return result
-
 
 def reason_for_row(row, outcomes):
     path=str(Path(row['path']).resolve())
