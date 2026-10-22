@@ -170,14 +170,25 @@ def undo_session(session_id, *, expected_root, appdata=None):
     items=session_entries(session_id,expected_root=expected_root,appdata=appdata)
     removed=[];skipped=[]
     journal=_session_path(session_id,appdata)
+    root, events=_records(session_id,appdata)
+    original={str(root/e['path']):e for e in events if e.get('kind')=='create' and isinstance(e.get('path'),str)}
     for entry in items:
         if not entry['eligible']:
             skipped.append((entry['path'],entry['reason']))
             continue
         path=entry['path']
-        # Revalidate each file, not just the initial preview.
-        fresh={str(p['path']):p for p in session_entries(session_id,expected_root=expected_root,appdata=appdata)}.get(str(path))
-        if not fresh or not fresh['eligible']:
+        # Revalidate this exact file immediately before removal without
+        # re-hashing every other library sidecar for each single deletion.
+        recorded=original.get(str(path))
+        try:
+            stat=path.stat()
+            safe=(recorded is not None and not path.is_symlink() and
+                  _inside(path.resolve(strict=True),root) and
+                  stat.st_size==recorded.get('size') and
+                  stat.st_mtime_ns==recorded.get('mtime_ns') and
+                  _file_digest(path)==recorded.get('digest'))
+        except OSError:safe=False
+        if not safe:
             skipped.append((path,'Changed during undo'))
             continue
         try:
@@ -208,7 +219,8 @@ def make_selection_manifest(root, tracks, *, directory=None):
         if resolved.with_suffix('.lrc').exists():raise ValueError('Selection already contains a finished .lrc')
         rel=resolved.relative_to(folder).as_posix()
         if rel in seen:raise ValueError('Duplicate song in selection')
-        seen.add(rel);relative.append(rel)
+        stat=resolved.stat()
+        seen.add(rel);relative.append({'path':rel,'size':stat.st_size,'mtime_ns':stat.st_mtime_ns})
     fd,name=tempfile.mkstemp(prefix='LRC_Select_',suffix='.json',dir=directory)
     try:
         with os.fdopen(fd,'w',encoding='utf-8') as stream:
@@ -242,11 +254,16 @@ def filter_selected_tracks(root, eligible, manifest_path):
                 audio_by_rel[resolved.relative_to(folder).as_posix()]=p
         except (OSError,ValueError):pass
     out=[];seen=set()
-    for rel in names:
+    for item in names:
+        if not isinstance(item,dict):raise ValueError('Invalid selection entry')
+        rel=item.get('path')
         if not isinstance(rel,str) or rel in seen or Path(rel).is_absolute() or '..' in Path(rel).parts:
             raise ValueError('Unsafe or duplicate path in selective retry')
         seen.add(rel)
-        if rel not in audio_by_rel:raise ValueError('Selected track changed, is missing or is no longer eligible: '+rel[:80])
+        if rel not in audio_by_rel:raise ValueError('Selected track is missing or no longer eligible: '+rel[:80])
+        stat=audio_by_rel[rel].stat()
+        if stat.st_size!=item.get('size') or stat.st_mtime_ns!=item.get('mtime_ns'):
+            raise ValueError('Selected audio changed after confirmation: '+rel[:80])
         out.append(audio_by_rel[rel])
     return out
 
