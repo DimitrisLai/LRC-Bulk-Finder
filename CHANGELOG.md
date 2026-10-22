@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.5.0 — Library Manager: filtered retries, rejection details and creation-journal undo
+- Extend the bilingual searchable dashboard with user-selectable exact online retry for missing/review tracks (maximum 2500 per explicit run). Validate size/mtime and fail closed if a selected track changes or gains an LRC.
+- Bypass prior cached NO_MATCH only for the user-requested retry; preserve distinct resume checkpoint files and provider cooldown behavior.
+- Explain unmatched/review outcomes with actual historical engine CSV provider and candidate rejection details, clearly labelled potentially stale.
+- Journal exclusively created verified and candidate sidecars per GUI session under user APPDATA. Require exact path, size, mtime and SHA256 before removal. Confirm first; never delete audio, existing/edited LRC, manually repaired candidates, reports or settings.
+- Additive Greek UI labels, original approved translations intact, former Quick Search and advanced workflows preserved.
+- Adversarial offline, real Windows GUI, Linux Xvfb, and frozen EXE process-tree/STOP tests.
+
+
 ## v2.4.5 — Quick Search, library overview, synchronization timing offset repair
 - Beginner Quick Search tab with 20-song test or whole-library scanning, advanced settings preserved.
 - Read-only Results dashboard with status/filename filtering and exclusive-create CSV export.
