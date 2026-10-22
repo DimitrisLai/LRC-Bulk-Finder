@@ -13,19 +13,18 @@ import sys
 import time
 
 
-def titles_for_pid(pid):
+def visible_control_center_titles():
     user32=ctypes.windll.user32
     callback=ctypes.WINFUNCTYPE(wintypes.BOOL,wintypes.HWND,wintypes.LPARAM)
     seen=[]
     def collect(hwnd,lparam):
-        owner=wintypes.DWORD(0)
-        user32.GetWindowThreadProcessId(hwnd,ctypes.byref(owner))
-        if owner.value==pid and user32.IsWindowVisible(hwnd):
+        if user32.IsWindowVisible(hwnd):
             n=user32.GetWindowTextLengthW(hwnd)
             if n:
                 buf=ctypes.create_unicode_buffer(n+1)
                 user32.GetWindowTextW(hwnd,buf,n+1)
-                seen.append(buf.value)
+                if 'LRC Bulk Finder' in buf.value:
+                    seen.append(buf.value)
         return True
     user32.EnumWindows(callback(collect),0)
     return seen
@@ -46,7 +45,8 @@ def main():
         while time.monotonic()<deadline:
             if proc.poll() is not None:
                 raise AssertionError(f"Frozen GUI exited early, status={proc.returncode}")
-            seen=titles_for_pid(proc.pid)
+            # PyInstaller --onefile runs the GUI in a child process, not the launcher PID.
+            seen=visible_control_center_titles()
             if "LRC Bulk Finder v2.9.1 — Control Center" in seen:
                 print("PASS frozen Control Center visible title is v2.9.1 after language initialization.")
                 return 0
