@@ -8,7 +8,7 @@ from tkinter import ttk, filedialog
 from v270_gui import V270Mixin
 from v260_studio import format_time
 from v280_karaoke_core import (KaraokeSession, AUDIO_EXTS, THEMES, FONTS, COUNTDOWNS,
-                               regular_file, preview_export)
+                               regular_file, preview_export, support_report, save_support_report)
 
 class V280Mixin(V270Mixin):
     def _studio_build_tabs(self):
@@ -99,6 +99,7 @@ class V280Mixin(V270Mixin):
                    command=self._v280_preview_export).pack(side="left",padx=7)
         ttk.Button(row,text="Open audience screen",
                    command=self._v270_show_karaoke).pack(side="left",padx=4)
+        ttk.Button(row,text="Export private diagnostics...",command=self._v280_export_diagnostics).pack(side="left",padx=2)
         row=ttk.Frame(p);row.pack(fill="x",pady=4)
         ttk.Label(row,text="Target display:").pack(side="left")
         self._v280_displays=self._v280_detect_displays()
@@ -127,8 +128,10 @@ class V280Mixin(V270Mixin):
             TkinterDnD.require(self)
             TkinterDnD.DnDWrapper.drop_target_register(self._v280_tree,DND_FILES)
             TkinterDnD.DnDWrapper.dnd_bind(self._v280_tree,"<<Drop>>",self._v280_drop)
+            self._v280_drop_ready=True
             self._v280_status.set("Drag and drop ready. Add instrumentals and LRC files to the playlist.")
         except (ImportError,OSError,tk.TclError,AttributeError,RuntimeError) as ex:
+            self._v280_drop_ready=False
             self._v280_status.set("File chooser available; native drag-and-drop unavailable on this setup.")
 
     def _v280_drop(self,event):
@@ -309,6 +312,18 @@ class V280Mixin(V270Mixin):
         if before!=self.studio_doc.lines:
             self._v280_reset_offset()
             self._v280_status.set("Applied offset in memory. Use Undo or export a NEW candidate after review.")
+
+    def _v280_export_diagnostics(self):
+        dest=filedialog.asksaveasfilename(parent=self,title="Save privacy-safe support report",
+            defaultextension=".json",filetypes=[("JSON reports","*.json")])
+        if not dest:return
+        try:
+            report=support_report(self._v280_session,self.studio_player,
+                   getattr(self,"_v280_drop_ready",False),len(self._v280_displays))
+            path=save_support_report(report,dest)
+            self._v280_status.set("Saved redacted support diagnostics: "+str(path))
+        except (OSError,ValueError) as ex:
+            self._dialog("showerror","Support diagnostics",str(ex))
 
     def _v280_preview_export(self):
         if not self.studio_doc or not self.studio_audio.get():
