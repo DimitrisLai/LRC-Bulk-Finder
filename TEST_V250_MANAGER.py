@@ -124,6 +124,28 @@ class ManagerSafety(unittest.TestCase):
         self.assertIn('Duration mismatch',msg);self.assertIn('may be stale',msg)
         self.assertIn('provider unavailable',msg)
 
+    def test_archive_fallback_for_song_absent_from_current_subset_report(self):
+        archive=self.root/'LRC_Run_Reports'/'Run_20261020_v2_5_0'
+        archive.mkdir(parents=True)
+        with (archive/'LRC_Finder_Report_v2_1_15.csv').open('w',encoding='utf-8-sig',newline='') as f:
+            w=csv.writer(f);w.writerow(['MP3 path','round','status','reason','saved provider','provider outcomes'])
+            w.writerow([str(self.audio),'1','NOT_FOUND_PARTIAL','previous recording mismatch','','LRCLIB=NO_MATCH'])
+        self.root.joinpath('LRC_Finder_Report_v2_1_15.csv').write_text('MP3 path,round,status,reason,saved provider,provider outcomes\n',encoding='utf-8-sig')
+        result=m.load_rejection_explanations(self.root,[self.audio])
+        self.assertIn('previous recording mismatch',m.reason_for_row({'path':str(self.audio),'status':'Missing LRC'},result))
+
+    def test_current_report_overrides_archived_stale_reason(self):
+        archive=self.root/'LRC_Run_Reports'/'Run_20261020_v2_5_0'
+        archive.mkdir(parents=True)
+        for target,why in [(archive/'LRC_Finder_Report_v2_1_15.csv','OLD REASON'),
+                           (self.root/'LRC_Finder_Report_v2_1_15.csv','NEW REASON')]:
+            with target.open('w',encoding='utf-8-sig',newline='') as f:
+                w=csv.writer(f);w.writerow(['MP3 path','round','status','reason','saved provider','provider outcomes'])
+                w.writerow([str(self.audio),1,'NOT_FOUND',why,'','LRCLIB=NO_MATCH'])
+        result=m.load_rejection_explanations(self.root,[self.audio])
+        self.assertIn('NEW REASON',m.reason_for_row({'path':str(self.audio),'status':'Missing LRC'},result))
+        self.assertNotIn('OLD REASON',m.reason_for_row({'path':str(self.audio),'status':'Missing LRC'},result))
+
     def test_unmatched_report_absent_is_not_invented(self):
         msg=m.reason_for_row({'path':str(self.audio),'status':'Missing LRC'}, {})
         self.assertIn('No current per-song reason',msg)
