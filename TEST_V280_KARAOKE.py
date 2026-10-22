@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 from v260_studio import LyricLine
-from v280_karaoke_core import KaraokeSession, find_lyrics, preview_export, regular_file
+from v280_karaoke_core import KaraokeSession, find_lyrics, preview_export, regular_file, support_report, save_support_report
 
 class KaraokeCoreTests(unittest.TestCase):
     def setUp(self):
@@ -103,6 +103,21 @@ class KaraokeCoreTests(unittest.TestCase):
         s=KaraokeSession();idx=s.add(self.audio);s.attach(idx,other)
         self.assertEqual(s.entries[idx].lrc,str(other))
         self.assertEqual(other.read_text(encoding="utf-8"),"[00:02.00] X")
+    def test_redacted_diagnostic_export_does_not_leak_names(self):
+        s=KaraokeSession();s.add(self.audio)
+        s.theme="High Contrast"
+        stub=type("Player",(),{"path":self.audio})()
+        report=support_report(s,stub,True,2)
+        self.assertNotIn(self.audio.name,str(report))
+        self.assertNotIn(str(self.root),str(report))
+        self.assertEqual(report["monitor_count"],2)
+        output=self.root/"diagnostics.json"
+        save_support_report(report,output)
+        self.assertEqual(output.stat().st_size>0,True)
+        with self.assertRaises(FileExistsError):
+            save_support_report(report,output)
+        self.assertEqual(self.before,(self.audio.read_bytes(),self.original.read_bytes()))
+
     def test_large_playlist_guard(self):
         s=KaraokeSession()
         with self.assertRaises(ValueError):s.entries=[None]*501;s.save()
