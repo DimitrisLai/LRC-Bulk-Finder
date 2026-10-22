@@ -11,6 +11,7 @@ on:
       - 'v290_translations.py'
       - 'TEST_V290_SMART_LIBRARY.py'
       - 'TEST_V290_GUI.py'
+      - 'TEST_V290_SCALE.py'
       - 'TEST_AUDIT_V2_9_0.md'
       - 'v280_karaoke_core.py'
       - 'v280_karaoke_gui.py'
