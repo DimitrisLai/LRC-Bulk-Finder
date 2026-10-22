@@ -235,3 +235,34 @@ def preview_export(audio,lines,profile):
     if len(content)>MAX_LRC_BYTES:
         raise ValueError("Candidate too large")
     return content.decode("utf-8-sig")
+
+
+def support_report(session, player, dnd_available=False, monitor_count=0):
+    """Privacy-minimal diagnostics; no music paths, titles, lyrics or file content."""
+    from v270_precision import playback_report
+    extension=Path(str(getattr(player,"path",None) or "")).suffix.lower()
+    base=playback_report(player,extension)
+    return {"schema":1,"app_version":"2.8.0","audio":base,
+            "playlist_count":len(session.entries),
+            "drop_support":bool(dnd_available),
+            "monitor_count":max(0,int(monitor_count)),
+            "theme":session.theme,
+            "lyric_offset_seconds":session.offset,
+            "notes":"File paths, audio names, lyrics, metadata and access tokens are excluded."}
+
+def save_support_report(report, path):
+    """User-initiated exclusive create; never overwrite prior reports."""
+    target=Path(path)
+    payload=(json.dumps(report,indent=2,ensure_ascii=False)+"\n").encode("utf-8")
+    if len(payload)>16_384:
+        raise ValueError("Diagnostics report too large")
+    flags=os.O_WRONLY|os.O_CREAT|os.O_EXCL
+    if hasattr(os,"O_NOFOLLOW"):flags|=os.O_NOFOLLOW
+    fd=os.open(target,flags,0o600)
+    try:
+        with os.fdopen(fd,"wb") as f:
+            f.write(payload);f.flush();os.fsync(f.fileno())
+    except BaseException:
+        target.unlink(missing_ok=True)
+        raise
+    return target
