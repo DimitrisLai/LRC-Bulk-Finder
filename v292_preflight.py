@@ -81,13 +81,15 @@ def safe_filename_artist_fallback(filename_stem,tag_title,tag_artist):
     placeholders (unknown artist, various artist, etc.) do not claim an
     artist; prefer no metadata over confidently searching the wrong name.
     """
-    if tag_artist or " - " not in filename_stem:
+    if " - " not in filename_stem:
         return tag_title,tag_artist
     first,second=filename_stem.split(" - ",1)
     clean=lambda s:" ".join(s.casefold().strip(" ._-").split())
     missing={"unknown artist","unknown","various artists","various artist","n/a","no artist","unbekannt","αγνωστος καλλιτεχνης"}
-    if clean(second) in missing and clean(tag_title)==clean(first):
-        return tag_title,tag_artist
-    # Preserve the established Artist - Title convention for all other
-    # filenames; do not silently reinterpret ambiguous naming formats.
+    if not tag_artist and tag_title and clean(tag_title)==clean(first):
+        # Song - Artist filename style, supported only when the ID3 title
+        # independently verifies the first half of the filename.
+        if clean(second) in missing:return tag_title,""
+        return tag_title,second.strip()
+    # Original Artist - Title filename fallback: never replace valid tags.
     return tag_title or second.strip(),tag_artist or first.strip()
