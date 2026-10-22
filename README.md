@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.4.5 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.5.0 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -16,7 +16,24 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
-## Current release — v2.4.5 (English / Ελληνικά Public Beta)
+## Current release — v2.5.0 Library Manager (English / Ελληνικά Public Beta)
+
+**NEW Library Manager:** The Results dashboard now offers a searchable and filterable music inventory, exact **Retry selected tracks**, **Why was this rejected?** based on saved provider/review CSV reports, and **Undo last search session...** which safely removes only unchanged sidecars created by that specific v2.5.0 GUI session. Reports may be stale; LRC existence does not mean verified lyrics.
+
+**Safe selected retries:** Only the explicitly selected missing/review songs are searched, using FULL online providers, without reusing old NO_MATCH cache. Changed, missing, ambiguous or already-provided-LRC selections refuse to launch rather than searching your entire library. Normal scan checkpoints are preserved separately.
+
+**Safe undo:** Local journal in your own APPDATA records newly created LRC/candidate files after exclusive creation. Undo asks for confirmation and rechecks byte size, modification timestamp and SHA256. It leaves your original audio, ID3 metadata, pre-existing/edited LRCs, manually created timing fixes, reports and settings untouched. Pre-v2.5.0 runs have no journal and cannot be undone.
+
+| Download | Usage |
+| --- | --- |
+| [**Standalone Windows GUI ZIP — v2.5.0 (EN / EL)**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.5.0/LRC_Bulk_Finder_v2_5_0_Standalone_Windows_GUI.zip) | Recommended. Extract all files, then open `LRC_Control_Center.exe`. No Python needed. |
+| [**Complete Python/CMD ZIP — v2.5.0**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.5.0/LRC_Bulk_Finder_Public_v2_5_0_GitHub_Release_Windows.zip) | Python 3.10+, advanced launchers and optional local AI. |
+| [**Complete English manual (PDF)**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.5.0/LRC_Bulk_Finder_v2_5_0_Complete_User_Manual_EN.pdf) | Entire application, including Library Manager. |
+| [**Ελληνικός οδηγός PDF**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.5.0/LRC_Bulk_Finder_v2_5_0_User_Guide_EL.pdf) | New Library Manager sections in Greek. |
+
+See the [v2.5.0 release notes](RELEASE_NOTES_V2_5_0.md), [quick start](HOW_TO_START_V2_5_0.txt), and [changelog](CHANGELOG.md). Windows executables are currently unsigned.
+
+## Previous release — v2.4.5 (English / Ελληνικά Public Beta)
 
 The application now opens with **Quick Search**: choose a music folder, choose 20 songs or All songs, and click **START QUICK SEARCH**. No need to configure provider order or a large LRCLIB database for ordinary online searching.
 
