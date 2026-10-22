@@ -30,6 +30,7 @@ class V260StudioMixin:
         self.studio_doc = None
         self._studio_saved = True
         self._studio_active = None
+        self._studio_seek_dragging = False
         self._studio_duration = 0.0
         self.studio_audio = tk.StringVar()
         self.studio_status = tk.StringVar(value="Choose a track and a timed LRC, or import text from Classic Sync Lab.")
@@ -58,6 +59,7 @@ class V260StudioMixin:
         ttk.Label(player, textvariable=self.studio_position).pack(side="left", padx=12)
         self.studio_seek = ttk.Scale(area, from_=0, to=100, orient="horizontal")
         self.studio_seek.pack(fill="x")
+        self.studio_seek.bind("<ButtonPress-1>", self._studio_seek_begin)
         self.studio_seek.bind("<ButtonRelease-1>", self._studio_seek_release)
 
         ttk.Label(area, text="Live lyric preview").pack(anchor="w", pady=(6, 0))
@@ -278,7 +280,11 @@ class V260StudioMixin:
     def _studio_seek_relative(self, delta):
         self._studio_seek(self.studio_player.position() + delta)
 
+    def _studio_seek_begin(self, event=None):
+        self._studio_seek_dragging = True
+
     def _studio_seek_release(self, event=None):
+        self._studio_seek_dragging = False
         self._studio_seek(float(self.studio_seek.get()))
 
     def _studio_seek_selected(self, event=None):
@@ -298,7 +304,7 @@ class V260StudioMixin:
             if total > 0:
                 self.studio_seek.configure(to=total)
                 # Do not interrupt a user dragging the seek bar.
-                if not self.studio_seek.focus_get() == self.studio_seek:
+                if not self._studio_seek_dragging:
                     self.studio_seek.set(min(total, current))
             if self.studio_doc:
                 idx = self.studio_doc.active_line(current)
