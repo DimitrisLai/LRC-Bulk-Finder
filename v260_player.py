@@ -91,7 +91,10 @@ class StudioPlayer:
             raise PlaybackError("Invalid seek position")
         music = self._mixer()
         try:
-            music.play(start=seconds)
+            if seconds == 0:
+                music.play()
+            else:
+                music.play(start=seconds)
         except Exception:
             try:
                 music.play()
