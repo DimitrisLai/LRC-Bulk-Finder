@@ -271,10 +271,12 @@ def load_rejection_explanations(root, selected=None):
                     read+=1
                     if read>250_000:break
                     path=row.get('MP3 path','')
-                    if not path or (selected_paths is not None and path not in selected_paths):continue
+                    if not path:continue
                     match=Path(path)
                     if not match.is_absolute() or not _inside(match.resolve(),folder):continue
-                    entry=result.setdefault(str(match),{'status':'','reason':'','provider_outcomes':'',
+                    canonical=str(match.resolve())
+                    if selected_paths is not None and canonical not in selected_paths:continue
+                    entry=result.setdefault(canonical,{'status':'','reason':'','provider_outcomes':'',
                                                         'rejections':[],'last_reported':None})
                     if kind=='report':
                         entry['status']=str(row.get('status',''))[:80]
@@ -292,7 +294,7 @@ def load_rejection_explanations(root, selected=None):
 
 
 def reason_for_row(row, outcomes):
-    path=str(row['path'])
+    path=str(Path(row['path']).resolve())
     info=outcomes.get(path)
     if not info:
         if row['status']=='Has LRC':return 'An LRC sidecar exists; its content and timing have not been independently verified.'
