@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.9.1 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.9.2 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -16,11 +16,23 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
-## v2.9.2 — Bounded Greek Search Preflight (release candidate)
+## Current release — v2.9.2 Bounded Greek Search Preflight
 
-Fixes the user-reported 3,183-track, zero-progress startup: displays PREFLIGHT DISCOVERY/METADATA progress and honors a selected 20-song limit before expensive ID3 reading. A short search no longer processes all 3,183 track metadata records before searching. Tag-only LIVE exclusions are preserved; original audio and LRC files remain untouched. The three privately provided real MP3s were inspected (two with artist/title, one lacking artist), and their audio is **not included** in this repository or its release archives. [Release notes](RELEASE_NOTES_V2_9_2.md) · [QA plan](TEST_AUDIT_V2_9_2.md). Official v2.9.1 remains the latest downloadable release until v2.9.2 is published and verified.
+Fixes the user-reported 3,183-track, zero-progress startup: displays PREFLIGHT DISCOVERY/METADATA progress and honors a selected 20-song limit before expensive ID3 reading. A short search no longer processes all 3,183 track metadata records before searching. Tag-only LIVE exclusions are preserved; original audio and LRC files remain untouched. The three privately provided real MP3s were inspected (two with artist/title, one lacking artist), and their audio is **not included** in this repository or its release archives. [Release notes](RELEASE_NOTES_V2_9_2.md) · [QA plan](TEST_AUDIT_V2_9_2.md). **Official v2.9.2 is now published and all five public downloads passed independent SHA-256 verification:**
 
-## Current release — v2.9.1 Windows Startup & Version Display Stability Patch
+| Asset | Download |
+| --- | --- |
+| **Windows standalone GUI ZIP** (recommended; no Python required) | [LRC Bulk Finder v2.9.2 Standalone Windows](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.2/LRC_Bulk_Finder_v2_9_2_Standalone_Windows_GUI.zip) |
+| Source/CMD/test ZIP | [Complete v2.9.2 source](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.2/LRC_Bulk_Finder_Public_v2_9_2_GitHub_Release_Windows.zip) |
+| Complete English user manual PDF | [English v2.9.2 manual](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.2/LRC_Bulk_Finder_v2_9_2_Complete_User_Manual_EN.pdf) |
+| Ελληνικός οδηγός PDF | [Greek v2.9.2 guide](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.2/LRC_Bulk_Finder_v2_9_2_User_Guide_EL.pdf) |
+| SHA-256 hashes | [v2.9.2 SHA256SUMS](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.2/LRC_Bulk_Finder_v2_9_2_SHA256SUMS.txt) |
+
+[Official v2.9.2 release](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/tag/v2.9.2) · [Merged PR #17](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/17) · [Final four-platform tests](https://github.com/DimitrisLai/LRC-Bulk-Finder/actions/runs/39855697401) · [Windows release and verification](https://github.com/DimitrisLai/LRC-Bulk-Finder/actions/runs/39855697333).
+
+
+
+## Previous release — v2.9.1 Windows Startup & Version Display Stability Patch
 
 **If you see a black terminal saying `LRC_Bulk_Finder_Worker.exe: --profile is required`, you've launched the background search worker instead of the main app.** Extract the **entire** Windows standalone ZIP and run **`LAUNCH_LRC_BULK_FINDER_WINDOWS.cmd`** (or **`LRC_Control_Center.exe`**). The worker is launched automatically by the Control Center when you start a search profile.
 
