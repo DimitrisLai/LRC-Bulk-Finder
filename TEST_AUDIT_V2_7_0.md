@@ -35,3 +35,11 @@
 8. Visually inspect the English/Greek PDFs and confirm car-radio compatibility independently.
 
 **Release rule:** only claim final release when main CI, both Windows packages, publication download hashes and GitHub release status all succeed. Keep prior release assets intact.
+
+## Final publication verification (22 October 2026)
+
+- PR [#12](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/12) merged into main; main release commit \`5a1fc736d9c572af6fadc0d7fa855af7e586dd7d\`.
+- [Final main Python matrix](https://github.com/DimitrisLai/LRC-Bulk-Finder/actions/runs/39785549791): **SUCCESS** across Windows/Linux Python 3.10 and 3.13.
+- [Final main Windows packaging and publication](https://github.com/DimitrisLai/LRC-Bulk-Finder/actions/runs/39785549707): **SUCCESS**. Packaged GUI/worker smoke, STOP, bilingual manuals, safe archives and asset checksum verification completed.
+- [Published v2.7.0 release](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/tag/v2.7.0): 2 archives, 2 PDFs, 1 SHA-256 checksum manifest. The publisher downloaded the public assets and logged **PASS: all five official release assets match the published SHA256 manifest**.
+- Human Windows listening tests, dual-display projector tests and actual car-radio compatibility remain *manual beta acceptance*, not CI-proven guarantees.
