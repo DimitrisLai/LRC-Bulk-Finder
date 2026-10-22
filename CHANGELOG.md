@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.8.0 — Karaoke Edition
+
+- New playlist-focused, performer-friendly Karaoke Edition workspace while preserving eight Control Center tabs.
+- Clean separate audience/projector screen, optional second-monitor targeting, themes, font sizes, next-line visibility and local background photo.
+- Guarded instrumental suffix LRC pairing, manual pairing, playlist reorder, track switching, last song and safe private settings persistence.
+- Optional native file drag/drop with chooser fallback, playback countdown, persisted A–B loops, keyboard track navigation.
+- Display-only lyric timing calibration ±30s; explicitly confirmed in-memory apply, ordinary Undo and separately confirmed new candidate export only.
+- Read-only candidate export preview, redacted support diagnostics, Greek/English manual update and Windows/4-platform QA gates.
+
+
+
 ## v2.7.0 — Karaoke & Precision Lab
 
 - Fullscreen instrumental karaoke using local timed LRC, with active/next lyric preview and no vocal removal.
