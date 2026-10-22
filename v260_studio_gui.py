@@ -114,6 +114,8 @@ class V260StudioMixin:
             return
         p = Path(filename)
         self.studio_player.close()
+        reset=getattr(self,'_studio_new_audio_backend',None)
+        if callable(reset):reset()
         self.studio_audio.set(str(p))
         self._studio_duration = duration_seconds(p)
         self.studio_doc = None
