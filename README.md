@@ -16,6 +16,10 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
+## v2.6.0 Lyrics Studio (in development)
+
+**Review code and QA:** [Lyrics Studio pull request #11](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/11). The new Sync Lab inner workspace integrates local audio playback, active lyric preview, individual timestamp corrections, in-memory Undo/Redo, and a strictly non-overwriting export of marked UNVERIFIED candidates. The original Classic Sync Lab and all eight main tabs are preserved. Player support varies by SDL codec and pygame is required for source builds. See [v2.6.0 notes](RELEASE_NOTES_V2_6_0.md). **Until full Windows packaging and checksum QA succeeds, download the current v2.5.0 release below.**
+
 ## Current release — v2.5.0 Library Manager (English / Ελληνικά Public Beta)
 
 **NEW Library Manager:** The Results dashboard now offers a searchable and filterable music inventory, exact **Retry selected tracks**, **Why was this rejected?** based on saved provider/review CSV reports, and **Undo last search session...** which safely removes only unchanged sidecars created by that specific v2.5.0 GUI session. Reports may be stale; LRC existence does not mean verified lyrics.
