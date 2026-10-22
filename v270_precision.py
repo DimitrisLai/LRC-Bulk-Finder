@@ -95,10 +95,14 @@ def export_candidate(audio, lines, profile="Standard 2 decimals"):
             fd = os.open(target, flags, 0o600)
         except FileExistsError:
             continue
-        with os.fdopen(fd, "wb") as f:
-            f.write(payload)
-            f.flush()
-            os.fsync(f.fileno())
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(payload)
+                f.flush()
+                os.fsync(f.fileno())
+        except BaseException:
+            target.unlink(missing_ok=True)
+            raise
         return target
     raise FileExistsError("No free candidate filename")
 
@@ -120,9 +124,20 @@ def draft_file(audio):
     ident, _ = identity(audio)
     return _base() / (ident + ".json")
 
+def _validate_draft_lines(lines):
+    # Temporary edits can be out of order; recovery must retain them so they
+    # can be fixed. This is NOT a validation for candidate export.
+    if not 1 <= len(lines) <= 1000:
+        raise ValueError("Draft needs 1–1000 lines")
+    for line in lines:
+        if not isinstance(line.seconds, (float, int)) or not math.isfinite(line.seconds) or not 0 <= line.seconds <= MAX_SECONDS:
+            raise ValueError("Invalid draft timestamp")
+        if not isinstance(line.text, str) or not line.text.strip() or len(line.text) > 1000 or "\n" in line.text or "\r" in line.text:
+            raise ValueError("Invalid draft lyric text")
+
 def save_draft(audio, lines, source=None):
     ident, fingerprint = identity(audio)
-    render_export(lines, "Precise 3 decimals")
+    _validate_draft_lines(lines)
     root = _base()
     root.mkdir(parents=True, exist_ok=True)
     if root.is_symlink():
@@ -171,7 +186,7 @@ def load_draft(audio, source=None):
             if hashlib.sha256(Path(source).read_bytes()).hexdigest() != data["source_hash"]:
                 return None
         lines = [LyricLine(float(t), str(value)) for t, value in data["lines"]]
-        render_export(lines, "Precise 3 decimals")
+        _validate_draft_lines(lines)
         return lines
     except (OSError, ValueError, KeyError, TypeError, IndexError):
         return None
