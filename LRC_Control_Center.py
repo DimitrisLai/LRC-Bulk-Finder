@@ -35,13 +35,13 @@ from v243_contribution import export_contribution
 from ui_locale import GuiLocale, read_language, save_language
 from v250_manager import start_session
 from v245_gui import V245Mixin
-from v270_gui import V270Mixin
+from v280_karaoke_gui import V280Mixin
 
 
-class ControlCenter(V270Mixin,V245Mixin,tk.Tk):
+class ControlCenter(V280Mixin,V245Mixin,tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LRC Bulk Finder v2.7.0 — Control Center")
+        self.title("LRC Bulk Finder v2.8.0 — Control Center")
         self.gui_locale=GuiLocale(read_language())
         self._locale_widgets={}
         self._status_vars={}
