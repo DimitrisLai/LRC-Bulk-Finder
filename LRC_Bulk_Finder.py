@@ -859,8 +859,14 @@ def _read_audio_info(path):
     duration=float(audio.info.length) if audio is not None and getattr(audio,'info',None) else 0
     if ' - ' in path.stem and (not title or not artist):
         guess_artist,guess_title=path.stem.split(' - ',1)
-        title=title or guess_title.strip()
-        artist=artist or guess_artist.strip()
+        # Do not invent an artist from placeholders like "_" or "Unknown".
+        # One of the real Greek MP3 fixtures has an actual title ID3 tag but
+        # no artist tag and a leading "_" filename token.
+        unknown={'unknown','unknown artist','untitled','no artist','n a','n/a','_', '-', '.'}
+        if not title and guess_title.strip().casefold() not in unknown:
+            title=guess_title.strip()
+        if not artist and guess_artist.strip().casefold() not in unknown:
+            artist=guess_artist.strip()
     return title,artist,album,duration
 
 
