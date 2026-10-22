@@ -25,7 +25,7 @@ class ManagerSafety(unittest.TestCase):
     def test_undo_recorded_verified_sidecar_only(self):
         sid,p=self._created()
         out=m.undo_session(sid,expected_root=self.root,appdata=self.user)
-        self.assertEqual(out['removed'],[p]);self.assertFalse(p.exists())
+        self.assertEqual([x.resolve() for x in out['removed']],[p.resolve()]);self.assertFalse(p.exists())
         self.assertEqual(self.audio.read_bytes(),b'mp3 untouched')
         self.assertFalse(m.session_entries(sid,expected_root=self.root,appdata=self.user)[0]['eligible'])
         self.assertEqual(m.undo_session(sid,expected_root=self.root,appdata=self.user)['removed'],[])
