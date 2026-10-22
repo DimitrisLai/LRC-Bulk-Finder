@@ -3,7 +3,7 @@ name: Package and publish LRC Bulk Finder v2.6.0 Lyrics Studio release
 
 on:
   push:
-    branches: [feature/v2.6.0-library-manager, main]
+    branches: [feature/v2.6.0-lyrics-studio, main]
     paths:
       - '.github/workflows/publish-v2.6.0.yml'
       - 'LRC_Bulk_Finder.py'
@@ -68,7 +68,7 @@ jobs:
         run: |
           python -m compileall -q LRC_Control_Center.py LRC_Bulk_Finder.py ui_locale.py ui_translations.py v245_features.py v245_gui.py v245_translations.py v250_manager.py v250_gui.py v250_translations.py v260_studio.py v260_studio_gui.py v260_player.py v260_translations.py worker_stop.py BUILD_V260_MANUALS.py BUILD_V260_RELEASE.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -c "import LRC_Bulk_Finder as engine; from ui_translations import UI_EL; from ui_locale import GuiLocale; assert engine.VERSION=='2.5.0'; assert len(UI_EL)>=350; assert GuiLocale('el').tr('Saved searches')=='Αποθηκευμένες αναζητήσεις'; assert GuiLocale('el').tr('Quick Search')=='Γρήγορη αναζήτηση'; assert GuiLocale('el').tr('Retry selected tracks')=='Επανάληψη επιλεγμένων τραγουδιών'; print('PASS: v2.6.0 bilingual source')"
+          python -c "import LRC_Bulk_Finder as engine; from ui_translations import UI_EL; from ui_locale import GuiLocale; assert engine.VERSION=='2.6.0'; assert GuiLocale('el').tr('Lyrics Studio')=='Στούντιο στίχων'; assert len(UI_EL)>=350; assert GuiLocale('el').tr('Saved searches')=='Αποθηκευμένες αναζητήσεις'; assert GuiLocale('el').tr('Quick Search')=='Γρήγορη αναζήτηση'; assert GuiLocale('el').tr('Retry selected tracks')=='Επανάληψη επιλεγμένων τραγουδιών'; print('PASS: v2.6.0 bilingual source')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run every regression and bilingual Tkinter UI test
         shell: pwsh
