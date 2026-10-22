@@ -121,7 +121,7 @@ def build():
                      'v270_translations.py','v280_karaoke_core.py','v280_karaoke_gui.py',
                      'v280_translations.py','TEST_V280_KARAOKE.py','TEST_V280_GUI.py',
                      'v290_smart_library.py','v290_smart_gui.py','v290_translations.py',
-                     'TEST_V290_SMART_LIBRARY.py','TEST_V290_GUI.py',
+                     'TEST_V290_SMART_LIBRARY.py','TEST_V290_GUI.py','TEST_V290_SCALE.py',
                      'BUILD_V290_MANUALS.py',
                      'ROADMAP_V2_8_V2_9_V3_0.md','worker_stop.py',
                      'README_STANDALONE_EXE_V2_9_0.txt','HOW_TO_START_V2_9_0.txt',
