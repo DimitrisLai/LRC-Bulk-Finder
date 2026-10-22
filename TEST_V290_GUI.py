@@ -84,6 +84,20 @@ class SmartUITests(unittest.TestCase):
         self.app._v290_poll()
         self.assertFalse(self.app._v290_running)
         self.assertTrue(self.app._v290_records)
+    def test_switch_track_after_optional_vlc_recreates_safe_player(self):
+        from v270_vlc import VLCPlayer
+        from v260_player import StudioPlayer
+        from TEST_V270_FEATURES import FakeVLC
+        old=VLCPlayer(FakeVLC())
+        old.load(self.track)
+        self.app.studio_player=old
+        self.app._v270_rate.set("1.25x")
+        before=(self.track.read_bytes(),self.lrc.read_bytes())
+        self.assertTrue(self.app._v270_open(self.track))
+        self.assertIsInstance(self.app.studio_player,StudioPlayer)
+        self.assertEqual(self.app._v270_rate.get(),"1.00x")
+        self.assertEqual(before,(self.track.read_bytes(),self.lrc.read_bytes()))
+
     def test_export_rejected_when_user_declines(self):
         self._scan()
         chosen=Path(self.tmp.name)/"export.csv"
