@@ -1,23 +1,8 @@
 name: Package and publish LRC Bulk Finder v2.4.5 bilingual release
 # Dry-run on QA branch; publish to GitHub only after merged and tested on main.
 
+# Archived after v2.5.0: never rebuild/publish an older tag automatically.
 on:
-  push:
-    branches: [feature/v2.4.5-quick-results-timing, main]
-    paths:
-      - '.github/workflows/publish-v2.4.5.yml'
-      - 'LRC_Bulk_Finder.py'
-      - 'LRC_Control_Center.py'
-      - 'v245_features.py'
-      - 'v245_gui.py'
-      - 'v245_translations.py'
-      - 'TEST_V245_FEATURES.py'
-      - 'TEST_V245_GUI.py'
-      - 'ui_translations.py'
-      - 'RELEASE_NOTES_V2_4_5.md'
-      - 'README_STANDALONE_EXE_V2_4_5.txt'
-      - 'BUILD_V245_MANUALS.py'
-      - 'BUILD_V245_RELEASE.py'
   workflow_dispatch:
 
 permissions:
