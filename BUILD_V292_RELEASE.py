@@ -26,7 +26,8 @@ def git_files():
     files=[Path(p) for p in data.decode('utf-8').split('\0') if p]
     def allowed(p):
         name=p.as_posix()
-        return ((BASE/p).is_file() and not name.startswith(('.github/','QA_','downloads/'))
+        return ((BASE/p).is_file() and not name.startswith(('.github/','downloads/'))
+            and (not name.startswith('QA_') or name=='QA_V292_REAL_MP3.py')
             and not name.endswith(('.zip','.pdf','.pyc'))
             and '__pycache__' not in name and not name.startswith('patch_gui_locale'))
     return sorted(p for p in files if allowed(p))
