@@ -484,6 +484,7 @@ class V270Mixin(V260StudioMixin):
         win.protocol("WM_DELETE_WINDOW", self._v270_close_karaoke)
         win.bind("<Escape>", lambda e: self._v270_close_karaoke())
         win.bind("<F11>", lambda e: win.attributes("-fullscreen", not bool(win.attributes("-fullscreen"))))
+        win.bind("<space>", lambda e: self._v270_karaoke_play_pause())
         self.karaoke_window = win
         tk.Label(win, text="KARAOKE • Instrumental + LRC", fg="#a8bbd4", bg="#101b2d",
                  font=("Segoe UI", 16, "bold")).pack(pady=(60, 35))
@@ -493,9 +494,22 @@ class V270Mixin(V260StudioMixin):
                  font=("Segoe UI", 33, "bold"), wraplength=940).pack(fill="both", expand=True, padx=20)
         tk.Label(win, textvariable=self.karaoke_next, fg="#a7b9ce", bg="#101b2d",
                  font=("Segoe UI", 22), wraplength=940).pack(fill="x", pady=(0, 48))
+        tk.Button(win, text="Play / Pause  (Space)", command=self._v270_karaoke_play_pause,
+                  font=("Segoe UI", 12), bg="#283d58", fg="#ffffff", activebackground="#385a7b",
+                  activeforeground="#ffffff").pack(side="bottom", pady=(3, 7))
         tk.Label(win, text="Line-by-line timing • Esc closes • F11 fullscreen • No vocal removal",
                  fg="#8596ac", bg="#101b2d", font=("Segoe UI", 11)).pack(side="bottom", pady=12)
         self._v270_karaoke_refresh()
+
+    def _v270_karaoke_play_pause(self):
+        try:
+            if self.studio_player.is_playing():
+                self.studio_player.pause()
+            else:
+                self.studio_player.play()
+        except (PlaybackError, ValueError) as ex:
+            self._dialog("showerror", "Instrumental karaoke", str(ex))
+        return "break"
 
     def _v270_close_karaoke(self):
         try:
