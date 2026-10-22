@@ -30,7 +30,7 @@ class KaraokeUITests(unittest.TestCase):
         self.app=gui.ControlCenter();self.app.withdraw();self.addCleanup(self.app.destroy)
     def test_nested_tabs_and_greek(self):
         self.assertEqual(len(self.app.notebook.tabs()),8)
-        self.assertEqual(len(self.app.studio_tabs.tabs()),4)
+        self.assertEqual(len(self.app.studio_tabs.tabs()),5)
         self.assertEqual(self.app.studio_tabs.tab(self.app.karaoke_edition_tab,"text"),"Karaoke Edition")
         self.app.language_choice.set("Ελληνικά");self.app._language_selected()
         self.assertEqual(self.app.studio_tabs.tab(self.app.karaoke_edition_tab,"text"),"Έκδοση Καραόκε")
