@@ -2792,7 +2792,7 @@ def main():
         print('New LRC saved:',saved)
         if HISTORY_ENABLED:print('Recent NO_MATCH history:',HISTORY_PATH)
         if G2G_TOOL:print('Local G2G cache:',G2G_TOOL.cache_file)
-        print('LIVE tracks skipped (not searched):',len(live_skipped))
+        print('LIVE tracks skipped (at least; count is limited to metadata inspected):',live_skipped)
         print('NOT FOUND (including partial coverage):',n)
         print('UNFINISHED / TIMEOUT / SERVER ERRORS:',t)
         print('REVIEW REQUIRED:',sum(states[p][0] in {'REVIEW_AVAILABLE','REVIEW_PARTIAL'} for p in missing))
