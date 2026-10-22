@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.6.0 — Lyrics Studio (development; not released until Windows/CI QA)
+
+- Integrated offline pygame-backed music playback in the new inner Lyrics Studio workspace within Sync Lab.
+- Read-only LRC import (UTF-8 or legacy CP1253), active-line preview, timestamp nudges, precise timestamp entry and Stamp at playback.
+- In-memory Undo/Redo and safe numbered UNVERIFIED candidate export; never overwrites music, ID3, existing LRC or candidates.
+- Classic Sync Lab, v2.5 Library Manager, bilingual interface, existing search engine and STOP remain available.
+- Dedicated Windows/Linux regression cases, real SDL WAV player smoke, and versioned EN/EL manual/build automation.
+- Limitations: codec seek position is approximate, MP4/M4A/OPUS require external player; no waveform or word-level alignment.
+
+
 ## v2.5.0 — Library Manager: filtered retries, rejection details and creation-journal undo
 - Extend the bilingual searchable dashboard with user-selectable exact online retry for missing/review tracks (maximum 2500 per explicit run). Validate size/mtime and fail closed if a selected track changes or gains an LRC.
 - Bypass prior cached NO_MATCH only for the user-requested retry; preserve distinct resume checkpoint files and provider cooldown behavior.
