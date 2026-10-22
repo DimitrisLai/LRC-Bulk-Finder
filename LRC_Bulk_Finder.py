@@ -17,6 +17,7 @@ from v243_contribution import export_contribution
 from runtime_paths import program_folder
 from v250_manager import record_created_file, filter_selected_tracks
 from incremental_library import AUDIO_EXTENSIONS, safe_audio_files, IncrementalLibrary
+from v292_preflight import prepare_missing_tracks, parse_limit, safe_filename_artist_fallback
 import hashlib
 import sqlite3
 import shutil
@@ -857,10 +858,7 @@ def _read_audio_info(path):
     artist=tag_string(tags,'artist')
     album=tag_string(tags,'album')
     duration=float(audio.info.length) if audio is not None and getattr(audio,'info',None) else 0
-    if ' - ' in path.stem and (not title or not artist):
-        guess_artist,guess_title=path.stem.split(' - ',1)
-        title=title or guess_title.strip()
-        artist=artist or guess_artist.strip()
+    title,artist=safe_filename_artist_fallback(path.stem,title,artist)
     return title,artist,album,duration
 
 
@@ -2351,46 +2349,56 @@ def main():
     HISTORY_ENABLED=input('Skip identical provider searches completed NO_MATCH in the last 7 days? [Y/n]: ').strip().lower()!='n'
     if HISTORY_ENABLED:
         load_search_history(folder/'LRC_Completed_Search_History.jsonl')
-    it=folder.rglob('*') if recursive else folder.iterdir()
+    print('DISCOVERY: reading audio filenames in the selected music folder...',flush=True)
     all_mp3,collisions=safe_audio_files(folder,recursive)
-    if collisions:print('Skipping ambiguous sidecar stems (multiple formats):',len(collisions))
+    if collisions:print('Skipping ambiguous sidecar stems (multiple formats):',len(collisions),flush=True)
+    print(f'DISCOVERY COMPLETE: {len(all_mp3)} unambiguous supported audio files; preparing local incremental metadata index.',flush=True)
     start_incremental_index(folder,all_mp3)
-    # LIVE is excluded BEFORE limiting the test size and BEFORE any provider request.
-    # Tag-only LIVE also counts, even if the file is named without the word.
-    missing=[]; live_skipped=[]; already_have=0; metadata_cache={}
-    for track in all_mp3:
-        check_stop()
+    # IMPORTANT: choose the limit BEFORE expensive metadata reads. The old
+    # implementation decoded every file in a 3,183-song library for "20 songs".
+    # Filename exclusions are cheap, tag-only LIVE exclusion is still checked
+    # on every candidate actually considered for the 20-song selection.
+    filename_live=[];already_have=0;unchecked=[]
+    for index,track in enumerate(all_mp3,1):
+        if index%100==0:check_stop()
         if is_live_track(track.stem):
-            live_skipped.append(track)
+            filename_live.append(track)
             continue
         if track.with_suffix('.lrc').exists():
             already_have+=1
             continue
-        try:
-            info=song_info(track)
-            metadata_cache[track]=info
-            if is_live_track(info[0]):
-                live_skipped.append(track)
-                continue
-        except Exception:
-            # A malformed MP3 will be reported in the normal error path.
-            pass
-        missing.append(track)
-    print(f'Found {len(all_mp3)} supported audio tracks; skipped {len(live_skipped)} LIVE songs; '
-          f'{already_have} already had LRC; {len(missing)} eligible songs without .lrc.')
+        unchecked.append(track)
+    check_stop()
     selected_manifest=os.environ.get('LRC_SELECTED_TRACKS_FILE','')
     if selected_manifest:
         if action not in ('','1'):
             raise ValueError('Selective retry supports normal online action 1 only')
-        missing=filter_selected_tracks(folder,missing,selected_manifest)
-        print(f'EXPLICIT SELECTIVE RETRY: exactly {len(missing)} requested eligible tracks; never whole-folder fallback.',flush=True)
-    if not missing:return
+        unchecked=filter_selected_tracks(folder,unchecked,selected_manifest)
+        print(f'EXPLICIT SELECTIVE RETRY: exactly {len(unchecked)} validated tracks; never whole-folder fallback.',flush=True)
+    if not unchecked:
+        print(f'PREFLIGHT COMPLETE: no eligible filename candidates; {already_have} already had LRC.',flush=True)
+        return
     howmany=input('How many missing songs? [20 for test, A for all]: ').strip().lower()
-    if howmany!='a':
-        try: limit=int(howmany) if howmany else 20
-        except ValueError:limit=20
-        if limit<=0:return
-        missing=missing[:limit]
+    limit=parse_limit(howmany)
+    if limit==0:
+        print('No songs selected.',flush=True)
+        return
+    def preflight_progress(inspected,total,selected,target):
+        mode='ALL' if target is None else str(target)
+        print(f'PREFLIGHT: inspected={inspected} candidates={total} selected={selected} target={mode}',flush=True)
+    print(f'PREFLIGHT START: {len(unchecked)} candidates; only inspecting enough metadata to select '
+          f'{"ALL" if limit is None else limit} non-LIVE songs.',flush=True)
+    missing,metadata_cache,preflight=prepare_missing_tracks(
+        unchecked,limit=limit,metadata_reader=song_info,is_live=is_live_track,
+        check_cancel=check_stop,on_progress=preflight_progress)
+    live_skipped=len(filename_live)+preflight.live_skipped
+    print(f'PREFLIGHT COMPLETE: inspected {preflight.inspected}/{preflight.total_candidates} missing-LRC candidates; '
+          f'selected {len(missing)} songs; {preflight.live_skipped} tag-only LIVE skipped; '
+          f'{preflight.metadata_failures} unreadable metadata item(s).',flush=True)
+    print(f'Found {len(all_mp3)} supported audio tracks; at least {live_skipped} LIVE skipped; '
+          f'{already_have} already had LRC; selected {len(missing)} missing-LRC songs '
+          f'(limit {"ALL" if limit is None else limit}).',flush=True)
+    if not missing:return
     global LRCLIB_EXACT_FALLBACK
     LRCLIB_EXACT_FALLBACK = input('Optional LRCLIB exact-signature fallback after existing searches? [y/N] (extra HTTP request): ').strip().lower()=='y'
     # All user choices are collected here, BEFORE local AI inference or network calls.
