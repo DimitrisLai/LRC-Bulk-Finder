@@ -1,0 +1,16 @@
+LRC BULK FINDER v2.6.0 — LYRICS STUDIO
+
+1. Unzip the FULL standalone Windows GUI ZIP. Do not run the EXE from within the ZIP.
+2. Keep LRC_Control_Center.exe and LRC_Bulk_Finder_Worker.exe together.
+3. Open LRC_Control_Center.exe. Choose English or Ελληνικά.
+4. Select Sync Lab (experimental) -> Lyrics Studio.
+5. Click Choose audio... and open a local music file. When supported, MP3/WAV/OGG/FLAC plays inside the app.
+6. A matching .lrc is loaded read-only if present, or click Load LRC... .
+7. If you have plain lyrics, use Classic Sync Lab to paste them and create manual/estimated draft lines, then From Classic Sync Lab.
+8. Play, listen, select lines, nudge +/- 0.10 sec, Stamp selected at playback, and Undo/Redo until satisfied.
+9. Click Save NEW UNVERIFIED candidate. Existing music and all original LRC files remain unchanged.
+10. Review .candidate.lrc carefully before using or promoting it.
+
+NOTE: Player seeking may be approximate for some codecs. Source edition requires Python dependencies including pygame and mutagen.
+NOTE: No word-level sync, no AI transcription, no deleting or overwriting primary audio/lyrics.
+For the full guide, see the accompanying EN/EL manuals and official README.

@@ -1045,3 +1045,8 @@ for _english, _greek in UI_V245_EL.items():
 from v250_translations import UI_V250_EL
 for _english,_greek in UI_V250_EL.items():
     UI_EL.setdefault(_english,_greek)
+
+# v2.6.0 Lyrics Studio additions; never overwrite approved catalogue.
+from v260_translations import UI_V260_EL
+for _english, _greek in UI_V260_EL.items():
+    UI_EL.setdefault(_english,_greek)

@@ -35,12 +35,13 @@ from v243_contribution import export_contribution
 from ui_locale import GuiLocale, read_language, save_language
 from v250_manager import start_session
 from v245_gui import V245Mixin
+from v260_studio_gui import V260StudioMixin
 
 
-class ControlCenter(V245Mixin,tk.Tk):
+class ControlCenter(V260StudioMixin,V245Mixin,tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LRC Bulk Finder v2.5.0 — Control Center")
+        self.title("LRC Bulk Finder v2.6.0 — Control Center")
         self.gui_locale=GuiLocale(read_language())
         self._locale_widgets={}
         self._status_vars={}
@@ -118,7 +119,7 @@ class ControlCenter(V245Mixin,tk.Tk):
     def _refresh_language(self):
         self._locale_is_refreshing=True
         try:
-            self.title('LRC Bulk Finder v2.4.5 — Control Center')
+            self.title('LRC Bulk Finder v2.6.0 — Control Center')
             # Preserve active notebook tab and all fields; no _build() or profile reload.
             for widget in self._iter_ui_children(self):
                 if isinstance(widget,(ttk.Label,ttk.Button,ttk.Checkbutton,ttk.LabelFrame,
@@ -141,8 +142,15 @@ class ControlCenter(V245Mixin,tk.Tk):
                         original=value
                         self._locale_widgets[('tab',tab)]=original
                     self.notebook.tab(tab,text=self._tr(original))
+            if hasattr(self, "studio_tabs"):
+                for tab in self.studio_tabs.tabs():
+                    original = self._locale_widgets.get(("studio_tab", tab))
+                    if original is None:
+                        original = self.studio_tabs.tab(tab, "text")
+                        self._locale_widgets[("studio_tab", tab)] = original
+                    self.studio_tabs.tab(tab, text=self._tr(original))
             for tree in (getattr(self,'health_tree',None),getattr(self,'review_tree',None),
-                         getattr(self,'dashboard_tree',None)):
+                         getattr(self,'dashboard_tree',None),getattr(self,'studio_tree',None)):
                 if tree is None:continue
                 for key in tree['columns']:
                     original=self._locale_widgets.get(('heading',str(tree),key))
@@ -844,7 +852,7 @@ class ControlCenter(V245Mixin,tk.Tk):
         self._refresh_review()
 
     def _build_sync_lab(self):
-        area=self.sync_tab
+        area=self._studio_build_tabs()
         ttk.Label(area,text="Experimental Sync Lab — untimed lyrics",style="Header.TLabel").pack(anchor="w")
         ttk.Label(area,text="Import or paste plain lyric text. Estimate rough timings or tap along while you listen. "
                   "This cannot confirm alignment and only saves MARKED .candidate.lrc sidecars.",
@@ -985,6 +993,7 @@ class ControlCenter(V245Mixin,tk.Tk):
             self._dialog("showwarning","Search running",
                 "Stop the current search before closing the Control Center.")
             return
+        if not self._studio_can_close():return
         if hasattr(self,'_manager_cleanup_selection'):self._manager_cleanup_selection()
         self.destroy()
 
