@@ -876,6 +876,34 @@ def song_info(path):
     return _read_audio_info(path)
 
 
+def bounded_preflight_metadata(candidates,limit,read_info,live_check,check_cancel,report=print):
+    """Validate only selected eligible tracks; keep title-tag LIVE exclusions.
+
+    A 20-song test on 3,183 tracks must not read metadata from all 3,183.
+    The caller has already excluded filename-LIVE and existing LRC sidecars.
+    Returns (eligible, metadata_by_path, tag_live_skipped).
+    """
+    selected=[];cache={};live=[]
+    for inspected,track in enumerate(candidates,1):
+        check_cancel()
+        try:
+            info=read_info(track)
+            cache[track]=info
+            if live_check(info[0]):
+                live.append(track)
+                continue
+        except Exception:
+            # Malformed audio should be classified by the normal per-song path.
+            pass
+        selected.append(track)
+        if inspected%25==0 or (limit is not None and len(selected)>=limit):
+            report(f'PREFLIGHT METADATA: checked {inspected:,}/{len(candidates):,}; '
+                   f'{len(selected):,} eligible songs selected')
+        if limit is not None and len(selected)>=limit:
+            break
+    return selected,cache,live
+
+
 def start_incremental_index(folder,paths):
     global LIBRARY_INDEX
     if LIBRARY_INDEX is not None:
@@ -2392,24 +2420,10 @@ def main():
         if limit<=0:return
     print(f'PREFLIGHT METADATA: reading up to {limit if limit is not None else "ALL"} eligible songs '
           f'({len(candidates):,} candidates); cancellation available.',flush=True)
-    missing=[]
-    for inspected,track in enumerate(candidates,1):
-        check_stop()
-        try:
-            info=song_info(track)
-            metadata_cache[track]=info
-            if is_live_track(info[0]):
-                live_skipped.append(track)
-                continue
-        except Exception:
-            # A malformed MP3 is reported in the ordinary per-song error path.
-            pass
-        missing.append(track)
-        if inspected%25==0 or (limit is not None and len(missing)>=limit):
-            print(f'PREFLIGHT METADATA: checked {inspected:,}/{len(candidates):,}; '
-                  f'{len(missing):,} eligible songs selected',flush=True)
-        if limit is not None and len(missing)>=limit:
-            break
+    missing,metadata_cache,tag_live=bounded_preflight_metadata(
+        candidates,limit,song_info,is_live_track,check_stop,
+        lambda msg:print(msg,flush=True))
+    live_skipped.extend(tag_live)
     print(f'PREFLIGHT COMPLETE: {len(missing):,} songs queued; '
           f'{already_have:,} existing LRC; {len(live_skipped):,} LIVE skipped '
           f'(metadata checked only for selected range).',flush=True)
