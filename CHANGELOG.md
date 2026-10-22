@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.7.0 — Karaoke & Precision Lab
+
+- Fullscreen instrumental karaoke using local timed LRC, with active/next lyric preview and no vocal removal.
+- Read-only bounded waveform, zoom/navigation, timestamp warnings and A–B looping.
+- Optional speed adjustment through installed VLC, private restart-recovery drafts, configurable lyric-table shortcuts.
+- Direct dashboard/candidate-to-Studio navigation, configurable nudge steps and never-overwrite 2/3-decimal/BOM LRC export.
+- Preserves v2.6 Studio, v2.5 Library Manager, protected audio and existing LRCs, EN/EL interface and older releases.
+
+
 ## v2.6.0 — Lyrics Studio (development; not released until Windows/CI QA)
 
 - Integrated offline pygame-backed music playback in the new inner Lyrics Studio workspace within Sync Lab.
