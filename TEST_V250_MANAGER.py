@@ -93,6 +93,13 @@ class ManagerSafety(unittest.TestCase):
         self.addCleanup(lambda:path.unlink(missing_ok=True))
         with self.assertRaises(ValueError):m.filter_selected_tracks(self.root,[self.audio],path)
 
+    def test_manifest_modified_audio_refuses_retry(self):
+        path=m.make_selection_manifest(self.root,[self.audio])
+        self.addCleanup(lambda:path.unlink(missing_ok=True))
+        self.audio.write_bytes(b'CHANGED AUDIO')
+        with self.assertRaisesRegex(ValueError,'changed after confirmation'):
+            m.filter_selected_tracks(self.root,[self.audio],path)
+
     def test_manifest_outside_path_rejected(self):
         outside=Path(self.temp.name)/'outside.mp3';outside.write_bytes(b'music')
         with self.assertRaises(ValueError):m.make_selection_manifest(self.root,[outside])
