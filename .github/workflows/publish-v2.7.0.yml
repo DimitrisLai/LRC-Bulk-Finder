@@ -3,7 +3,7 @@ name: Package and publish LRC Bulk Finder v2.7.0 Karaoke Precision release
 
 on:
   push:
-    branches: [feature/v2.7.0-lyrics-studio]
+    branches: [feature/v2.7.0-karaoke-precision, main]
     paths:
       - '.github/workflows/publish-v2.7.0.yml'
       - 'LRC_Bulk_Finder.py'
