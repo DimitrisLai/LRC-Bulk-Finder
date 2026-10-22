@@ -30,6 +30,7 @@ on:
       - 'v270_translations.py'
       - 'TEST_V270_GUI.py'
       - 'TEST_V270_FEATURES.py'
+      - 'TEST_V270_SCALE.py'
       - 'ROADMAP_V2_8_V2_9_V3_0.md'
       - 'TEST_V260_STUDIO.py'
       - 'TEST_V260_GUI.py'
