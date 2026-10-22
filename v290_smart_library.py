@@ -77,6 +77,7 @@ def _open_db(path=None):
                     audio_path TEXT NOT NULL, audio_name TEXT NOT NULL,
                     status TEXT NOT NULL, flags TEXT NOT NULL,
                     detail TEXT NOT NULL, lrc_path TEXT NOT NULL,
+                    search_text TEXT NOT NULL,
                     audio_size INTEGER NOT NULL, audio_mtime INTEGER NOT NULL,
                     lrc_size INTEGER NOT NULL, lrc_mtime INTEGER NOT NULL,
                     deep INTEGER NOT NULL, inspected REAL NOT NULL,
@@ -85,7 +86,9 @@ def _open_db(path=None):
                 CREATE INDEX IF NOT EXISTS tracks_by_status
                     ON tracks(root_key,status,audio_name);
                 CREATE INDEX IF NOT EXISTS tracks_by_root
-                    ON tracks(root_key,audio_name);""")
+                    ON tracks(root_key,audio_name);
+                CREATE TABLE IF NOT EXISTS review_state (root_key TEXT NOT NULL, rel_path TEXT NOT NULL, decision TEXT NOT NULL, PRIMARY KEY(root_key,rel_path));
+                CREATE TABLE IF NOT EXISTS scan_history (root_key TEXT NOT NULL, scanned REAL NOT NULL, total INTEGER NOT NULL, issues INTEGER NOT NULL, audited INTEGER NOT NULL, cached INTEGER NOT NULL);""")
                 db.execute("PRAGMA user_version=1")
                 db.commit()
             except BaseException:
@@ -268,16 +271,16 @@ def scan_index(folder,*,recursive=True,deep=False,cancel=None,progress=None,db_p
                 if flags:issues+=1
                 db.execute("""INSERT INTO tracks
                    (root_key,rel_path,audio_path,audio_name,status,flags,detail,lrc_path,
-                    audio_size,audio_mtime,lrc_size,lrc_mtime,deep,inspected)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    search_text,audio_size,audio_mtime,lrc_size,lrc_mtime,deep,inspected)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(root_key,rel_path) DO UPDATE SET
                    audio_path=excluded.audio_path,audio_name=excluded.audio_name,status=excluded.status,
                    flags=excluded.flags,detail=excluded.detail,lrc_path=excluded.lrc_path,
-                   audio_size=excluded.audio_size,audio_mtime=excluded.audio_mtime,
+                   search_text=excluded.search_text,audio_size=excluded.audio_size,audio_mtime=excluded.audio_mtime,
                    lrc_size=excluded.lrc_size,lrc_mtime=excluded.lrc_mtime,
                    deep=excluded.deep,inspected=excluded.inspected""",
                    (key,rel,str(audio),audio.name,status,json.dumps(flags,ensure_ascii=False),
-                    detail,str(lrc) if has_lrc else "",*sig,time.time()))
+                    detail,str(lrc) if has_lrc else "",(audio.name+" "+str(audio)).casefold(),*sig,time.time()))
                 audited+=1
                 if progress and total%250==0:
                     progress(total,audited,cached)
@@ -289,6 +292,8 @@ def scan_index(folder,*,recursive=True,deep=False,cancel=None,progress=None,db_p
             stale={p for p in stale if len(Path(p).parts)==1}
         for rel in stale:
             db.execute("DELETE FROM tracks WHERE root_key=? AND rel_path=?",(key,rel))
+        db.execute('INSERT INTO scan_history(root_key,scanned,total,issues,audited,cached) VALUES(?,?,?,?,?,?)',(key,time.time(),total,issues,audited,cached))
+        db.execute('DELETE FROM scan_history WHERE rowid IN (SELECT rowid FROM scan_history WHERE root_key=? ORDER BY scanned DESC LIMIT -1 OFFSET 25)',(key,))
         db.commit()
         if progress:progress(total,audited,cached)
         return IndexResult(total,audited,cached,issues,time.monotonic()-start,root)
@@ -300,20 +305,20 @@ def scan_index(folder,*,recursive=True,deep=False,cancel=None,progress=None,db_p
 
 def _where(root,status,query):
     key=root_id(canonical_root(root))
-    sql=" WHERE root_key=?"
+    sql=" WHERE tracks.root_key=?"
     args=[key]
     if status not in ALLOWED_STATUSES:
         raise ValueError("Invalid status filter")
     if status=="Issues only":
-        sql+=" AND flags!='[]'"
+        sql+=" AND tracks.flags!='[]'"
     elif status!="All":
-        sql+=" AND status=?"
+        sql+=" AND tracks.status=?"
         args.append(status)
     if query:
         # Escaped LIKE literals, parameterized; no user-controlled SQL syntax.
         escaped=query.casefold().replace("\\","\\\\").replace("%","\\%").replace("_","\\_")
-        sql+=" AND (lower(audio_name) LIKE ? ESCAPE '\\' OR lower(audio_path) LIKE ? ESCAPE '\\')"
-        args.extend(("%"+escaped+"%",)*2)
+        sql+=" AND tracks.search_text LIKE ? ESCAPE '\\'"
+        args.append("%"+escaped+"%")
     return sql,args
 
 def read_page(root,*,status="All",query="",page=0,page_size=PAGE_SIZE,db_path=None):
@@ -323,12 +328,12 @@ def read_page(root,*,status="All",query="",page=0,page_size=PAGE_SIZE,db_path=No
     try:
         where,args=_where(root,status,query)
         count=db.execute("SELECT COUNT(*) FROM tracks"+where,args).fetchone()[0]
-        rows=db.execute("""SELECT audio_path,audio_name,status,flags,detail,lrc_path
-                         FROM tracks"""+where+
+        rows=db.execute("""SELECT tracks.audio_path,tracks.audio_name,tracks.status,tracks.flags,tracks.detail,tracks.lrc_path, COALESCE(review_state.decision, '')
+                         FROM tracks LEFT JOIN review_state ON tracks.root_key=review_state.root_key AND tracks.rel_path=review_state.rel_path"""+where+
                          " ORDER BY audio_name COLLATE NOCASE,rel_path LIMIT ? OFFSET ?",
                          (*args,page_size,page*page_size)).fetchall()
         return count,[{"path":x[0],"name":x[1],"status":x[2],
-                       "flags":json.loads(x[3]),"detail":x[4],"lrc":x[5]} for x in rows]
+                       "flags":json.loads(x[3]),"detail":x[4],"lrc":x[5],"review":x[6]} for x in rows]
     finally:db.close()
 
 def counts(root,db_path=None):
