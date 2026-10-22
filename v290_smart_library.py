@@ -330,7 +330,7 @@ def read_page(root,*,status="All",query="",page=0,page_size=PAGE_SIZE,db_path=No
         count=db.execute("SELECT COUNT(*) FROM tracks"+where,args).fetchone()[0]
         rows=db.execute("""SELECT tracks.audio_path,tracks.audio_name,tracks.status,tracks.flags,tracks.detail,tracks.lrc_path, COALESCE(review_state.decision, '')
                          FROM tracks LEFT JOIN review_state ON tracks.root_key=review_state.root_key AND tracks.rel_path=review_state.rel_path"""+where+
-                         " ORDER BY audio_name COLLATE NOCASE,rel_path LIMIT ? OFFSET ?",
+                         " ORDER BY tracks.audio_name COLLATE NOCASE,tracks.rel_path LIMIT ? OFFSET ?",
                          (*args,page_size,page*page_size)).fetchall()
         return count,[{"path":x[0],"name":x[1],"status":x[2],
                        "flags":json.loads(x[3]),"detail":x[4],"lrc":x[5],"review":x[6]} for x in rows]
