@@ -19,6 +19,7 @@ on:
       - 'v250_translations.py'
       - 'TEST_V250_MANAGER.py'
       - 'TEST_V250_ENGINE.py'
+      - 'TEST_V2_4_3_STOP_VERIFICATION.py'
       - 'TEST_V250_GUI.py'
       - 'RELEASE_NOTES_V2_5_0.md'
       - 'README_STANDALONE_EXE_V2_5_0.txt'
