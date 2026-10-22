@@ -724,6 +724,15 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.after(110,self._poll)
 
     def _line(self,line):
+        if line.startswith("PREFLIGHT DISCOVERY:"):
+            self.phase.set("Preflight: scanning filenames and existing lyrics")
+            self.progress_text.set(line)
+        elif line.startswith("PREFLIGHT METADATA:"):
+            self.phase.set("Preflight: reading selected music metadata")
+            self.progress_text.set(line)
+        elif line.startswith("PREFLIGHT COMPLETE:"):
+            self.phase.set("Preflight complete — preparing search")
+            self.progress_text.set(line)
         if self.provider_health.observe(line):self._refresh_health()
         status=re.fullmatch(
             r"STAGE COUNTERS: stage=(\w+) found=(\d+) candidate=(\d+) "

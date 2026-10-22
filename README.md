@@ -16,6 +16,10 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
+## v2.9.2 — Bounded Greek Search Preflight (release candidate)
+
+Fixes the user-reported 3,183-track, zero-progress startup: displays PREFLIGHT DISCOVERY/METADATA progress and honors a selected 20-song limit before expensive ID3 reading. A short search no longer processes all 3,183 track metadata records before searching. Tag-only LIVE exclusions are preserved; original audio and LRC files remain untouched. The three privately provided real MP3s were inspected (two with artist/title, one lacking artist), and their audio is **not included** in this repository or its release archives. [Release notes](RELEASE_NOTES_V2_9_2.md) · [QA plan](TEST_AUDIT_V2_9_2.md). Official v2.9.1 remains the latest downloadable release until v2.9.2 is published and verified.
+
 ## Current release — v2.9.1 Windows Startup & Version Display Stability Patch
 
 **If you see a black terminal saying `LRC_Bulk_Finder_Worker.exe: --profile is required`, you've launched the background search worker instead of the main app.** Extract the **entire** Windows standalone ZIP and run **`LAUNCH_LRC_BULK_FINDER_WINDOWS.cmd`** (or **`LRC_Control_Center.exe`**). The worker is launched automatically by the Control Center when you start a search profile.
