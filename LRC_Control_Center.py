@@ -33,13 +33,14 @@ from v243_resume import last_run, mark_run
 from v243_aliases import approve_alias
 from v243_contribution import export_contribution
 from ui_locale import GuiLocale, read_language, save_language
+from v250_manager import start_session
 from v245_gui import V245Mixin
 
 
 class ControlCenter(V245Mixin,tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LRC Bulk Finder v2.4.5 — Control Center")
+        self.title("LRC Bulk Finder v2.5.0 — Control Center")
         self.gui_locale=GuiLocale(read_language())
         self._locale_widgets={}
         self._status_vars={}
@@ -629,14 +630,24 @@ class ControlCenter(V245Mixin,tk.Tk):
             self.stop_path=self.stop_directory/"stop.request"
             environment=dict(os.environ)
             environment["LRC_STOP_FILE"]=str(self.stop_path)
+            # All GUI searches get a new creation-only journal under APPDATA.
+            # The worker logs a file only AFTER creating it exclusively.
+            self._manager_session_id=start_session(profile['folder'],label=self.name.get())
+            environment['LRC_SESSION_ID']=self._manager_session_id
+            selection=getattr(self,'_manager_selection_manifest',None)
+            if selection:
+                environment['LRC_SELECTED_TRACKS_FILE']=str(selection)
+            else:
+                environment.pop('LRC_SELECTED_TRACKS_FILE',None)
             creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if os.name=="nt" else 0)
             self.process=subprocess.Popen(cmd,stdout=subprocess.PIPE,
                stderr=subprocess.STDOUT,stdin=subprocess.DEVNULL,
                encoding="utf-8",errors="replace",bufsize=1,
                cwd=str(program_folder()),creationflags=creationflags,env=environment,
                start_new_session=(os.name!="nt"))
-        except OSError as error:
+        except (OSError,ValueError) as error:
             self._cleanup_stop_marker()
+            if hasattr(self,'_manager_cleanup_selection'):self._manager_cleanup_selection()
             self._dialog("showerror","Cannot start search",str(error))
             return
         self._clear_log()
@@ -687,6 +698,7 @@ class ControlCenter(V245Mixin,tk.Tk):
                     self.stop_button.configure(state="disabled")
                     self.process=None
                     self._cleanup_stop_marker()
+                    if hasattr(self,'_manager_cleanup_selection'):self._manager_cleanup_selection()
                     self._refresh_review()
                 elif kind=="hardstop_result":
                     success,detail=data
@@ -973,6 +985,7 @@ class ControlCenter(V245Mixin,tk.Tk):
             self._dialog("showwarning","Search running",
                 "Stop the current search before closing the Control Center.")
             return
+        if hasattr(self,'_manager_cleanup_selection'):self._manager_cleanup_selection()
         self.destroy()
 
 
