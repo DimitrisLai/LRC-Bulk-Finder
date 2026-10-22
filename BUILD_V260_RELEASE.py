@@ -106,7 +106,7 @@ def build():
                      'v250_translations.py','TEST_V250_MANAGER.py','TEST_V250_ENGINE.py',
                      'TEST_V250_GUI.py','v260_studio.py','v260_studio_gui.py',
                      'v260_player.py','v260_translations.py','TEST_V260_STUDIO.py',
-                     'TEST_V260_GUI.py','QA_V260_PLAYER_SMOKE.py','worker_stop.py',
+                     'TEST_V260_GUI.py','worker_stop.py',
                      'README_STANDALONE_EXE_V2_6_0.txt','HOW_TO_START_V2_6_0.txt',
                      'BUILD_V260_MANUALS.py','LRC_Control_Center.py','START_HERE.cmd',
                      'OPEN_CONTROL_CENTER.cmd','Greek_Lexicon.sqlite3',EN,EL]
