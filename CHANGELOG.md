@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.9.1 — Windows Startup and Version Display
+
+- Fixed old v2.7.0 title appearing after the v2.9.0 app completed interface language initialization.
+- Corrected stale update-checker version so GUI and engine report one version source.
+- Added a first-class one-click Windows GUI launcher; direct worker launch now explains the appropriate app and retains proper CLI errors.
+- Added real frozen PyInstaller GUI title and missing-profile worker smoke tests. Retains all Smart Library, Karaoke Edition, STOP and non-destructive data protections.
+
+
+
 ## v2.9.0 — Smart Library and Stability
 
 - Transactional incremental SQLite metadata indexing, Unicode/Greek filename search, conservative LRC QC flags, optional deep duration checks and a cancel-safe non-destructive review queue.

@@ -16,6 +16,14 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
+## v2.9.1 — Windows Startup & Version Display Stability Patch (release candidate)
+
+**If you see a black terminal saying `LRC_Bulk_Finder_Worker.exe: --profile is required`, you've launched the background search worker instead of the main app.** Extract the **entire** Windows standalone ZIP and run **`LAUNCH_LRC_BULK_FINDER_WINDOWS.cmd`** (or **`LRC_Control_Center.exe`**). The worker is launched automatically by the Control Center when you start a search profile.
+
+The previous app also had an incorrect version label: initial language refresh reset the Control Center title to v2.7.0 even while running v2.9.0. v2.9.1 fixes that bug and the outdated update-checker version, tests the visible title of the frozen Windows EXE and adds explicit user-friendly startup guidance. No lyrics, media, provider, Smart Library or karaoke behavior is changed.
+
+[Hotfix source PR](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/15) · [Notes](RELEASE_NOTES_V2_9_1.md) · [QA audit](TEST_AUDIT_V2_9_1.md). Until all Windows package and SHA256 validation jobs pass, use the official **v2.9.0** release for supported downloads.
+
 ## Current release — v2.9.0 Smart Library & Stability (English / Ελληνικά Public Beta)
 
 The new fifth **nested** Sync Lab workspace, Smart Library, adds an incremental SQLite local inventory, conservative LRC quality checks, Greek Unicode indexed search, a 200-record paginated review queue, Bookmarked/Reviewed markers, optional audio duration checks, cancellation-safe rollback, recent scan history, and confirmed formula-safe CSV export. No original music, ID3, primary LRC or existing candidate files are modified.

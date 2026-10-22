@@ -46,6 +46,13 @@ with tempfile.TemporaryDirectory(prefix='lrc_cmd_sandbox_') as raw:
    'SETUP_LRCLIB_DATABASE_FROM_FILE.cmd':'setup_lrclib_database.py'}.get(f.name)
    if expected:
     assert 'QA_SAFE_TARGET:'+expected in output,(f.name,output[-800:])
-  assert proc.returncode in (0,1), (f.name,proc.returncode,output[-700:])
+  if f.name=='LAUNCH_LRC_BULK_FINDER_WINDOWS.cmd':
+   # This intentional standalone GUI launcher refuses unsafe/incomplete extraction.
+   # The probe has NO real EXEs, so the correct behavior is a clear error and exit 2.
+   assert proc.returncode==2,(f.name,proc.returncode,output[-700:])
+   assert 'LRC_Control_Center.exe is missing' in output,(f.name,output[-700:])
+   assert 'extract the ENTIRE official Windows Standalone ZIP' in output,(f.name,output[-700:])
+  else:
+   assert proc.returncode in (0,1), (f.name,proc.returncode,output[-700:])
   print('PASS',f.name,'exit',proc.returncode)
  print('PASS:',len(wrappers),'Windows launchers reached their expected safe targets')
