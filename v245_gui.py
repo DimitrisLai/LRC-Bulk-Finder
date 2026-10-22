@@ -19,9 +19,10 @@ from v245_features import (scan_library, inventory_counts, export_inventory,
     MAX_LRC_BYTES, VERSION)
 from runtime_paths import program_folder
 from search_profiles import DEFAULT
+from v250_gui import V250Mixin
 
 
-class V245Mixin:
+class V245Mixin(V250Mixin):
     def destroy(self):
         token=getattr(self,'_v245_after',None)
         if token is not None:
@@ -102,6 +103,11 @@ class V245Mixin:
                     self.update_notice.set(data['message'])
                     self.update_page=data.get('url')
                     self.update_open_button.configure(state='normal' if self.update_page else 'disabled')
+                elif kind=='manager_reason':
+                    req_id,path,message=data
+                    if (req_id==getattr(self,'_manager_explain_request',-1)
+                            and hasattr(self,'manager_reason')):
+                        self._manager_set_reason(message)
                 elif kind=='inventory':
                     self._dashboard_scanning=False
                     if isinstance(data,Exception):
@@ -188,6 +194,7 @@ class V245Mixin:
         self.dashboard_all_rows=[]
         self.dashboard_visible_rows={}
         self._dashboard_scanning=False
+        self._build_manager_controls(area)
 
     def _dashboard_refresh(self):
         folder=self.folder.get().strip()
