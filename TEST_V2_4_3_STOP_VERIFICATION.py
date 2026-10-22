@@ -21,6 +21,19 @@ class SnapshotRecoveryTests(unittest.TestCase):
     def test_descendants_include_grandchildren_only(self):
         self.assertEqual(ws._descendants({11:1,12:11,13:12,22:1},11),{12,13})
 
+    def test_pid_reuse_filters_old_orphans_not_actual_descendants(self):
+        # PID 4100 belonged to an old parent before being assigned to a new
+        # worker. Its older orphan 4104 must never be classified as ours.
+        pairs={4100:1,4101:4100,4102:4101,4104:4100}
+        born={4100:200,4101:201,4102:202,4104:90}
+        filtered=ws._prune_reused_windows_parents(pairs,born)
+        self.assertEqual(ws._descendants(filtered,4100),{4101,4102})
+        self.assertEqual(filtered[4104],0)
+
+    def test_unknown_birth_times_preserve_conservative_edges(self):
+        # Lack of permissions must not silently erase observable child edges.
+        self.assertEqual(ws._prune_reused_windows_parents({12:11},{}),{12:11})
+
     def test_native_snapshot_preferred_when_available(self):
         with mock.patch.object(ws, '_windows_process_table_toolhelp', return_value={10:1}), \
              mock.patch.object(ws, '_windows_process_table_cim') as slow:
