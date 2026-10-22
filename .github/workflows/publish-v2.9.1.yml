@@ -10,6 +10,7 @@ on:
       - 'run_saved_profile.py'
       - 'LAUNCH_LRC_BULK_FINDER_WINDOWS.cmd'
       - 'QA_V291_FROZEN_GUI_TITLE.py'
+      - 'QA_WINDOWS_CMD_PROBES.py'
       - 'TEST_AUDIT_V2_9_1.md'
       - 'v290_smart_library.py'
       - 'v290_smart_gui.py'
