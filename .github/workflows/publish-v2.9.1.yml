@@ -164,6 +164,9 @@ jobs:
           $wrongArgs = & dist/LRC_Bulk_Finder_Worker.exe 2>&1 | Out-String
           if ($LASTEXITCODE -ne 2 -or $wrongArgs -notmatch 'LRC_Control_Center.exe') { throw 'Worker should explain GUI launch with exit code 2 on missing profile' }
           Write-Host 'PASS: direct Worker usage now gives GUI guidance instead of confusing versionless error'
+          # A directly launched worker MUST return 2; reset the PowerShell step's
+          # last native exit code after the expected-failure assertion.
+          $global:LASTEXITCODE = 0
       - name: Assemble and independently inspect final ZIPs and checksums
         shell: pwsh
         run: |
