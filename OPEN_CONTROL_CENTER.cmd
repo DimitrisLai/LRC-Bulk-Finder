@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
-title LRC Bulk Finder v2.4.5 - Control Center
+title LRC Bulk Finder v2.5.0 - Control Center
 set "PYTHONUTF8=1"
 set "PY="
 where py >nul 2>&1
@@ -27,7 +27,7 @@ if errorlevel 1 (
   %PY% -m pip install --user --disable-pip-version-check --timeout 15 --retries 1 mutagen Unidecode syncedlyrics
   if errorlevel 1 (echo ERROR: Dependencies unavailable.&pause&exit /b 12)
 )
-echo Opening LRC Bulk Finder v2.4.5 Control Center...
+echo Opening LRC Bulk Finder v2.5.0 Control Center...
 %PY% -u "%~dp0LRC_Control_Center.py"
 if errorlevel 1 (
   echo Control Center failed. Check Python installation and Run_Diagnostics.cmd.
