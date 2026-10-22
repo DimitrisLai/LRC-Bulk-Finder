@@ -3,14 +3,13 @@ name: Package and publish LRC Bulk Finder v2.9.2 Smart Library Stability release
 
 on:
   push:
-    branches: [fix/v2.9.2-windows-startup-ux, main]
+    branches: [fix/v2.9.2-preflight-progress, main]
     paths:
       - '.github/workflows/publish-v2.9.2.yml'
       - 'TEST_V291_STARTUP.py'
       - 'run_saved_profile.py'
       - 'LAUNCH_LRC_BULK_FINDER_WINDOWS.cmd'
       - 'QA_V291_FROZEN_GUI_TITLE.py'
-      - 'TEST_V292_PREFLIGHT.py'
       - 'TEST_V292_PREFLIGHT.py'
       - 'QA_WINDOWS_CMD_PROBES.py'
       - 'TEST_AUDIT_V2_9_2.md'
