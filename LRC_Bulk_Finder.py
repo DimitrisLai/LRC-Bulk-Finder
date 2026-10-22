@@ -865,7 +865,7 @@ def _read_audio_info(path):
         unknown={'unknown','unknown artist','untitled','no artist','n a','n/a','_', '-', '.'}
         if not title and guess_title.strip().casefold() not in unknown:
             title=guess_title.strip()
-        if not artist and guess_artist.strip().casefold() not in unknown:
+        if not artist and guess_artist.strip().casefold() not in unknown and guess_title.strip().casefold() not in unknown:
             artist=guess_artist.strip()
     return title,artist,album,duration
 
