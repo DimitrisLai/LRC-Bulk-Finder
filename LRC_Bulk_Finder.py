@@ -877,7 +877,8 @@ def start_incremental_index(folder,paths):
     if __import__('os').environ.get('LRC_INCREMENTAL','0')!='1':return
     try:
         LIBRARY_INDEX=IncrementalLibrary(folder)
-        summary=LIBRARY_INDEX.inventory(paths)
+        summary=LIBRARY_INDEX.inventory(
+            paths,progress=lambda done,total:print(f'INDEXING: inspected={done} total={total}',flush=True))
         print('INCREMENTAL LIBRARY:',', '.join(f'{k}={summary[k]}' for k in ('new','changed','unchanged')),
               'cached metadata:',LIBRARY_INDEX.database,flush=True)
     except (OSError,ValueError,sqlite3.Error) as ex:
@@ -2350,7 +2351,8 @@ def main():
     if HISTORY_ENABLED:
         load_search_history(folder/'LRC_Completed_Search_History.jsonl')
     print('DISCOVERY: reading audio filenames in the selected music folder...',flush=True)
-    all_mp3,collisions=safe_audio_files(folder,recursive)
+    all_mp3,collisions=safe_audio_files(
+        folder,recursive,progress=lambda done,found:print(f'DISCOVERY: inspected={done} audio={found}',flush=True))
     if collisions:print('Skipping ambiguous sidecar stems (multiple formats):',len(collisions),flush=True)
     print(f'DISCOVERY COMPLETE: {len(all_mp3)} unambiguous supported audio files; preparing local incremental metadata index.',flush=True)
     start_incremental_index(folder,all_mp3)
