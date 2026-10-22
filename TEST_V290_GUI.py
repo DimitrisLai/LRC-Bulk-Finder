@@ -56,7 +56,7 @@ class SmartUITests(unittest.TestCase):
         self.app._v290_tree.selection_set(idx)
         before=(self.track.read_bytes(),self.lrc.read_bytes())
         self.app._v290_open()
-        self.assertEqual(self.app.studio_audio.get(),str(self.track))
+        self.assertEqual(Path(self.app.studio_audio.get()).resolve(),self.track.resolve())
         self.assertEqual(self.app.studio_doc.lines[0].text,"Ελλάς")
         self.assertEqual(before,(self.track.read_bytes(),self.lrc.read_bytes()))
     def test_mark_bookmark_and_history(self):
