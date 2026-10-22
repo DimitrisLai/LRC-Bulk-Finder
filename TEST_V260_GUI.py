@@ -44,7 +44,8 @@ class StudioGuiTests(unittest.TestCase):
 
     def test_main_tabs_and_nested_studio(self):
         self.assertEqual(len(self.app.notebook.tabs()), 8)
-        self.assertEqual(len(self.app.studio_tabs.tabs()), 2)
+        self.assertEqual(len(self.app.studio_tabs.tabs()), 3)
+        self.assertEqual(self.app.studio_tabs.tab(self.app.precision_tab, 'text'), 'Precision & Karaoke')
         self.assertEqual(self.app.studio_tabs.tab(self.app.studio_frame, "text"), "Lyrics Studio")
         self.assertIsNotNone(self.app.sync_source)
 
