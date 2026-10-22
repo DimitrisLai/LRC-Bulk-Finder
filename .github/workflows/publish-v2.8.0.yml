@@ -1,4 +1,4 @@
-name: Package and publish LRC Bulk Finder v2.8.0 Karaoke Precision release
+name: Package and publish LRC Bulk Finder v2.8.0 Karaoke Edition release
 # Dry-run on QA branch; publish to GitHub only after merged and tested on main.
 
 on:
@@ -6,6 +6,12 @@ on:
     branches: [feature/v2.8.0-karaoke-edition, main]
     paths:
       - '.github/workflows/publish-v2.8.0.yml'
+      - 'v280_karaoke_core.py'
+      - 'v280_karaoke_gui.py'
+      - 'v280_translations.py'
+      - 'TEST_V280_KARAOKE.py'
+      - 'TEST_V280_GUI.py'
+      - 'TEST_AUDIT_V2_8_0.md'
       - 'LRC_Bulk_Finder.py'
       - 'LRC_Control_Center.py'
       - 'v245_features.py'
