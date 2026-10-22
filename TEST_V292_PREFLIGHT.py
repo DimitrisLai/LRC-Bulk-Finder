@@ -34,6 +34,18 @@ class RealWorldPreflightTests(unittest.TestCase):
         self.assertLess(block.index("if limit is not None and len(missing)>=limit:"),block.index("start_incremental_index(folder,missing)"))
         self.assertIn("check_stop()",block)
         self.assertIn("if is_live_track(info[0])",block)
+    def test_realworld_missing_artist_not_invented_from_placeholder(self):
+        import LRC_Bulk_Finder as finder
+        from types import SimpleNamespace
+        sample=Path("_ Aniko Se Mena - unknown artist.mp3")
+        fake=SimpleNamespace(tags={"title":[". Aniko Se Mena"],"album":["Rythmos 94.9"]},
+                             info=SimpleNamespace(length=38.9827))
+        with mock.patch.object(finder,"AudioFile",return_value=fake):
+            title,artist,album,sec=finder._read_audio_info(sample)
+        self.assertEqual(title,". Aniko Se Mena")
+        self.assertEqual(artist,"")
+        self.assertAlmostEqual(sec,38.9827,places=3)
+
     def test_private_recordings_never_packaged(self):
         build=Path(__file__).with_name("BUILD_V292_RELEASE.py").read_text(encoding="utf-8")
         self.assertNotIn("Summer In Greece - Mazwnakhs",build)
