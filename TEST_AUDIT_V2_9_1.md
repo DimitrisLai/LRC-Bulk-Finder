@@ -18,3 +18,11 @@
 
 ## User acceptance
 After extracting the v2.9.1 standalone ZIP, open the new launcher and also test direct `LRC_Control_Center.exe`. Both should open the graphical application with v2.9.1 title, after switching English/Greek too. The Worker EXE is never a manual GUI entrypoint. Then continue with `TEST_AUDIT_V2_9_0.md` for the complete day-long music-library acceptance trial. Do not upload copyrighted source audio or unredacted personal paths.
+
+## Official final release verification — 22 October 2026
+
+- Source PR [#15](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/15) merged, fixing the proven GUI title bug and the mistaken manual Worker launch diagnostic.
+- Final [Windows + Ubuntu Python 3.10/3.13 test matrix](https://github.com/DimitrisLai/LRC-Bulk-Finder/actions/runs/39823574637): **all four cells SUCCESS**.
+- Official [Windows dual-EXE packaging and SHA256-verified publication](https://github.com/DimitrisLai/LRC-Bulk-Finder/actions/runs/39823574523): **SUCCESS**; 462 core tests plus 27 additional native Tk GUI tests; real synthetic WAV playback and STOP tests; actual frozen GUI visible title **v2.9.1**; explicit Worker missing-profile guidance; 15 standalone assets in the ZIP; freshly rebuilt English and Greek manuals.
+- [Release v2.9.1](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/tag/v2.9.1) contains five public assets. The publishing workflow downloaded each asset and printed **PASS: all five official release assets match the published SHA256 manifest.**
+- Limits: Windows CI proves the frozen GUI starts, stays open, and displays the correct title; it does NOT verify that the user’s specific Windows PC can run it, soundcard playback, true drag/drop from Explorer, or all optional VLC codecs. Physical full-day acceptance testing on the intended machine is still required.
