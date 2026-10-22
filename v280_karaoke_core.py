@@ -46,7 +46,7 @@ def find_lyrics(audio, options=()):
     stem = track.stem.casefold()
     lrcs = [p for p in track.parent.iterdir() if p.is_file() and not p.is_symlink()
             and p.suffix.casefold() == ".lrc" and p.stat().st_size <= MAX_LRC_BYTES
-            and not CANDIDATES.search(p.stem)]
+            and not CANDIDATES.search(p.name)]
     exact = [p for p in lrcs if p.stem.casefold() == stem]
     if len(exact) == 1:
         return exact[0]
