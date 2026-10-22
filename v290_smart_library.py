@@ -380,7 +380,7 @@ def set_review_state(root,audio_path,decision,db_path=None):
     if decision not in ("bookmarked","reviewed","clear"):
         raise ValueError("Invalid review state")
     resolved=canonical_root(root)
-    audio=Path(audio_path)
+    audio=Path(audio_path).resolve()
     try:rel=str(audio.relative_to(resolved))
     except ValueError as ex:raise ValueError("Track is outside chosen library") from ex
     db=_open_db(db_path)
