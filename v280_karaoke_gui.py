@@ -30,7 +30,15 @@ class V280Mixin(V270Mixin):
         return result
 
     def _v280_build(self):
-        p=self.karaoke_edition_tab
+        host=self.karaoke_edition_tab
+        scroll=tk.Canvas(host,highlightthickness=0)
+        bar=ttk.Scrollbar(host,orient="vertical",command=scroll.yview)
+        scroll.configure(yscrollcommand=bar.set)
+        bar.pack(side="right",fill="y");scroll.pack(side="left",fill="both",expand=True)
+        p=ttk.Frame(scroll,padding=(3,2))
+        window=scroll.create_window((0,0),window=p,anchor="nw")
+        p.bind("<Configure>",lambda e:scroll.configure(scrollregion=scroll.bbox("all")))
+        scroll.bind("<Configure>",lambda e:scroll.itemconfigure(window,width=e.width))
         session=self._v280_session
         self._v280_status=tk.StringVar(value="Add local instrumentals to the playlist. Original files remain read-only.")
         self._v280_theme=tk.StringVar(value=session.theme)
@@ -220,7 +228,6 @@ class V280Mixin(V270Mixin):
             self._v280_status.set("Reached the beginning or end of the playlist.")
             return
         self._v280_tree.selection_set(str(dest))
-        self._v280_session.selected=dest
         self._v280_open_selected()
 
     def _v280_move(self,step):
@@ -417,8 +424,12 @@ class V280Mixin(V270Mixin):
                                text=str(self._v280_count_remaining))
                 self._v280_canvas.itemconfigure(self._v280_canvas_next,text="Get ready...")
             except tk.TclError:pass
+        self.after(1000,lambda:self._v280_advance_count(token,audio))
+
+    def _v280_advance_count(self,token,audio):
+        if token!=self._v280_count_id or audio!=self.studio_audio.get():return
         self._v280_count_remaining-=1
-        self.after(1000,lambda:self._v280_count_step(token,audio))
+        self._v280_count_step(token,audio)
 
     def _v280_safe_geometry(self,win):
         try:
