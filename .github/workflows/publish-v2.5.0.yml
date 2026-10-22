@@ -1,9 +1,9 @@
-name: Package and publish LRC Bulk Finder v2.5.0 bilingual release
+name: Package and publish LRC Bulk Finder v2.5.0 Library Manager release
 # Dry-run on QA branch; publish to GitHub only after merged and tested on main.
 
 on:
   push:
-    branches: [feature/v2.5.0-quick-results-timing, main]
+    branches: [feature/v2.5.0-library-manager, main]
     paths:
       - '.github/workflows/publish-v2.5.0.yml'
       - 'LRC_Bulk_Finder.py'
@@ -11,7 +11,7 @@ on:
       - 'v245_features.py'
       - 'v245_gui.py'
       - 'v245_translations.py'
-      - 'TEST_V250_FEATURES.py'
+      - 'TEST_V245_FEATURES.py'
       - 'TEST_V250_GUI.py'
       - 'ui_translations.py'
       - 'v250_manager.py'
