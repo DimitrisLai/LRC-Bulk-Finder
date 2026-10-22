@@ -30,6 +30,7 @@ class V260StudioMixin:
         self.studio_doc = None
         self._studio_saved = True
         self._studio_active = None
+        self._studio_duration = 0.0
         self.studio_audio = tk.StringVar()
         self.studio_status = tk.StringVar(value="Choose a track and a timed LRC, or import text from Classic Sync Lab.")
         self.studio_position = tk.StringVar(value="00:00.00 / ?")
@@ -112,6 +113,7 @@ class V260StudioMixin:
         p = Path(filename)
         self.studio_player.close()
         self.studio_audio.set(str(p))
+        self._studio_duration = duration_seconds(p)
         self.studio_doc = None
         self._studio_saved = True
         self._studio_render()
@@ -153,6 +155,7 @@ class V260StudioMixin:
         p = self.studio_audio.get() or getattr(self, "sync_audio", tk.StringVar()).get()
         if p and not self.studio_audio.get():
             self.studio_audio.set(p)
+            self._studio_duration = duration_seconds(p)
             try:
                 self.studio_player.load(p)
             except (ValueError, OSError, PlaybackError) as ex:
@@ -205,11 +208,14 @@ class V260StudioMixin:
                 self.studio_status.set("Timing changed in memory. Save only when you have checked the preview.")
             except ValueError as ex:
                 self.studio_status.set("Fix timing before saving: " + str(ex))
-        except (IndexError, ValueError) as ex:
+        except (IndexError, ValueError, TypeError) as ex:
             self._dialog("showerror", "Timing correction", str(ex))
 
     def _studio_shift(self, seconds):
-        self._studio_edit(lambda: self.studio_doc.shift(self._studio_selected(), seconds))
+        def perform():
+            selected = self._studio_selected()
+            self.studio_doc.shift(selected, seconds)
+        self._studio_edit(perform)
 
     def _studio_exact(self):
         def perform():
@@ -284,8 +290,9 @@ class V260StudioMixin:
         try:
             if not self.winfo_exists():
                 return
+            self.studio_player.is_playing()
             current = self.studio_player.position()
-            total = duration_seconds(self.studio_audio.get()) if self.studio_audio.get() else 0.0
+            total = self._studio_duration
             self.studio_position.set(format_time(current).strip("[]") +
                                      (" / " + format_time(total).strip("[]") if total > 0 else " / ?"))
             if total > 0:
