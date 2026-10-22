@@ -21,3 +21,12 @@ Development branch: \`feature/v2.8.0-karaoke-edition\`.
 
 ## Manual Windows acceptance still needed
 A live human must validate actual multi-monitor fullscreen/projector DPI at 100–150%, dragging Explorer files into frozen PyInstaller GUI, media seek and loop accuracy on representative MP3/WAV/FLAC/OGG, a real instrumentals playlist, background-image rendering, Greek typography, timed LRC compatibility on a car radio and a native VLC installation. These behaviors cannot be fully established by headless or virtualized CI.
+
+
+## Final verified release (22 October 2026)
+
+- PR [#13](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/13) merged to main at commit \`841dd672aba72586a1ac27bc5a5f7852336e4d28\`.
+- [Official four-platform main regression workflow](https://github.com/DimitrisLai/LRC-Bulk-Finder/actions/runs/39805931377) **SUCCESS** on Windows Python 3.10/3.13 and Ubuntu Python 3.10/3.13. The final release-branch Windows runner executed **435 tests** (including the native file-drop registration acceptance test), plus **27 extra GUI tests**.
+- [Official Windows release packaging and publication](https://github.com/DimitrisLai/LRC-Bulk-Finder/actions/runs/39805931384) **SUCCESS**. Tests include the real pygame/SDL WAV playback preservation, STOP, frozen two-EXE smoke, English and Greek manual generation, archive consistency and checksum integrity.
+- Official [GitHub v2.8.0 release](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/tag/v2.8.0) contains two ZIPs, two PDF manuals and one SHA-256 manifest. Publication workflow independently downloaded all five assets and printed **PASS: all five official release assets match the published SHA256 manifest**.
+- Manual checks on actual personal audio libraries, projector hardware, Windows scaling, real car radio and optional separate VLC installations are still required; do not label those as hardware-tested. SignPath signing remains pending external approval.
