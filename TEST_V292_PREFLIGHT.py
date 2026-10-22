@@ -20,11 +20,14 @@ class PreflightTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root=Path(self.temp.name)
         self.paths=[]
-        for i in range(3200):
+        self._extend(64)
+    def _extend(self,total):
+        for i in range(len(self.paths),total):
             p=self.root/f"Στίχοι_{i:04d}.mp3"
             p.touch()
             self.paths.append(p)
     def test_limit_20_does_not_inspect_all_3200_id3_tags(self):
+        self._extend(3200)
         reads=[]
         stages=[]
         def read(p):
@@ -97,6 +100,7 @@ class PreflightTests(unittest.TestCase):
             prepare_missing_tracks([],limit=-1,metadata_reader=lambda p:None,
                     is_live=lambda s:False,check_cancel=lambda:None)
     def test_discovery_callback_and_incremental_cache_for_3200(self):
+        self._extend(3200)
         reports=[]
         songs,collisions=safe_audio_files(
             self.root,False,progress=lambda visited,found:reports.append((visited,found)))
