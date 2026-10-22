@@ -54,6 +54,6 @@ class RealWorldPreflightTests(unittest.TestCase):
     def test_optional_local_inference_not_enabled_by_normal_quick_search(self):
         from search_profiles import DEFAULT,preset_profile
         self.assertFalse(DEFAULT["local_ai"])
-        self.assertFalse(preset_profile("Greek Quick Test — 20 Songs")["local_ai"])
+        with tempfile.TemporaryDirectory() as music:\n            self.assertFalse(preset_profile("Greek Quick Test — 20 Songs",folder=music)["local_ai"])
 
 if __name__=="__main__": unittest.main(verbosity=2)
