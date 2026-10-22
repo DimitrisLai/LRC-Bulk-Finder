@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.9.0 — Smart Library and Stability
+
+- Transactional incremental SQLite metadata indexing, Unicode/Greek filename search, conservative LRC QC flags, optional deep duration checks and a cancel-safe non-destructive review queue.
+- 200-row pages, filters, persistent Reviewed/Bookmarked records, recent scan history, direct Lyrics Studio navigation and UTF-8 BOM formula-escaped CSV exports.
+- Correctly recreate the normal embedded player when switching tracks after optional native VLC speed control.
+- Preserve eight main tabs, five nested Sync Lab tabs, 266 approved Greek translations, v2.8 karaoke tools and the legacy provider, STOP, no-overwrite and Undo invariants.
+- Final pre-v3.0 full-day user acceptance checklist, new Greek/English PDFs and Windows/Linux release gates.
+
+
+
 ## v2.8.0 — Karaoke Edition
 
 - New playlist-focused, performer-friendly Karaoke Edition workspace while preserving eight Control Center tabs.

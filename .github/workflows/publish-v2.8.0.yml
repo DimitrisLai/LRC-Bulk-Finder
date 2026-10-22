@@ -3,7 +3,7 @@ name: Package and publish LRC Bulk Finder v2.8.0 Karaoke Edition release
 
 on:
   push:
-    branches: [feature/v2.8.0-karaoke-edition, main]
+    branches: [feature/v2.8.0-karaoke-edition]
     paths:
       - '.github/workflows/publish-v2.8.0.yml'
       - 'v280_karaoke_core.py'

@@ -1060,3 +1060,8 @@ for _english, _greek in UI_V270_EL.items():
 from v280_translations import UI_V280_EL
 for _english, _greek in UI_V280_EL.items():
     UI_EL.setdefault(_english, _greek)
+
+# v2.9 Smart Library additions; preserve all owner-approved translations.
+from v290_translations import UI_V290_EL
+for _english, _greek in UI_V290_EL.items():
+    UI_EL.setdefault(_english, _greek)

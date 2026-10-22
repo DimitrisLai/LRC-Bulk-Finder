@@ -198,6 +198,7 @@ class V270Mixin(V260StudioMixin):
             return False
         self._v270_cancel_waveform()
         self.studio_player.close()
+        self._studio_new_audio_backend()
         self.studio_audio.set(str(track))
         self._studio_duration = duration_seconds(track)
         self.studio_doc = None
@@ -217,6 +218,12 @@ class V270Mixin(V260StudioMixin):
         self.studio_tabs.select(self.studio_frame)
         self._v270_begin_waveform()
         return True
+
+    def _studio_new_audio_backend(self):
+        """Native VLC backend has been released; each new track starts on safe pygame 1x."""
+        if isinstance(self.studio_player,VLCPlayer):
+            self.studio_player=StudioPlayer()
+            self._v270_rate.set("1.00x")
 
     def _studio_choose_audio(self):
         # Preserve the existing file-picker semantics; add waveform and recovery.

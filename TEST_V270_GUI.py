@@ -41,7 +41,7 @@ class PrecisionUI(unittest.TestCase):
 
     def test_main_and_nested_tabs(self):
         self.assertEqual(len(self.app.notebook.tabs()),8)
-        self.assertEqual(len(self.app.studio_tabs.tabs()),4)
+        self.assertEqual(len(self.app.studio_tabs.tabs()),5)
         self.assertEqual(self.app.studio_tabs.tab(self.app.precision_tab,"text"),"Precision & Karaoke")
 
     def test_dashboard_open_goes_to_studio(self):
