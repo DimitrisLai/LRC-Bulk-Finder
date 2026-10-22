@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.8.0 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.9.0 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -16,15 +16,25 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
-## v2.9.0 — Smart Library & Stability (release candidate)
+## Current release — v2.9.0 Smart Library & Stability (English / Ελληνικά Public Beta)
 
 The new fifth **nested** Sync Lab workspace, Smart Library, adds an incremental SQLite local inventory, conservative LRC quality checks, Greek Unicode indexed search, a 200-record paginated review queue, Bookmarked/Reviewed markers, optional audio duration checks, cancellation-safe rollback, recent scan history, and confirmed formula-safe CSV export. No original music, ID3, primary LRC or existing candidate files are modified.
 
 **Stability improvement:** switching songs after optional VLC variable-speed playback now recreates the default pygame 1x backend instead of reusing a released VLC instance. Existing search providers, STOP, safe Undo, and v2.8 karaoke are retained.
 
-**Development:** [v2.9 pull request #14](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/14) · [Release notes](RELEASE_NOTES_V2_9_0.md) · [QA audit and full-day Windows test checklist](TEST_AUDIT_V2_9_0.md). Until the new five-file release has succeeded and been SHA-256 verified, the published v2.8.0 ZIP remains the recommended download.
+**Development:** [v2.9 pull request #14](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/14) · [Release notes](RELEASE_NOTES_V2_9_0.md) · [QA audit and full-day Windows test checklist](TEST_AUDIT_V2_9_0.md). **Official v2.9.0 downloads, all five assets successfully SHA-256 verified:**
 
-## Current release — v2.8.0 Karaoke Edition (English / Ελληνικά Public Beta)
+| Download | Description |
+| --- | --- |
+| [**Windows Standalone GUI ZIP v2.9.0**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.0/LRC_Bulk_Finder_v2_9_0_Standalone_Windows_GUI.zip) | **Recommended**, 86.8 MB, no Python installation required; extract the entire ZIP. |
+| [**Complete Python/CMD source ZIP**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.0/LRC_Bulk_Finder_Public_v2_9_0_GitHub_Release_Windows.zip) | Source code, tests and launchers. |
+| [**English complete manual (PDF)**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.0/LRC_Bulk_Finder_v2_9_0_Complete_User_Manual_EN.pdf) | Smart Library, quality control and full-day testing. |
+| [**Οδηγός χρήσης Ελληνικά (PDF)**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.0/LRC_Bulk_Finder_v2_9_0_User_Guide_EL.pdf) | Greek Smart Library and pre-v3.0 checklist. |
+| [**SHA-256 checksums**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.0/LRC_Bulk_Finder_v2_9_0_SHA256SUMS.txt) | All public download hashes verified. |
+
+
+
+## Previous release — v2.8.0 Karaoke Edition (English / Ελληνικά Public Beta)
 
 The new **Karaoke Edition** fourth nested Sync Lab tab turns local instrumental plus LRC playback into a performer-friendly workflow. It offers a saved 500-track operator playlist, guarded automatic instrumental/LRC pairing and manual pairing, optional native drag-and-drop, projector/audience-only lyrics window with target display selection, themes/font/next-line/background, playback countdown, previous/next keyboard controls, global display offset ±30 seconds, separately confirmed undoable timing apply, persisted A–B loops, last-song restoration, precise read-only LRC export preview and redacted support reports.
 
