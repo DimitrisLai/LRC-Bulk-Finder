@@ -3,7 +3,7 @@ name: Package and publish LRC Bulk Finder v2.6.0 Lyrics Studio release
 
 on:
   push:
-    branches: [feature/v2.6.0-lyrics-studio, main]
+    branches: [feature/v2.6.0-lyrics-studio]
     paths:
       - '.github/workflows/publish-v2.6.0.yml'
       - 'LRC_Bulk_Finder.py'
