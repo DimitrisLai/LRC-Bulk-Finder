@@ -42,9 +42,10 @@ class StudioPlayer:
             raise PlaybackError("Cannot initialize the audio device: " + str(exc)) from exc
 
     def load(self, audio_file):
-        path = _validate_audio(audio_file)
+        path = Path(audio_file)
         if path.suffix.lower() not in PLAYER_EXTENSIONS:
             raise PlaybackError("This format is not supported by the embedded player; use Open audio player.")
+        path = _validate_audio(path)
         music = self._mixer()
         try:
             music.stop()
@@ -65,6 +66,7 @@ class StudioPlayer:
                 music.unpause()
             except Exception as exc:
                 raise PlaybackError("Could not resume playback: " + str(exc)) from exc
+            self._start = self._paused_at
             self._anchor = self._clock()
             self._paused_at = None
             return
