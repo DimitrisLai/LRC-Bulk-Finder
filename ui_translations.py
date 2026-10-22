@@ -1040,3 +1040,8 @@ UI_EL = {'20 for testing, or A for all': '20 για δοκιμή ή A για ό�
 from v245_translations import UI_V245_EL
 for _english, _greek in UI_V245_EL.items():
     UI_EL.setdefault(_english,_greek)
+
+# v2.5.0 additions never overwrite the owner-approved translations.
+from v250_translations import UI_V250_EL
+for _english,_greek in UI_V250_EL.items():
+    UI_EL.setdefault(_english,_greek)

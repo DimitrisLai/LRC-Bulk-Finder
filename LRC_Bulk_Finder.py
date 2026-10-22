@@ -15,6 +15,7 @@ from stage_counters import StageCounters
 from v243_provider_lab import provider_simpmusic
 from v243_contribution import export_contribution
 from runtime_paths import program_folder
+from v250_manager import record_created_file, filter_selected_tracks
 from incremental_library import AUDIO_EXTENSIONS, safe_audio_files, IncrementalLibrary
 import hashlib
 import sqlite3
@@ -47,8 +48,8 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.4.5'
-HEADERS = {'User-Agent': 'LRCBulkFinder/2.4.5',
+VERSION = '2.5.0'
+HEADERS = {'User-Agent': 'LRCBulkFinder/2.5.0',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
 LRCLIB_USER_AGENT = ''
@@ -1136,6 +1137,8 @@ def export_review_candidates(track,rnd,review,review_folder=None):
                         out.write(body)
                     saved_path=str(target)
                     body_to_path[body]=saved_path
+                    try:record_created_file(target)
+                    except (OSError,ValueError) as ex:print('      WARNING: candidate not added to undo journal:',ex,flush=True)
                     print('      Review candidate saved:',target.name,flush=True)
                     position+=1
                     break
@@ -1909,6 +1912,8 @@ def save_hit(track,hit):
     if not plausible_lrc(clean,0):raise ValueError('Malformed LRC after sanitization')
     with target.open('x',encoding='utf-8',newline='\n') as output:
         output.write(clean)
+    try:record_created_file(target)
+    except (OSError,ValueError) as ex:print('      WARNING: LRC not added to undo journal:',ex,flush=True)
 
 
 def write_summary(folder,selected,states):
@@ -2373,6 +2378,12 @@ def main():
         missing.append(track)
     print(f'Found {len(all_mp3)} supported audio tracks; skipped {len(live_skipped)} LIVE songs; '
           f'{already_have} already had LRC; {len(missing)} eligible songs without .lrc.')
+    selected_manifest=os.environ.get('LRC_SELECTED_TRACKS_FILE','')
+    if selected_manifest:
+        if action not in ('','1'):
+            raise ValueError('Selective retry supports normal online action 1 only')
+        missing=filter_selected_tracks(folder,missing,selected_manifest)
+        print(f'EXPLICIT SELECTIVE RETRY: exactly {len(missing)} requested eligible tracks; never whole-folder fallback.',flush=True)
     if not missing:return
     howmany=input('How many missing songs? [20 for test, A for all]: ').strip().lower()
     if howmany!='a':
@@ -2465,6 +2476,7 @@ def main():
         # Completed source coverage remains valid if only its order changes.
         'provider_order_mode':order_label,
         'history':HISTORY_ENABLED,'provider_order':order_label,
+        'explicit_selective_session':os.environ.get('LRC_SESSION_ID','') if selected_manifest else '',
         'lrclib_exact':LRCLIB_EXACT_FALLBACK,
         'online_lrclib':LRCLIB_ONLINE_FALLBACK,
     },[config_dir/n for n in ('Greek_Aliases.csv','Greek_Artists.csv',
@@ -2472,6 +2484,14 @@ def main():
                             'LRCLIB_LOCAL_DB.txt')],
       LOCAL_LRCLIB.path if LOCAL_LRCLIB is not None else None)
     checkpoint=SearchCheckpoint(folder,VERSION,checkpoint_config)
+    if selected_manifest:
+        # An explicit retry must not reuse previous NO_MATCH checkpoints or
+        # overwrite the normal scan's resumable checkpoint history.
+        from uuid import uuid4
+        run_token=os.environ.get('LRC_SESSION_ID') or uuid4().hex
+        if not re.fullmatch(r'[a-f0-9]{32}',run_token):raise ValueError('Invalid selective session id')
+        checkpoint.path=folder/('LRC_Selective_Checkpoint_'+run_token+'.jsonl')
+        checkpoint.entries={};checkpoint.loaded=0
     if checkpoint.loaded:
         print(f'Resumable checkpoint: {checkpoint.loaded} matching song/stage entries; '
               'completed unchanged work will be reused. File: {checkpoint.path}',flush=True)

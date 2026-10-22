@@ -1,0 +1,23 @@
+LRC Bulk Finder v2.5.0 — LIBRARY MANAGER (English / Ελληνικά)
+
+NORMAL INSTALLATION
+1. Download the v2.5.0 Standalone Windows GUI ZIP from the official GitHub release.
+2. Extract ALL its files to a writable folder. Keep LRC_Control_Center.exe and LRC_Bulk_Finder_Worker.exe together.
+3. Launch LRC_Control_Center.exe. Choose English / Ελληνικά in the top-right corner.
+4. First-time users: Quick Search > music folder > test 20 songs > START QUICK SEARCH.
+5. Open Results dashboard. Click Refresh results. Filter by Has LRC, Needs review, Missing LRC or Ambiguous audio; search by file name.
+
+NEW LIBRARY MANAGER IN RESULTS DASHBOARD
+• Select a song and click "Why was this rejected?" to view reason(s) from stored CSV reports. Those reports may be OLD, and are not new live checks.
+• Select one or more Missing LRC / Needs review tracks, click "Retry selected tracks" and explicitly confirm. Exactly the selected, still-eligible files are searched using FULL online mode. No full-library fallback.
+• Click "Undo last search session..." to PREVIEW and CONFIRM deletion of unchanged .lrc or .candidate.lrc files that a v2.5.0 GUI search CREATED. Files are reverified against a local session journal (name, SHA256, size and mtime).
+• User-edited, pre-existing, untracked, absent and mismatched files are NEVER removed by undo. Undo does NOT delete audio, ID3, reports, caches or manually created timing-repair candidates. Undo is irreversible.
+
+OTHER FEATURES
+• Timing repair shifts all LRC timecodes uniformly and saves a separate UNVERIFIED candidate.
+• Manual update checks visit GitHub only when clicked. The app never auto-installs updates or uploads your music.
+• Advanced Saved searches and console modes 1–5 remain available. Offline modes require a separate large LRCLIB database.
+• Windows unsigned EXEs may trigger SmartScreen. Verify the official release source and SHA256 manifest.
+
+Documentation: complete English PDF and Greek PDF in the ZIP and separate GitHub release assets.
+Project: https://github.com/DimitrisLai/LRC-Bulk-Finder

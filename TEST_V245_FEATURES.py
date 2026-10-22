@@ -123,7 +123,7 @@ class V245CoreTests(unittest.TestCase):
 
     def test_diagnostics_has_no_private_paths(self):
         text=f.diagnostic_text(frozen=True,worker_exists=False,profiles=4)
-        self.assertIn('2.4.5',text)
+        self.assertIn(f.VERSION,text)
         self.assertNotIn(str(self.base),text)
         self.assertNotIn(os.environ.get('HOME','---UNLIKELY---'),text)
 
