@@ -1050,3 +1050,8 @@ for _english,_greek in UI_V250_EL.items():
 from v260_translations import UI_V260_EL
 for _english, _greek in UI_V260_EL.items():
     UI_EL.setdefault(_english,_greek)
+
+# v2.7 additions preserve the owner-approved 266 Greek translations verbatim.
+from v270_translations import UI_V270_EL
+for _english, _greek in UI_V270_EL.items():
+    UI_EL.setdefault(_english,_greek)
