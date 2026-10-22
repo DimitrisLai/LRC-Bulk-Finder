@@ -16,6 +16,12 @@ Lyrics are saved alongside the MP3 with the same base filename, making them comp
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
 
+## v2.7.0 — Karaoke & Precision (release candidate)
+
+The proposed v2.7 release adds karaoke for instrumental audio + your timed LRC, fullscreen current/next lyric display, A–B repeat, optional pitch-preserving VLC speed controls, bounded waveform visualization, timestamp warnings, recovery drafts, nudge sizes/shortcuts, car-radio export profiles and one-click navigation from Results/Candidate review. See [release notes](RELEASE_NOTES_V2_7_0.md), [quick start](HOW_TO_START_V2_7_0.txt), [post-v2.7 roadmap](ROADMAP_V2_8_V2_9_V3_0.md), and [PR #12](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/12). The primary and secondary LRC files remain protected; only new UNVERIFIED numbered candidates are written. 0.75x/1.25x requires a compatible locally installed VLC player (not bundled); compressed waveform display depends on optional soundfile support.
+
+**Until the v2.7 publication workflow succeeds, the existing v2.6 ZIP remains the recommended official download.**
+
 ## v2.6.0 Lyrics Studio (in development)
 
 **Review code and QA:** [Lyrics Studio pull request #11](https://github.com/DimitrisLai/LRC-Bulk-Finder/pull/11). The new Sync Lab inner workspace integrates local audio playback, active lyric preview, individual timestamp corrections, in-memory Undo/Redo, and a strictly non-overwriting export of marked UNVERIFIED candidates. The original Classic Sync Lab and all eight main tabs are preserved. Player support varies by SDL codec and pygame is required for source builds. See [v2.6.0 notes](RELEASE_NOTES_V2_6_0.md). **Until full Windows packaging and checksum QA succeeds, download the current v2.5.0 release below.**

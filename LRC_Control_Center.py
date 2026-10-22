@@ -35,13 +35,13 @@ from v243_contribution import export_contribution
 from ui_locale import GuiLocale, read_language, save_language
 from v250_manager import start_session
 from v245_gui import V245Mixin
-from v260_studio_gui import V260StudioMixin
+from v270_gui import V270Mixin
 
 
-class ControlCenter(V260StudioMixin,V245Mixin,tk.Tk):
+class ControlCenter(V270Mixin,V245Mixin,tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LRC Bulk Finder v2.6.0 — Control Center")
+        self.title("LRC Bulk Finder v2.7.0 — Control Center")
         self.gui_locale=GuiLocale(read_language())
         self._locale_widgets={}
         self._status_vars={}
@@ -119,7 +119,7 @@ class ControlCenter(V260StudioMixin,V245Mixin,tk.Tk):
     def _refresh_language(self):
         self._locale_is_refreshing=True
         try:
-            self.title('LRC Bulk Finder v2.6.0 — Control Center')
+            self.title('LRC Bulk Finder v2.7.0 — Control Center')
             # Preserve active notebook tab and all fields; no _build() or profile reload.
             for widget in self._iter_ui_children(self):
                 if isinstance(widget,(ttk.Label,ttk.Button,ttk.Checkbutton,ttk.LabelFrame,
