@@ -51,6 +51,7 @@ class V270Mixin(V260StudioMixin):
         self._v270_wave_generation = 0
         self._v270_wave_cancel = threading.Event()
         self._v270_wave_queue = queue.Queue()
+        self._v270_last_repaint = 0.0
         self._v270_source = None
         self._v270_zoom = tk.StringVar(value="1x")
         self._v270_rate = tk.StringVar(value="1.00x")
@@ -318,6 +319,7 @@ class V270Mixin(V260StudioMixin):
 
     def _v270_set_a(self):
         self.loop_a = round(self.studio_player.position(), 3)
+        self.loop_b = None  # Never retain a stale B from a previous loop.
         self._v270_show_loop()
 
     def _v270_set_b(self):
@@ -537,7 +539,11 @@ class V270Mixin(V260StudioMixin):
                     self._studio_seek(self.loop_a)
             self._v270_karaoke_refresh()
             if self.studio_tabs.select() == str(self.precision_tab):
-                self._v270_draw_waveform()
+                import time
+                now = time.monotonic()
+                if now - self._v270_last_repaint >= .5:
+                    self._v270_draw_waveform()
+                    self._v270_last_repaint = now
         except (tk.TclError, AttributeError):
             pass
 
