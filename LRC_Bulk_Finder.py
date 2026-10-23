@@ -15,6 +15,7 @@ from stage_counters import StageCounters
 from v243_provider_lab import provider_simpmusic
 from v296_provider_tiers import (LEGACY as PACK_LEGACY, PACKS as SOURCE_PACKS,
     DISPLAY as SOURCE_PACK_LABELS, select_pack, better_qq_review_only)
+from v297_provider_intelligence import validate_exclusions
 from v243_contribution import export_contribution
 from runtime_paths import program_folder
 from v250_manager import record_created_file, filter_selected_tracks
@@ -2396,6 +2397,13 @@ def main():
     except ValueError as error:
         print('Invalid provider order:',error,'; using DEFAULT (all selected providers).')
         ACTIVE_PROVIDERS,order_label=selected_providers,'DEFAULT (invalid selection)'
+    excluded_raw=[p.strip() for p in os.environ.get('LRC_PROVIDER_EXCLUSIONS','').split(',') if p.strip()]
+    # A corrupt injected setting must fail closed, never make requests to
+    # unwanted providers. Normal profiles are validated by search_profiles.
+    disabled=set(validate_exclusions(excluded_raw,selected_providers))
+    if disabled:
+        ACTIVE_PROVIDERS=tuple(p for p in ACTIVE_PROVIDERS if p not in disabled)
+        print('PROVIDERS DISABLED BY THIS PROFILE:',', '.join(sorted(disabled)),flush=True)
     print(f'Provider order: {order_label}; selected:',', '.join(ACTIVE_PROVIDERS))
     show_provider_availability()
     COMPLETE_FIRST_PASS=input('Wait for temporary provider recovery before EACH first attempt? [Y/n] (slower, better coverage): ').strip().lower()!='n'
