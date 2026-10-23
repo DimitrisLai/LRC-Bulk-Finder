@@ -796,7 +796,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         grid=ttk.Frame(self.review_tab)
         grid.pack(fill="both",expand=True)
         self.review_tree=ttk.Treeview(grid,columns=columns,show="headings",
-                                      height=12,selectmode="extended")
+                                      height=8,selectmode="extended")
         labels=(("track","Audio",230),("candidate","Candidate",265),
                 ("kind","Kind",100),("status","Status",185),
                 ("number","#",55),("folder","Folder",230))
@@ -817,7 +817,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                    command=self._review_select_alternatives).pack(side="left",padx=(0,6))
         ttk.Button(select_actions,text="Clear selection",command=lambda:self.review_tree.selection_remove(*self.review_tree.selection())).pack(side="left",padx=(0,8))
         ttk.Label(self.review_tab,text="Preview of focused candidate (read-only)").pack(anchor="w")
-        self.candidate_text=scrolledtext.ScrolledText(self.review_tab,height=7,wrap="word",font=("Consolas",10))
+        self.candidate_text=scrolledtext.ScrolledText(self.review_tab,height=5,wrap="word",font=("Consolas",10))
         self.candidate_text.pack(fill="both",expand=True,pady=(3,8))
         self.candidate_text.configure(state="disabled")
         buttons=ttk.Frame(self.review_tab)
@@ -829,10 +829,14 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.review_promote_all_button=ttk.Button(buttons,text="Promote ALL eligible primaries",
                   command=self._promote_all_primary)
         self.review_promote_all_button.pack(side="left",padx=8)
-        self.review_recycle_button=ttk.Button(buttons,
+        recycle_actions=ttk.Frame(self.review_tab)
+        recycle_actions.pack(fill="x",pady=(0,5))
+        self.review_recycle_button=ttk.Button(recycle_actions,
                   text="Delete selected alternatives (Recycle Bin)",
                   command=self._recycle_selected_alternatives,style="Danger.TButton")
-        self.review_recycle_button.pack(side="left",padx=8)
+        self.review_recycle_button.pack(side="left")
+        ttk.Label(recycle_actions,text="Only numbered alternatives go to your system Recycle Bin.",
+                  style="Hint.TLabel").pack(side="left",padx=12)
         self.review_stop_button=ttk.Button(buttons,text="Stop batch",state="disabled",
                   command=self._stop_review_batch)
         self.review_stop_button.pack(side="left",padx=8)
