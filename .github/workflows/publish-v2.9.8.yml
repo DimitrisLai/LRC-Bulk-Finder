@@ -3,7 +3,7 @@ name: Build and publish LRC Bulk Finder v2.9.8 Candidate Review Workbench
 
 on:
   push:
-    branches: [feature/candidate-review-workbench-v298, main]
+    branches: [feature/candidate-review-workbench-v298]
     paths:
       - '.github/workflows/publish-v2.9.8.yml'
       - 'TEST_V291_STARTUP.py'
