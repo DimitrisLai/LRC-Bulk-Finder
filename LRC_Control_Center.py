@@ -54,6 +54,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.stop_directory=None
         self.stop_path=None
         self.stop_requested=False
+        self.g2g_setup_process=None
+        self.g2g_setup_window=None
         self.active_profile=None
         self.active_folder=None
         self.active_action=None
@@ -77,11 +79,16 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         widget._lrc_tooltip=tooltip
         return tooltip
 
+    def _g2g_available(self):
+        if not getattr(sys,"frozen",False):
+            return True  # Python edition can use its own installed toolkit.
+        from g2g_auto import installed
+        return installed() is not None
+
     def _available_preset_names(self):
-        # An EXE must not advertise presets whose external AI model is absent.
+        ready=self._g2g_available()
         return [name for name in PRESET_TEMPLATES
-                if not (getattr(sys,"frozen",False)
-                        and PRESET_TEMPLATES[name].get("local_ai",False))]
+                if ready or not PRESET_TEMPLATES[name].get("local_ai",False)]
 
     def _preset_key(self,display):
         if display in PRESET_TEMPLATES:return display
@@ -405,9 +412,11 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         for i,(key,label) in enumerate(toggles):
             widget=ttk.Checkbutton(frame,text=label,variable=self.boolvars[key])
             widget.grid(row=i//2,column=i%2,sticky="w",padx=12,pady=4)
-            if key=="local_ai" and getattr(sys,"frozen",False):
-                widget.configure(state="disabled")
-                self.boolvars["local_ai"].set(False)
+            if key=="local_ai":
+                self.g2g_checkbox=widget
+                if not self._g2g_available():
+                    widget.configure(state="disabled")
+                    self.boolvars["local_ai"].set(False)
             self._tool_tip(widget,descriptions[key])
         row+=1
         setup=ttk.LabelFrame(outer,text="Downloads & local setup",padding=8)
@@ -415,13 +424,14 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         lrclib_button=ttk.Button(setup,text="Download / set up LRCLIB database",
                                  command=lambda:self._launch_setup("SETUP_LRCLIB_DATABASE.cmd"))
         lrclib_button.pack(side="left",padx=5)
-        ai_button=ttk.Button(setup,text="Download / set up Greek G2G AI",
-                             command=lambda:self._launch_setup("SETUP_GREEK_AI.cmd"))
-        ai_button.pack(side="left",padx=5)
-        if getattr(sys,"frozen",False):
-            ai_button.configure(state="disabled")
+        self.g2g_button=ttk.Button(setup,text="Install / verify Greek G2G AI (one click)",
+                                   command=self._install_g2g)
+        self.g2g_button.pack(side="left",padx=5)
+        self.g2g_status=tk.StringVar(value="Greek AI ready" if self._g2g_available() else
+                                     "Optional model not installed")
+        ttk.Label(setup,textvariable=self.g2g_status,style="Hint.TLabel").pack(side="left",padx=8)
         self._tool_tip(lrclib_button,"Starts the bundled LRCLIB setup script in a separate Windows terminal, with its own prompts. Already downloaded? Use Choose database instead.")
-        self._tool_tip(ai_button,"Starts the bundled local Greek AI installation guide/setup. Optional and model-heavy; standalone EXE cannot embed this model.")
+        self._tool_tip(self.g2g_button,"One-click optional AUEB G2G setup: isolated Python environment, downloads, verification and progress. Requires approval, internet and significant free disk space.")
         row+=1
         ttk.Button(outer,text="Save profile and START SEARCH",
                    command=self._run_profile).grid(row=row,column=0,columnspan=3,sticky="ew",padx=5,pady=8)
@@ -500,7 +510,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
 
     def _apply_preset(self):
         name=self._preset_key(self.preset_name.get())
-        if getattr(sys,"frozen",False) and name in PRESET_TEMPLATES and PRESET_TEMPLATES[name]["local_ai"]:
+        if not self._g2g_available() and name in PRESET_TEMPLATES and PRESET_TEMPLATES[name]["local_ai"]:
             # A name retained in settings or selected programmatically must
             # still be usable without a modal error on standalone Windows.
             name="Greek FULL — Offline First"
@@ -514,6 +524,91 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self._set_values(profile)
         self.name.set(name)
         self._preset_selected()
+
+    def _refresh_g2g_capability(self):
+        ready=self._g2g_available()
+        if hasattr(self,"g2g_checkbox"):
+            self.g2g_checkbox.configure(state="normal" if ready else "disabled")
+        if not ready:self.boolvars["local_ai"].set(False)
+        if hasattr(self,"preset_choice"):
+            self.preset_choice.configure(values=[self._tr(k) for k in self._available_preset_names()])
+
+    def _install_g2g(self):
+        if self.process is not None and self.process.poll() is None:
+            self._dialog("showwarning","Search running","Finish the search before installing AI.")
+            return
+        if self.g2g_setup_process is not None and self.g2g_setup_process.poll() is None:
+            return
+        from g2g_auto import installed
+        status=installed()
+        message=(
+            "Install and verify the optional AUEB Greek G2G model automatically?\n\n"
+            "The full model is about 1.2 GB, with additional large Python/PyTorch downloads. "
+            "The installation uses your own user folder and internet connection. "
+            "If compatible Python is missing on Windows, the installer may run the official "
+            "winget Python 3.11 installer. It will not edit any music files.\n\n"
+            "The model runs on CPU to avoid requiring a large GPU. "
+            "Accept only if you have enough disk space and trust the upstream packages."
+        )
+        if status:
+            message=("Greek AI is already verified. Reinstall/verify the full model?\n\n"
+                     "This can download additional software and may take considerable time.")
+        if not self._dialog("askyesno","Install Greek AI",message):
+            return
+        if getattr(sys,"frozen",False):
+            worker=program_folder()/"LRC_Bulk_Finder_Worker.exe"
+            if not worker.is_file():
+                self._dialog("showerror","Missing worker",
+                             "Extract the complete Windows ZIP, including the worker.")
+                return
+            cmd=[str(worker),"--setup-g2g","--g2g-model","g2g","--allow-python-install"]
+        else:
+            cmd=[sys.executable,"-u",str(Path(__file__).with_name("g2g_auto.py")),
+                 "--install","--model","g2g","--allow-python-install"]
+        window=tk.Toplevel(self)
+        window.title(self._tr("Greek AI installation"))
+        window.geometry("700x395")
+        window.transient(self)
+        ttk.Label(window,text=self._tr("Installing Greek G2G AI in a separate user environment"),
+                  wraplength=650).pack(anchor="w",padx=10,pady=10)
+        progress=ttk.Progressbar(window,mode="indeterminate")
+        progress.pack(fill="x",padx=10,pady=5)
+        log=tk.Text(window,height=14,wrap="word")
+        log.pack(fill="both",expand=True,padx=10,pady=10)
+        log.configure(state="disabled")
+        close=ttk.Button(window,text=self._tr("Close"),state="disabled",
+                         command=window.destroy)
+        close.pack(side="right",padx=12,pady=8)
+        window.protocol("WM_DELETE_WINDOW",lambda:None if self.g2g_setup_process is not None
+                        else window.destroy())
+        try:
+            env=dict(os.environ)
+            env["PYTHONIOENCODING"]="utf-8:backslashreplace"
+            self.g2g_setup_process=subprocess.Popen(cmd,stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,stderr=subprocess.STDOUT,cwd=str(program_folder()),
+                text=True,encoding="utf-8",errors="replace",bufsize=1,env=env,
+                creationflags=(getattr(subprocess,"CREATE_NO_WINDOW",0) if os.name=="nt" else 0))
+        except (OSError,ValueError) as error:
+            window.destroy()
+            self._dialog("showerror","Cannot start Greek AI installer",str(error))
+            return
+        self.g2g_setup_window=window
+        self.g2g_setup_log=log
+        self.g2g_setup_progress=progress
+        self.g2g_setup_close=close
+        self.g2g_status.set("Greek AI installation running...")
+        progress.start(12)
+        threading.Thread(target=self._read_g2g_install,daemon=True).start()
+
+    def _read_g2g_install(self):
+        process=self.g2g_setup_process
+        try:
+            for line in process.stdout:
+                self.messages.put(("g2g_line",line.rstrip("\r\n")))
+            self.messages.put(("g2g_done",process.wait()))
+        except (OSError,ValueError) as error:
+            self.messages.put(("g2g_line","Installer output interrupted: "+str(error)))
+            self.messages.put(("g2g_done",process.poll() or 2))
 
     def _launch_setup(self,script):
         path=program_folder()/script
@@ -572,13 +667,13 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             var.set(profile.get(name,DEFAULT[name]))
         for key,var in self.boolvars.items():
             value=profile.get(key,DEFAULT[key])
-            if key=="local_ai" and getattr(sys,"frozen",False):
-                value=False  # Never enable a model missing from the EXE.
+            if key=="local_ai" and not self._g2g_available():
+                value=False  # Never enable AI until a real model is ready.
             var.set(value)
-        if getattr(sys,"frozen",False) and profile.get("local_ai",False):
+        if not self._g2g_available() and profile.get("local_ai",False):
             self.preset_description.set(
-                "Standalone edition: local AI is not included. Greek dictionary "
-                "matching remains available; this saved profile was loaded safely.")
+                "Greek AI setup has not finished. Dictionary matching is available; "
+                "click Install / verify Greek G2G AI to enable this option.")
 
     def _refresh_profiles(self):
         try:self.loaded_profiles=load_profiles()
@@ -625,11 +720,15 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._dialog("showerror","Delete profile",str(error))
 
     def _run_profile(self):
+        if self.g2g_setup_process is not None and self.g2g_setup_process.poll() is None:
+            self._dialog("showwarning","Greek AI setup in progress",
+                         "Finish optional Greek AI setup before starting a search.")
+            return
         if self.process is not None and self.process.poll() is None:
             self._dialog("showwarning","Search running","Stop the current search before starting another.")
             return
         chosen=self.name.get().strip()
-        if getattr(sys,"frozen",False) and chosen=="Greek Local AI — FULL":
+        if not self._g2g_available() and chosen=="Greek Local AI — FULL":
             # Keep the unavailable user's old named profile untouched; create
             # the supported equivalent as a separate normal profile.
             chosen="Greek FULL — Offline First"
@@ -638,7 +737,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._set_values({**DEFAULT,**PRESET_TEMPLATES[chosen],
                               "folder":self.folder.get(),"database":self.database.get()})
             self.preset_description.set(
-                "Standalone edition: running Greek FULL dictionary search without local AI.")
+                "Greek AI is not installed; running Greek FULL dictionary search.")
         if chosen in PRESET_TEMPLATES:
             # Saved profiles are editable, so a familiar preset *name* can
             # otherwise silently run a completely different action/scope.
@@ -763,6 +862,21 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                     self._cleanup_stop_marker()
                     if hasattr(self,'_manager_cleanup_selection'):self._manager_cleanup_selection()
                     self._refresh_review()
+                elif kind=="g2g_line":
+                    if self.g2g_setup_window is not None and self.g2g_setup_window.winfo_exists():
+                        self.g2g_setup_log.configure(state="normal")
+                        self.g2g_setup_log.insert("end",data+"\n")
+                        self.g2g_setup_log.see("end")
+                        self.g2g_setup_log.configure(state="disabled")
+                elif kind=="g2g_done":
+                    self.g2g_setup_process=None
+                    if self.g2g_setup_window is not None and self.g2g_setup_window.winfo_exists():
+                        self.g2g_setup_progress.stop()
+                        self.g2g_setup_close.configure(state="normal")
+                    ready=self._g2g_available()
+                    self._refresh_g2g_capability()
+                    self.g2g_status.set("Greek AI ready — checkbox enabled" if ready else
+                                        "Greek AI setup incomplete — see installation log")
                 elif kind=="hardstop_result":
                     success,detail=data
                     if not success:
@@ -1053,6 +1167,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._dialog("showerror","Cannot save candidate",str(error))
 
     def _close(self):
+        if self.g2g_setup_process is not None and self.g2g_setup_process.poll() is None:
+            self._dialog("showwarning","Greek AI installation",
+                         "Finish or stop the installation before closing the Control Center.")
+            return
         if self.process is not None and self.process.poll() is None:
             self._dialog("showwarning","Search running",
                 "Stop the current search before closing the Control Center.")
