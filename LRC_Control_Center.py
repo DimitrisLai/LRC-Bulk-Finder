@@ -1114,6 +1114,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._dialog("showerror","Delete profile",str(error))
 
     def _run_profile(self):
+        if self.review_bulk_running:
+            self._dialog("showwarning","Candidate promotion running",
+                         "Finish or stop the candidate batch before starting a search.")
+            return
         if self.g2g_setup_process is not None and self.g2g_setup_process.poll() is None:
             self._dialog("showwarning","Greek AI setup in progress",
                          "Finish optional Greek AI setup before starting a search.")
@@ -1281,6 +1285,23 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                 elif kind=="benchmark_stop":
                     success,detail=data
                     if not success:self.benchmark_status.set("Benchmark stop not verified: "+detail)
+                elif kind=="review_batch_progress":
+                    done,total,name,status=data
+                    self.review_batch_status.set(
+                        f"Promoting {done}/{total}: {status} — {name} (UNVERIFIED)")
+                elif kind=="review_batch_done":
+                    counts,done,total=data
+                    self.review_bulk_running=False
+                    self.review_promote_button.configure(state="normal")
+                    self.review_promote_all_button.configure(state="normal")
+                    self.review_stop_button.configure(state="disabled")
+                    self._refresh_review()
+                    self.review_batch_status.set(
+                        f"Batch complete: {done}/{total} processed. " +
+                        ", ".join(f"{key}: {n}" for key,n in sorted(counts.items())) +
+                        ". Every new LRC remains marked UNVERIFIED.")
+                elif kind=="review_batch_error":
+                    self._dialog("showerror","Candidate batch error",data)
                 elif kind=="g2g_line":
                     if self.g2g_setup_window is not None and self.g2g_setup_window.winfo_exists():
                         self.g2g_setup_log.configure(state="normal")
@@ -1384,29 +1405,84 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.log.delete("1.0","end")
         self.log.configure(state="disabled")
 
+    def _review_filter_key(self):
+        value=self.review_filter.get()
+        from ui_translations import UI_EL
+        return next((x for x in CANDIDATE_FILTERS
+                     if value in (x,self._tr(x),UI_EL.get(x,x))),"All statuses")
+
     def _refresh_review(self):
+        if self.review_bulk_running:
+            return
+        folder=self.folder.get()
+        self.review_all_rows=[]
+        self.review_rows={}
+        if folder and Path(folder).is_dir():
+            try:self.review_all_rows=list_review_candidates(folder,self.boolvars["recursive"].get())
+            except (OSError,ValueError) as error:
+                self._dialog("showerror","Candidate scan",str(error))
+        self._render_review()
+
+    def _render_review(self):
+        if not hasattr(self,"review_tree"):return
+        selected_paths={str(self.review_rows[k]["path"]) for k in self.review_tree.selection()
+                        if k in self.review_rows}
+        focus=self.review_tree.focus()
+        focus_path=str(self.review_rows[focus]["path"]) if focus in self.review_rows else None
         self.review_rows={}
         self.review_tree.delete(*self.review_tree.get_children())
-        folder=self.folder.get()
-        if not folder or not Path(folder).is_dir():return
-        try:
-            for i,item in enumerate(list_review_candidates(folder,self.boolvars["recursive"].get())):
-                path=item["path"]
-                status=("Missing / ambiguous audio" if not item["has_mp3"] else
-                        "Already has LRC" if item["has_lrc"] else
-                        "Primary — review" if item["index"]==1 else "Alternative — read-only")
-                key=str(i)
-                self.review_rows[key]=item
-                self.review_tree.insert("","end",iid=key,
-                    values=(item["mp3"].name,path.name,self._tr(status)))
-        except (OSError,ValueError) as error:
-            self._dialog("showerror","Candidate scan",str(error))
+        counts=candidate_summary(self.review_all_rows)
+        self.review_counter.set(
+            f"Total: {counts['total']}   |   Primary: {counts['primary']}   |   "
+            f"Alternatives: {counts['alternative']}   |   Eligible: {counts['eligible']}   |   "
+            f"Blocked primary: {counts['blocked_primary']}")
+        shown=sort_candidates(filter_candidates(self.review_all_rows,self._review_filter_key(),
+                                               self.review_query.get()),
+                             self.review_sort_column,self.review_sort_descending)
+        restore=[]
+        for index,item in enumerate(shown):
+            key=str(index)
+            self.review_rows[key]=item
+            kind="Primary" if item["index"]==1 else "Alternative"
+            status=candidate_status(item)
+            self.review_tree.insert("","end",iid=key,
+                     values=(item["mp3"].name,item["path"].name,self._tr(kind),
+                             self._tr(status),item["index"],str(item["path"].parent)))
+            if str(item["path"]) in selected_paths:
+                restore.append(key)
+            if str(item["path"])==focus_path:
+                self.review_tree.focus(key)
+        if restore:self.review_tree.selection_set(restore)
+        self.review_visible_count.set(
+            f"Visible: {len(shown)}  |  Selected: {len(self.review_tree.selection())}")
+        self._candidate_selected()
+
+    def _sort_review(self,column):
+        if column==self.review_sort_column:
+            self.review_sort_descending=not self.review_sort_descending
+        else:
+            self.review_sort_column=column
+            self.review_sort_descending=False
+        self._render_review()
+
+    def _review_select_visible(self):
+        if self.review_bulk_running:return
+        self.review_tree.selection_set(self.review_tree.get_children())
+
+    def _review_select_eligible(self):
+        if self.review_bulk_running:return
+        ids=[key for key,item in self.review_rows.items() if candidate_can_promote(item)]
+        self.review_tree.selection_set(ids)
 
     def _selection(self):
-        items=self.review_tree.selection()
-        return self.review_rows.get(items[0]) if items else None
+        ids=self.review_tree.selection()
+        focus=self.review_tree.focus()
+        return self.review_rows.get(focus) if focus in ids and focus in self.review_rows else (
+               self.review_rows.get(ids[0]) if ids else None)
 
     def _candidate_selected(self,_event=None):
+        count=len(self.review_tree.selection())
+        self.review_visible_count.set(f"Visible: {len(self.review_rows)}  |  Selected: {count}")
         item=self._selection()
         value=""
         if item:
@@ -1429,25 +1505,65 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._dialog("showerror","Open audio",str(error))
 
     def _promote_selected(self):
+        self._promote_review_items(
+            [self.review_rows[key] for key in self.review_tree.selection()
+             if key in self.review_rows],"selected rows")
+
+    def _promote_all_primary(self):
+        # User explicitly requested ALL primaries, not just the filtered rows.
+        self._promote_review_items(self.review_all_rows,"ALL eligible primaries")
+
+    def _promote_review_items(self,items,scope):
+        if self.review_bulk_running:return
         if self.process is not None and self.process.poll() is None:
-            self._dialog("showwarning","Search running","Finish the search before reviewing files.")
+            self._dialog("showwarning","Search running",
+                         "Finish the search before promoting candidates.");return
+        if self.benchmark_process is not None and self.benchmark_process.poll() is None:
+            self._dialog("showwarning","Benchmark running",
+                         "Finish the provider benchmark before promoting candidates.");return
+        eligible=eligible_primary_paths(items)
+        blocked=len(items)-len(eligible)
+        if not eligible:
+            self._dialog("showinfo","No eligible primaries",
+                         "No selected primary candidates are eligible. "
+                         "Numbered alternatives, missing audio and existing LRC files cannot be promoted.");return
+        total=len(eligible)
+        preview="\n".join(" • "+p.name for p in eligible[:7])
+        if total>7:preview+=f"\n ... and {total-7} more"
+        message=(f"Promote {total} {scope} to MARKED .lrc files?\n\n"
+                 "This is a batch WRITE operation, NOT lyrics verification.\n"
+                 "Each new .lrc receives [00:00.00] candidate and stays UNVERIFIED.\n"
+                 "Existing .lrc, audio and ID3 are never overwritten.\n"
+                 "Numbered alternatives are moved forward, never promoted directly.\n\n"
+                 f"Skipped in this selection: {blocked}\n\n"+preview)
+        if not self._dialog("askyesno","Confirm batch of UNVERIFIED lyrics",message):
             return
-        item=self._selection()
-        if not item:return
-        if item["index"]!=1 or not item["has_mp3"] or item["has_lrc"]:
-            self._dialog("showinfo","Not eligible","Only a primary candidate with exactly one matching audio file and no existing LRC can be promoted.")
-            return
-        if not self._dialog("askyesno","Install UNVERIFIED candidate?",
-            f"Install {item['path'].name} as a MARKED .lrc?\n\n"
-            "It will contain [00:00.00] candidate and remain UNVERIFIED.\n"
-            "Original audio/metadata will NOT change. Numbered alternatives shift forward."):
-            return
-        try:
-            status,detail=explicitly_promote(item["path"],approved=True)
-            self._dialog("showinfo","Candidate result",status+": "+detail)
-        except (ValueError,PermissionError,OSError) as error:
-            self._dialog("showerror","Candidate result",str(error))
-        self._refresh_review()
+        self.review_bulk_running=True
+        self.review_bulk_stop=False
+        self.review_promote_button.configure(state="disabled")
+        self.review_promote_all_button.configure(state="disabled")
+        self.review_stop_button.configure(state="normal")
+        self.review_batch_status.set(f"Promoting 0/{total} primaries... All results remain UNVERIFIED.")
+        folder=self.folder.get()
+        recursive=self.boolvars["recursive"].get()
+        def on_progress(done,total,path,status,detail):
+            self.messages.put(("review_batch_progress",(done,total,path.name,status)))
+        def worker():
+            try:
+                results,details=batch_promote(
+                    eligible,folder,recursive,approved=True,
+                    report=on_progress,stop=lambda:self.review_bulk_stop)
+                self.messages.put(("review_batch_done",(results,len(details),total)))
+            except (OSError,ValueError,PermissionError) as error:
+                self.messages.put(("review_batch_done",({"ERROR":1},0,total)))
+                self.messages.put(("review_batch_error",str(error)))
+        threading.Thread(target=worker,daemon=True).start()
+
+    def _stop_review_batch(self):
+        if self.review_bulk_running:
+            self.review_bulk_stop=True
+            self.review_stop_button.configure(state="disabled")
+            self.review_batch_status.set("Stopping after current primary candidate is processed...")
 
     def _build_sync_lab(self):
         area=self._studio_build_tabs()
@@ -1587,6 +1703,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._dialog("showerror","Cannot save candidate",str(error))
 
     def _close(self):
+        if self.review_bulk_running:
+            self._dialog("showwarning","Candidate promotion running",
+                         "Stop the candidate batch before closing the Control Center.")
+            return
         if self.g2g_setup_process is not None and self.g2g_setup_process.poll() is None:
             self._dialog("showwarning","Greek AI installation",
                          "Finish or stop the installation before closing the Control Center.")
