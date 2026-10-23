@@ -108,7 +108,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         mode="dark" if selected in ("Dark","Σκοτεινό") else "light"
         if mode==self.appearance_mode:return
         self.appearance_mode=mode
-        install_theme(self,mode)
+        self.palette=install_theme(self,mode)
         refresh_native_widgets(self,mode)
         try:save_mode(mode)
         except OSError as error:
@@ -494,6 +494,22 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.search_start_button.grid(row=row,column=0,columnspan=3,sticky="ew",padx=5,pady=(12,10))
         ttk.Label(outer,text="The GUI stores profiles in your local user settings. Original MP3s/ID3 files are never modified.",
                   style="Hint.TLabel").grid(row=row+1,column=0,columnspan=3,sticky="w",padx=5)
+        # Native wheel scrolling reaches child controls, without a global mouse
+        # binding that could unexpectedly scroll tabs or editable lyric text.
+        def wheel(event):
+            if self.notebook.select()!=str(self.search_tab):
+                return None
+            amount=int(-event.delta/120) if getattr(event,"delta",0) else (
+                -1 if getattr(event,"num",0)==4 else 1)
+            if amount:
+                self.profiles_canvas.yview_scroll(amount,"units")
+            return "break"
+        for widget in (canvas,outer,*tuple(self._iter_ui_children(outer))):
+            if isinstance(widget,ttk.Combobox):
+                continue  # Wheel within a focused combo retains native selection.
+            widget.bind("<MouseWheel>",wheel,add="+")
+            widget.bind("<Button-4>",wheel,add="+")
+            widget.bind("<Button-5>",wheel,add="+")
 
     def _build_progress(self):
         ttk.Label(self.run_tab,text="Search progress",style="Header.TLabel").pack(anchor="w",pady=(0,10))
