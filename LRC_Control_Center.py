@@ -32,7 +32,8 @@ from v298_candidate_workbench import (
     STATUSES as CANDIDATE_FILTERS, summarize as candidate_summary,
     filtered as filter_candidates, sort_items as sort_candidates,
     status_for as candidate_status, can_promote as candidate_can_promote,
-    primary_paths as eligible_primary_paths, bulk_promote as batch_promote)
+    primary_paths as eligible_primary_paths, alternative_breakdown,
+    bulk_promote as batch_promote)
 from runtime_paths import program_folder
 from worker_stop import kill_search_process
 from v243_health import ProviderHealth
