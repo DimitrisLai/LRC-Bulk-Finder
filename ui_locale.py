@@ -69,10 +69,16 @@ def save_language(language,path=None):
     target.parent.mkdir(parents=True,exist_ok=True)
     temp=None
     try:
+        try:
+            existing=json.loads(target.read_text(encoding='utf-8'))
+            if not isinstance(existing,dict):existing={}
+        except (OSError,ValueError,TypeError):
+            existing={}
+        existing.update({'schema':1,'interface_language':language})
         with tempfile.NamedTemporaryFile('w',encoding='utf-8',dir=target.parent,
                                         prefix='.ui_settings-',suffix='.tmp',delete=False) as f:
             temp=Path(f.name)
-            json.dump({'schema':1,'interface_language':language},f,ensure_ascii=False)
+            json.dump(existing,f,ensure_ascii=False)
             f.flush()
             os.fsync(f.fileno())
         os.replace(str(temp),str(target))
