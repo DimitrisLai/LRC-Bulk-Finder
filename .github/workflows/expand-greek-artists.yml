@@ -5,6 +5,7 @@ on:
     paths:
       - 'UPDATE_GREEK_ARTISTS_WIKIPEDIA.py'
       - 'TEST_WIKIPEDIA_GREEK_ARTISTS.py'
+      - 'TEST_WIKIPEDIA_GREEK_ARTISTS_RUNTIME.py'
       - '.github/workflows/expand-greek-artists.yml'
   workflow_dispatch:
 
@@ -31,7 +32,7 @@ jobs:
       - name: Validate expanded CSV and historical regression tests
         run: |
           python -m pip install mutagen Unidecode
-          python -m unittest TEST_WIKIPEDIA_GREEK_ARTISTS.py TEST_GREEK_ARTIST_QUALITY_V2_1_19.py -v
+          python -m unittest TEST_WIKIPEDIA_GREEK_ARTISTS.py TEST_WIKIPEDIA_GREEK_ARTISTS_RUNTIME.py TEST_GREEK_ARTIST_QUALITY_V2_1_19.py -v
       - name: Commit generated public CSV data to feature branch
         shell: bash
         run: |
