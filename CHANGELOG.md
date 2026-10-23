@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.9.4 — Verified one-click Greek G2G AI setup for frozen Windows EXE
+
+- Adds an in-app optional installer with explicit user download consent, progress log, self-test and enable-on-success checkbox.
+- Uses separate user-local Python environment and upstream AUEB G2G model, with optional winget Python 3.11 installation when Python is absent.
+- Adds persistent CPU-based local Python companion for the frozen search worker, preserving source Python mode and safe dictionary-only fallback.
+- Existing v2.9.3 Unicode crash, 15 presets, dictionaries, candidate review and STOP/no-overwrite protections remain intact.
+- No AI model bundled in release: the approximately 1.2 GB download happens only after user approval. The first actual download must be confirmed on Windows hardware.
+
+
 ## v2.9.3 — UTF-8 crash recovery, 15 presets and Greek song-title words
 
 - Fix fatal Windows cp1252/charmap output crash on Unicode U+2010 hyphens in a song name; worker and GUI use UTF-8.
