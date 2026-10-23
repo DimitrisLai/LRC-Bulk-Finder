@@ -173,38 +173,84 @@ class ProfileAnswers:
 # Non-destructive built-in templates. Never silently replace a user's
 # individually saved profiles, paths or LRCLIB database configuration.
 PRESET_TEMPLATES={
-    "Greek FULL — Offline First": {
-        "action":"5","greek":True,"local_ai":False,"musicbrainz":True,
-        "provider_mode":"full","order":"d","recovery_wait":False,
-        "recursive":True,"history":True,"limit":"a","exact_fallback":True},
+    # All Greek presets first, then international; most comprehensive first.
     "Greek Night Search — Maximum Coverage": {
         "action":"5","greek":True,"local_ai":False,"musicbrainz":True,
         "provider_mode":"full","order":"d","recovery_wait":True,
         "recursive":True,"history":False,"limit":"a","exact_fallback":True},
-    "Greek Quick Test — 20 Songs": {
+    "Greek FULL — Offline First": {
         "action":"5","greek":True,"local_ai":False,"musicbrainz":True,
         "provider_mode":"full","order":"d","recovery_wait":False,
-        "recursive":True,"history":False,"limit":"20","exact_fallback":True},
-    "Greek OFFLINE ONLY": {
-        "action":"4","greek":True,"local_ai":False,"musicbrainz":False,
-        "provider_mode":"fast","order":"d","recovery_wait":False,
-        "recursive":True,"history":False,"limit":"a","exact_fallback":False},
+        "recursive":True,"history":True,"limit":"a","exact_fallback":True},
+    "Greek FULL — Online ALL": {
+        "action":"1","greek":True,"local_ai":False,"musicbrainz":True,
+        "provider_mode":"full","order":"d","recovery_wait":False,
+        "recursive":True,"history":True,"limit":"a","exact_fallback":True},
     "Greek Local AI — FULL": {
         "action":"5","greek":True,"local_ai":True,"musicbrainz":True,
         "provider_mode":"full","order":"d","recovery_wait":False,
         "recursive":True,"history":True,"limit":"a","exact_fallback":True},
+    "Greek FULL — Online 100 Songs": {
+        "action":"1","greek":True,"local_ai":False,"musicbrainz":True,
+        "provider_mode":"full","order":"d","recovery_wait":False,
+        "recursive":True,"history":True,"limit":"100","exact_fallback":True},
+    "Greek FAST — Online ALL": {
+        "action":"1","greek":True,"local_ai":False,"musicbrainz":False,
+        "provider_mode":"fast","order":"d","recovery_wait":False,
+        "recursive":True,"history":True,"limit":"a","exact_fallback":False},
+    "Greek Quick Test — 20 Songs": {
+        "action":"5","greek":True,"local_ai":False,"musicbrainz":True,
+        "provider_mode":"full","order":"d","recovery_wait":False,
+        "recursive":True,"history":False,"limit":"20","exact_fallback":True},
+    "Greek FAST — Online 20 Songs": {
+        "action":"1","greek":True,"local_ai":False,"musicbrainz":False,
+        "provider_mode":"fast","order":"d","recovery_wait":False,
+        "recursive":True,"history":True,"limit":"20","exact_fallback":False},
+    "Greek OFFLINE ONLY": {
+        "action":"4","greek":True,"local_ai":False,"musicbrainz":False,
+        "provider_mode":"fast","order":"d","recovery_wait":False,
+        "recursive":True,"history":False,"limit":"a","exact_fallback":False},
+    "International MAX — Overnight ALL": {
+        "action":"1","greek":False,"local_ai":False,"musicbrainz":True,
+        "provider_mode":"full","order":"d","recovery_wait":True,
+        "recursive":True,"history":False,"limit":"a","exact_fallback":True},
+    "International FULL — Online ALL": {
+        "action":"1","greek":False,"local_ai":False,"musicbrainz":True,
+        "provider_mode":"full","order":"d","recovery_wait":False,
+        "recursive":True,"history":True,"limit":"a","exact_fallback":True},
+    "International FULL — Online 100 Songs": {
+        "action":"1","greek":False,"local_ai":False,"musicbrainz":True,
+        "provider_mode":"full","order":"d","recovery_wait":False,
+        "recursive":True,"history":True,"limit":"100","exact_fallback":True},
+    "International FAST — Online ALL": {
+        "action":"1","greek":False,"local_ai":False,"musicbrainz":False,
+        "provider_mode":"fast","order":"d","recovery_wait":False,
+        "recursive":True,"history":True,"limit":"a","exact_fallback":False},
     "International FAST — 20 Songs": {
         "action":"1","greek":False,"local_ai":False,"musicbrainz":True,
         "provider_mode":"fast","order":"d","recovery_wait":False,
         "recursive":True,"history":True,"limit":"20","exact_fallback":False},
+    "International OFFLINE ONLY": {
+        "action":"4","greek":False,"local_ai":False,"musicbrainz":False,
+        "provider_mode":"fast","order":"d","recovery_wait":False,
+        "recursive":True,"history":False,"limit":"a","exact_fallback":False},
 }
 PRESET_DESCRIPTIONS={
-    "Greek FULL — Offline First":"Your normal Greeklish workflow. Local LRCLIB for all tracks, full online fallback, timeout-only retry. No unnecessary provider waiting.",
-    "Greek Night Search — Maximum Coverage":"Unattended full-library run. Waits for providers in temporary recovery and checks all sources; can take many hours. Does not schedule itself.",
-    "Greek Quick Test — 20 Songs":"Recheck only 20 missing songs with full Greek search and no reused NO_MATCH history.",
-    "Greek OFFLINE ONLY":"Only your downloaded SQLite LRCLIB database. Zero online lyrics or MusicBrainz requests.",
-    "Greek Local AI — FULL":"Greek FULL plus your separately installed local G2G model. Requires a functioning model; NOT bundled into the EXE.",
-    "International FAST — 20 Songs":"Small English/international FAST test without Greek conversion or mandatory local SQLite.",
+    "Greek Night Search — Maximum Coverage":"Widest Greek search: all tracks, local LRCLIB first, every full provider, recovery waits and fresh retries. Slowest; needs local SQLite.",
+    "Greek FULL — Offline First":"All Greek songs: local SQLite first, then every full online provider. Reuses prior provider history; needs local SQLite.",
+    "Greek FULL — Online ALL":"All Greek songs through full online providers. No local SQLite needed; MusicBrainz and exact fallback enabled.",
+    "Greek FULL — Online 100 Songs":"Same full Greek online coverage, capped at 100 eligible songs.",
+    "Greek Quick Test — 20 Songs":"20 Greek songs using local SQLite plus full online fallback; ignores old NO_MATCH provider history. Needs local SQLite.",
+    "Greek FAST — Online ALL":"All Greek songs with fewer online providers and no MusicBrainz metadata lookup; no local SQLite needed.",
+    "Greek FAST — Online 20 Songs":"20 Greek songs, fast online sources, no local SQLite or MusicBrainz.",
+    "Greek Local AI — FULL":"Greek full offline-first plus your separately installed G2G model; NOT included in the standalone Windows EXE.",
+    "Greek OFFLINE ONLY":"Only your configured local LRCLIB SQLite database; no online providers or MusicBrainz.",
+    "International MAX — Overnight ALL":"Widest foreign search, all tracks, every full provider, recovery waits and fresh retries. Online; can run many hours.",
+    "International FULL — Online ALL":"All foreign-language songs using full online provider coverage, MusicBrainz and exact fallback.",
+    "International FULL — Online 100 Songs":"Full foreign online search on the first 100 eligible songs.",
+    "International FAST — Online ALL":"All foreign songs using fast online providers without MusicBrainz lookup.",
+    "International FAST — 20 Songs":"20-song international FAST test, no Greek conversion and no mandatory local SQLite.",
+    "International OFFLINE ONLY":"Foreign songs against only your configured local LRCLIB SQLite database; no internet requests.",
 }
 
 def preset_profile(name,folder="",database=""):

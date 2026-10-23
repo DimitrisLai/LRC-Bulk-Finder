@@ -324,7 +324,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         preset_choice.grid(row=row,column=1,sticky="ew",padx=5)
         preset_choice.bind("<<ComboboxSelected>>",self._preset_selected)
         ttk.Button(outer,text="Apply preset",command=self._apply_preset).grid(row=row,column=2,sticky="ew",padx=5)
-        self._tool_tip(preset_choice,"Built-in examples: Greek full search, Greek overnight maximum coverage, offline only, quick 20-song test, optional local AI and international FAST. Saved profiles remain yours.")
+        self._tool_tip(preset_choice,"15 presets, grouped Greek first and international second, broadest searches first. Offline-first/offline-only require a configured local LRCLIB SQLite database. Optional G2G model is not bundled. Applying a preset never overwrites saved profiles.")
         row+=1
         ttk.Label(outer,textvariable=self.preset_description,wraplength=950,
                   style="Hint.TLabel").grid(row=row,column=0,columnspan=3,sticky="w",padx=5,pady=(0,8))

@@ -1,0 +1,65 @@
+name: Expand Greek song-title word suggestions from Wikipedia
+on:
+  push:
+    branches: [feature/greek-song-titles-presets-2026]
+    paths:
+      - 'UPDATE_GREEK_SONG_WORDS_WIKIPEDIA.py'
+      - 'TEST_WIKIPEDIA_GREEK_SONG_WORDS.py'
+      - '.github/workflows/expand-greek-song-words.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  expand-song-words:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install offline test runtime dependencies
+        run: python -m pip install mutagen Unidecode
+      - name: Test offline pagination, aliases and preset order
+        run: python -m unittest TEST_WIKIPEDIA_GREEK_SONG_WORDS.py -v
+      - name: Collect song titles and all subcategory continuation pages
+        run: python UPDATE_GREEK_SONG_WORDS_WIKIPEDIA.py
+      - name: Inspect generated CSV schema and prevent curated overwrites
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          from UPDATE_GREEK_SONG_WORDS_WIKIPEDIA import approved_words
+          src=Path('.')
+          with (src/'Greek_Words_Wikipedia.csv').open(encoding='utf-8-sig',newline='') as f:
+              reader=csv.DictReader(f)
+              assert reader.fieldnames==['greeklish','greek']
+              rows=list(reader)
+          approved=approved_words(src.resolve())
+          keys=[r['greeklish'] for r in rows]
+          assert len(keys)==len(set(keys))
+          assert not set(keys)&set(approved), 'Auto candidates must not replace curated Greek words'
+          assert len(rows)>0
+          print(f'PASS: {len(rows)} unverified distinct words, no approved-key collisions')
+          PY
+      - name: Run normal dictionary and importer regression tests
+        run: |
+          python -m pip install mutagen Unidecode
+          python -m unittest TEST_GREEK_TITLE_QUALITY_V2_1_17.py TEST_GREEK_LEXICON_SQLITE_V2_1_18.py TEST_WIKIPEDIA_GREEK_SONG_WORDS.py -v
+      - name: Commit source-audited vocabulary only on feature branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Greek_Words_Wikipedia.csv Greek_Song_Title_Words_Audit.csv
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No song-vocabulary changes"
+            exit 0
+          fi
+          git commit -m "data: refresh Wikipedia Greek song-title vocabulary and provenance"
+          git push origin HEAD:feature/greek-song-titles-presets-2026

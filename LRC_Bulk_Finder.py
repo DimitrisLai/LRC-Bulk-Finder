@@ -441,7 +441,7 @@ def load_greek_words():
     root=program_folder() if getattr(sys,'frozen',False) else Path(__file__).resolve().parent
     db_path=root/'Greek_Lexicon.sqlite3'
     fingerprints={}
-    for name in ('Greek_Words_Expanded.csv','Greek_Words.csv'):
+    for name in ('Greek_Words_Wikipedia.csv','Greek_Words_Expanded.csv','Greek_Words.csv'):
         candidate=root/name
         if candidate.is_file():
             try:
@@ -464,8 +464,9 @@ def load_greek_words():
         except (OSError,ValueError,sqlite3.Error) as ex:
             print('Greek lexicon SQLite skipped; continuing with CSV words:',ex,flush=True)
     # CSV is the authoritative, editable source in public and local installs.
-    # Expanded set first, then the small legacy/user-customizable dictionary.
-    for filename in ('Greek_Words_Expanded.csv','Greek_Words.csv'):
+    # Automatically collected Wikipedia suggestions FIRST (lowest priority), then
+    # expanded curated words and finally manually approved legacy words.
+    for filename in ('Greek_Words_Wikipedia.csv','Greek_Words_Expanded.csv','Greek_Words.csv'):
         source=root/filename
         if not source.is_file():continue
         try:
@@ -2520,7 +2521,7 @@ def main():
         'lrclib_exact':LRCLIB_EXACT_FALLBACK,
         'online_lrclib':LRCLIB_ONLINE_FALLBACK,
     },[config_dir/n for n in ('Greek_Aliases.csv','Greek_Artists.csv',
-                            'Greek_Words.csv','Greek_Words_Expanded.csv',
+                            'Greek_Words.csv','Greek_Words_Expanded.csv','Greek_Words_Wikipedia.csv',
                             'LRCLIB_LOCAL_DB.txt')],
       LOCAL_LRCLIB.path if LOCAL_LRCLIB is not None else None)
     checkpoint=SearchCheckpoint(folder,VERSION,checkpoint_config)
