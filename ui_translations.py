@@ -1130,3 +1130,8 @@ _UI_G2G_INSTALL_EL = {
 }
 for _english, _greek in _UI_G2G_INSTALL_EL.items():
     UI_EL.setdefault(_english, _greek)
+
+# Installer cancellation remains optional and never deletes model/cache/music.
+UI_EL.setdefault('Cancel installation', 'Ακύρωση εγκατάστασης')
+UI_EL.setdefault('Cancel Greek AI installation', 'Ακύρωση εγκατάστασης ελληνικού AI')
+UI_EL.setdefault('Stopping optional AI installer...', 'Διακοπή εγκατάστασης προαιρετικού AI...')
