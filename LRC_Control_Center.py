@@ -342,7 +342,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self.benchmark_tree.column(key,width=width,stretch=True)
         self.benchmark_tree.pack(fill="x",pady=(2,5))
         ttk.Label(self.health_tab,text="Provider health — current run",style="Header.TLabel").pack(anchor="w")
-        ttk.Label(self.health_tab,text="No network probes are made by this screen. An HTTP 200 is not a verified LRC.",wraplength=900).pack(anchor="w",pady=8)
+        ttk.Label(self.health_tab,text="The health table is passive; only Test My Providers makes live requests. HTTP 200 does not verify a lyric.",wraplength=900).pack(anchor="w",pady=8)
         fields=("provider","status","last_http_success","last_verified","verified_count","detail")
         self.health_tree=ttk.Treeview(self.health_tab,columns=fields,show="headings",height=10)
         for key,label,width in (("provider","Provider",120),("status","Latest state",170),("last_http_success","Latest HTTP 2xx",145),("last_verified","Last verified hit",155),("verified_count","Verified hits",100),("detail","Latest response",340)):
@@ -382,7 +382,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         # action is OFFLINE ONLY. State this explicitly and require confirmation.
         note=("Perform a LIVE online test of "+str(selected)+" songs using "
               +str(len(self._base_pack_sources())-len(profile["provider_exclusions"]))+
-              " enabled sources?\\n\\n"
+              " enabled sources?\n\n"
               "No LRC, candidates, MP3s or tags will be created or edited. "
               "Only an aggregate CSV is written to your personal application-data folder. "
               "This makes REAL provider network requests, which may take minutes "
@@ -403,6 +403,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
               "--benchmark-excluded",",".join(profile["provider_exclusions"]),
               "--benchmark-sample",str(selected)]
         if not profile["recursive"]:cmd.append("--benchmark-nonrecursive")
+        if profile["provider_pack"]==PACK_LEGACY and profile.get("experimental_simpmusic"):
+            cmd.append("--benchmark-experimental-simpmusic")
         env=dict(os.environ)
         env["PYTHONIOENCODING"]="utf-8:backslashreplace"
         # Benchmark must not inherit any search-only selection or user stop marker.
@@ -432,7 +434,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
     def _read_benchmark_process(self,process):
         try:
             for line in process.stdout:
-                self.messages.put(("benchmark_line",line.rstrip("\\r\\n")))
+                self.messages.put(("benchmark_line",line.rstrip("\r\n")))
             self.messages.put(("benchmark_done",process.wait()))
         except (OSError,ValueError) as error:
             self.messages.put(("benchmark_line","Reader error: "+str(error)))
