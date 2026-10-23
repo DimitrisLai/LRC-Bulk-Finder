@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.9.2 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.9.3 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -15,6 +15,14 @@ LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music librarie
 Lyrics are saved alongside the MP3 with the same base filename, making them compatible with many portable music players and car stereos that support synchronized LRC text.
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
+
+## Windows v2.9.3 — Unicode crash and Local AI fixes
+
+**Latest maintenance release:** fixes the fatal `charmap`/Unicode-hyphen error from the 5,150-track search; the standalone EXE now falls back safely to curated Greek dictionaries instead of offering an unusable Local AI model. The GUI warns when a saved preset name differs from its scope (such as a 20-song FAST preset incorrectly saved as ALL/Offline First).
+
+Includes **15 Greek/international search presets**, **730** Greek artist aliases and **92** additional unverified Greeklish word candidates drawn from Wikipedia *song titles* (not copyrighted lyrics). English and Greek manuals and five checksum-verified release assets are provided. Unfinished songs remain retryable; no lyrics provider success is guaranteed.
+
+See [release notes](RELEASE_NOTES_V2_9_3.md), [Wikipedia provenance](NEXT_UPDATE_GREEK_VOCABULARY_PRESETS.md) and [official releases](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases).
 
 ## Expanded Greek singer aliases — 23 October 2026
 
