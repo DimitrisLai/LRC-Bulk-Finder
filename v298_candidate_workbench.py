@@ -42,6 +42,11 @@ def summarize(items):
             "eligible":eligible,"blocked_primary":blocked}
 
 
+def alternative_breakdown(items):
+    """Counts by numbered alternative level, e.g. 2, 3, 4."""
+    totals=Counter(row["index"] for row in items if row["index"]>1)
+    return dict(sorted(totals.items()))
+
 def filtered(items,choice="All statuses",query=""):
     if choice not in STATUSES:
         raise ValueError("Unknown candidate filter")
