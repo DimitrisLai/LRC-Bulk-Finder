@@ -138,7 +138,7 @@ def build():
                      'v290_smart_library.py','v290_smart_gui.py','v290_translations.py',
                      'TEST_V290_SMART_LIBRARY.py','TEST_V290_GUI.py','TEST_V290_SCALE.py',
                      'TEST_V291_STARTUP.py','LAUNCH_LRC_BULK_FINDER_WINDOWS.cmd',
-                     'TEST_V293_PREFLIGHT.py','BUILD_V293_MANUALS.py',
+                     'TEST_V292_PREFLIGHT.py','BUILD_V293_MANUALS.py',
                      'ROADMAP_V2_8_V2_9_V3_0.md','worker_stop.py',
                      'Greek_Words_Wikipedia.csv','Greek_Artists.csv','Greek_Artists_Baseline_Approved.csv',
                      'TEST_NEXT_UPDATE_WINDOWS_STABILITY.py','UPDATE_GREEK_SONG_WORDS_WIKIPEDIA.py',
