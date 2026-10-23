@@ -38,12 +38,13 @@ def run_profile(name,profiles_path=None):
         raise ValueError("Profile not found: "+name)
     profile=validate_profile(profiles[name])
     if getattr(sys,"frozen",False) and profile["local_ai"]:
-        # Standalone builds do not ship the third-party transformer. A stale
-        # saved profile must never prevent safe dictionary-only Greek search.
-        profile={**profile,"local_ai":False}
-        print("LOCAL AI UNAVAILABLE: standalone uses curated Greek word/artist "
-              "dictionaries instead; original audio and saved settings remain unchanged.",
-              flush=True)
+        from g2g_auto import installed
+        if not installed():
+            # An older profile still works even if setup was never finished.
+            profile={**profile,"local_ai":False}
+            print("LOCAL AI UNAVAILABLE: one-click setup has not been verified. "
+                  "Continuing safely with curated Greek dictionaries.",
+                  flush=True)
     folder=Path(profile["folder"]).expanduser()
     if not folder.is_dir():
         raise ValueError("Selected music folder does not exist: "+str(folder))
@@ -80,12 +81,23 @@ def main(argv=None):
     parser=argparse.ArgumentParser(description="Run one saved LRC Bulk Finder search profile")
     parser.add_argument("--profile",help="Saved profile name")
     parser.add_argument("--setup-lrclib",action="store_true",help="Run the consent-based official LRCLIB database downloader")
+    parser.add_argument("--setup-g2g",action="store_true",help="Install and verify optional Greek AI into a separate user environment")
+    parser.add_argument("--g2g-model",choices=["g2g","g2g_lite"],default="g2g")
+    parser.add_argument("--allow-python-install",action="store_true",help="Also install official Python 3.11 using Windows winget if missing")
     parser.add_argument("--profiles-path",help="Optional alternate profiles.json for portable/test runs")
     args=parser.parse_args(argv)
     if args.setup_lrclib:
         from auto_install_lrclib_database import main as install_lrclib
         install_lrclib()
         return 0
+    if args.setup_g2g:
+        from g2g_auto import setup
+        try:
+            setup(model=args.g2g_model, allow_python_install=args.allow_python_install)
+            return 0
+        except (OSError,RuntimeError,ValueError) as error:
+            print("G2G SETUP FAILED:",str(error),file=sys.stderr,flush=True)
+            return 2
     if not args.profile:
         parser.error('This is the background search worker, not the main app. '
                      'Start LRC_Control_Center.exe for the graphical interface. '
