@@ -28,6 +28,11 @@ from tooltip_help import ToolTip
 from lyric_sync_lab import plain_lines,estimate_timestamps,draft_lrc,save_unverified_draft
 from review_candidates_gui import (list_review_candidates,preview_candidate,
                                    explicitly_promote)
+from v298_candidate_workbench import (
+    STATUSES as CANDIDATE_FILTERS, summarize as candidate_summary,
+    filtered as filter_candidates, sort_items as sort_candidates,
+    status_for as candidate_status, can_promote as candidate_can_promote,
+    primary_paths as eligible_primary_paths, bulk_promote as batch_promote)
 from runtime_paths import program_folder
 from worker_stop import kill_search_process
 from v243_health import ProviderHealth
@@ -68,6 +73,11 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.benchmark_stop_requested=False
         self.messages=queue.Queue()
         self.review_rows={}
+        self.review_all_rows=[]
+        self.review_sort_column="track"
+        self.review_sort_descending=False
+        self.review_bulk_running=False
+        self.review_bulk_stop=False
         self.loaded_profiles={}
         self._build()
         refresh_native_widgets(self,self.appearance_mode)
@@ -740,28 +750,75 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             ttk.Label(item,text=label,wraplength=200,justify="center").pack()
 
     def _build_review(self):
-        top=ttk.Frame(self.review_tab)
-        top.pack(fill="x")
-        ttk.Label(top,text="Unverified candidate lyrics",style="Header.TLabel").pack(side="left")
-        ttk.Button(top,text="Refresh candidates",command=self._refresh_review).pack(side="right")
-        ttk.Button(top,text="Approve Greek alias...",command=self._approve_alias).pack(side="right",padx=10)
-        ttk.Label(self.review_tab,text="Review before installing. Only explicitly selected primary candidates can become MARKED [00:00.00] candidate LRCs. This NEVER certifies lyrics as verified.",wraplength=850).pack(anchor="w",pady=10)
-        columns=("track","candidate","status")
-        self.review_tree=ttk.Treeview(self.review_tab,columns=columns,show="headings",height=12)
-        for key,caption,width in (("track","Audio",350),("candidate","Candidate",330),("status","Status",200)):
-            self.review_tree.heading(key,text=caption)
-            self.review_tree.column(key,width=width,stretch=True)
-        self.review_tree.pack(fill="both",expand=True)
+        header=ttk.Frame(self.review_tab)
+        header.pack(fill="x",pady=(0,9))
+        ttk.Label(header,text="Candidate Review Workbench",style="Header.TLabel").pack(side="left")
+        ttk.Button(header,text="Refresh candidates",command=self._refresh_review).pack(side="right")
+        ttk.Button(header,text="Approve Greek alias...",command=self._approve_alias).pack(side="right",padx=(0,8))
+        ttk.Label(self.review_tab,
+                  text="Batch promotion installs MARKED [00:00.00] candidate LRCs only. "
+                       "These remain UNVERIFIED. Existing .lrc and audio/ID3 files are never overwritten.",
+                  style="Hint.TLabel",wraplength=1050).pack(anchor="w",pady=(0,10))
+        self.review_counter=tk.StringVar(value="Total: 0  |  Primary: 0  |  Alternatives: 0  |  Eligible: 0")
+        ttk.Label(self.review_tab,textvariable=self.review_counter,style="Header.TLabel").pack(anchor="w",pady=(0,8))
+        controls=ttk.Frame(self.review_tab)
+        controls.pack(fill="x",pady=(0,8))
+        ttk.Label(controls,text="Status").pack(side="left",padx=(0,6))
+        self.review_filter=tk.StringVar(value="All statuses")
+        self.review_filter_picker=ttk.Combobox(controls,textvariable=self.review_filter,
+                         values=[self._tr(k) for k in CANDIDATE_FILTERS],
+                         state="readonly",width=26)
+        self.review_filter_picker.pack(side="left",padx=(0,12))
+        self.review_filter_picker.bind("<<ComboboxSelected>>",lambda e:self._render_review())
+        ttk.Label(controls,text="Filter text").pack(side="left",padx=(0,6))
+        self.review_query=tk.StringVar()
+        self.review_search=ttk.Entry(controls,textvariable=self.review_query,width=38)
+        self.review_search.pack(side="left",fill="x",expand=True)
+        self.review_query.trace_add("write",lambda *_:self._render_review())
+        self.review_visible_count=tk.StringVar(value="Visible: 0  |  Selected: 0")
+        ttk.Label(controls,textvariable=self.review_visible_count,style="Hint.TLabel").pack(side="right",padx=(12,0))
+        columns=("track","candidate","kind","status","number","folder")
+        self.review_tree=ttk.Treeview(self.review_tab,columns=columns,show="headings",
+                                      height=12,selectmode="extended")
+        labels=(("track","Audio",230),("candidate","Candidate",265),
+                ("kind","Kind",100),("status","Status",185),
+                ("number","#",55),("folder","Folder",230))
+        for key,caption,width in labels:
+            self.review_tree.heading(key,text=caption,
+                 command=lambda col=key:self._sort_review(col))
+            self.review_tree.column(key,width=width,stretch=(key!="number"))
+        scroll=ttk.Scrollbar(self.review_tab,orient="vertical",command=self.review_tree.yview)
+        self.review_tree.configure(yscrollcommand=scroll.set)
+        grid=ttk.Frame(self.review_tab)
+        grid.pack(fill="both",expand=True)
+        scroll.pack_forget()
+        self.review_tree.pack(in_=grid,side="left",fill="both",expand=True)
+        scroll.pack(in_=grid,side="right",fill="y")
         self.review_tree.bind("<<TreeviewSelect>>",self._candidate_selected)
-        ttk.Label(self.review_tab,text="Selected synchronized lyrics (read-only)").pack(anchor="w",pady=(10,3))
-        self.candidate_text=scrolledtext.ScrolledText(self.review_tab,height=9,wrap="word",font=("Consolas",10))
-        self.candidate_text.pack(fill="both",expand=True)
+        select_actions=ttk.Frame(self.review_tab)
+        select_actions.pack(fill="x",pady=(8,7))
+        ttk.Button(select_actions,text="Select visible",command=self._review_select_visible).pack(side="left",padx=(0,6))
+        ttk.Button(select_actions,text="Select eligible primaries",command=self._review_select_eligible).pack(side="left",padx=(0,6))
+        ttk.Button(select_actions,text="Clear selection",command=lambda:self.review_tree.selection_remove(*self.review_tree.selection())).pack(side="left",padx=(0,8))
+        ttk.Label(self.review_tab,text="Preview of focused candidate (read-only)").pack(anchor="w")
+        self.candidate_text=scrolledtext.ScrolledText(self.review_tab,height=7,wrap="word",font=("Consolas",10))
+        self.candidate_text.pack(fill="both",expand=True,pady=(3,8))
         self.candidate_text.configure(state="disabled")
         buttons=ttk.Frame(self.review_tab)
-        buttons.pack(fill="x",pady=12)
+        buttons.pack(fill="x",pady=(0,8))
         ttk.Button(buttons,text="Play audio externally",command=self._play_selected).pack(side="left")
-        ttk.Button(buttons,text="Promote selected to MARKED LRC",command=self._promote_selected).pack(side="left",padx=10)
-        ttk.Label(buttons,text="Numbered alternatives are read-only until they become primary.").pack(side="right")
+        self.review_promote_button=ttk.Button(buttons,text="Promote selected primaries",
+                  command=self._promote_selected,style="Primary.TButton")
+        self.review_promote_button.pack(side="left",padx=8)
+        self.review_promote_all_button=ttk.Button(buttons,text="Promote ALL eligible primaries",
+                  command=self._promote_all_primary)
+        self.review_promote_all_button.pack(side="left",padx=8)
+        self.review_stop_button=ttk.Button(buttons,text="Stop batch",state="disabled",
+                  command=self._stop_review_batch)
+        self.review_stop_button.pack(side="left",padx=8)
+        self.review_batch_status=tk.StringVar(value="Ready. Alternatives become primary only after existing promotion routine advances them.")
+        ttk.Label(self.review_tab,textvariable=self.review_batch_status,
+                  style="Hint.TLabel",wraplength=1040).pack(fill="x")
 
     def _pack_key(self,label):
         for key,value in PROVIDER_PACK_LABELS.items():
