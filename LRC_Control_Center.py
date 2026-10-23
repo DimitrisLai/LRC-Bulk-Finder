@@ -33,6 +33,7 @@ from v243_resume import last_run, mark_run
 from v243_aliases import approve_alias
 from v243_contribution import export_contribution
 from ui_locale import GuiLocale, read_language, save_language
+from ui_appearance import read_mode, save_mode, install_theme, refresh_native_widgets, PALETTES
 from v250_manager import start_session
 from v245_features import VERSION as APP_VERSION
 from v245_gui import V245Mixin
@@ -44,11 +45,12 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         super().__init__()
         self.title(f"LRC Bulk Finder v{APP_VERSION} — Control Center")
         self.gui_locale=GuiLocale(read_language())
+        self.appearance_mode=read_mode()
         self._locale_widgets={}
         self._status_vars={}
         self._locale_is_refreshing=False
-        self.geometry("1140x910")
-        self.minsize(970,770)
+        self.geometry("1250x940")
+        self.minsize(980,760)
         self.process=None
         self.reader=None
         self.stop_directory=None
@@ -63,6 +65,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.review_rows={}
         self.loaded_profiles={}
         self._build()
+        refresh_native_widgets(self,self.appearance_mode)
         self._refresh_profiles()
         self._init_language_status_tracking()
         self._refresh_language()
@@ -96,6 +99,20 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         for original in PRESET_TEMPLATES:
             if GuiLocale('el').tr(original)==display:return original
         return display
+
+    def _appearance_options(self):
+        return ("Φωτεινό", "Σκοτεινό") if self.gui_locale.language=="el" else ("Light","Dark")
+
+    def _appearance_selected(self,_event=None):
+        selected=self.appearance_choice.get()
+        mode="dark" if selected in ("Dark","Σκοτεινό") else "light"
+        if mode==self.appearance_mode:return
+        self.appearance_mode=mode
+        self.palette=install_theme(self,mode)
+        refresh_native_widgets(self,mode)
+        try:save_mode(mode)
+        except OSError as error:
+            self._dialog("showwarning","Appearance","Could not save appearance preference: "+str(error))
 
     def _language_selected(self,_event=None):
         new='el' if self.language_choice.get()=='Ελληνικά' else 'en'
@@ -134,6 +151,9 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self._locale_is_refreshing=True
         try:
             self.title(f'LRC Bulk Finder v{APP_VERSION} — Control Center')
+            if hasattr(self,"appearance_control"):
+                self.appearance_control.configure(values=self._appearance_options())
+                self.appearance_choice.set(self._appearance_options()[1 if self.appearance_mode=="dark" else 0])
             # Preserve active notebook tab and all fields; no _build() or profile reload.
             for widget in self._iter_ui_children(self):
                 if isinstance(widget,(ttk.Label,ttk.Button,ttk.Checkbutton,ttk.LabelFrame,
@@ -216,31 +236,47 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         return getattr(filedialog,method)(*args,**kwargs)
 
     def _build(self):
-        style=ttk.Style(self)
-        if "clam" in style.theme_names():style.theme_use("clam")
-        style.configure("Header.TLabel",font=("Segoe UI",16,"bold"))
-        style.configure("Hint.TLabel",font=("Segoe UI",9))
-        style.configure("TButton",padding=5)
-        header=ttk.Frame(self,padding=(18,16,18,8))
+        # Pure presentation: all old search widgets, states and callbacks survive.
+        self.palette=install_theme(self,self.appearance_mode)
+        header=ttk.Frame(self,style="Hero.TFrame",padding=(22,16,22,14))
         header.pack(fill="x")
-        ttk.Label(header,text="LRC Bulk Finder",style="Header.TLabel").pack(side="left",anchor="w")
+        header.columnconfigure(1,weight=1)
+        ttk.Label(header,text="♫",style="HeroAccent.TLabel").grid(row=0,column=0,rowspan=2,
+            sticky="nw",padx=(0,12))
+        ttk.Label(header,text="LRC Bulk Finder",style="HeroTitle.TLabel").grid(
+            row=0,column=1,sticky="sw")
+        ttk.Label(header,text="Search profiles · trusted progress · careful lyric review",
+                  style="HeroSubtitle.TLabel").grid(row=1,column=1,sticky="nw",pady=(1,0))
+        ttk.Label(header,text=f"v{APP_VERSION}",style="HeroMeta.TLabel").grid(
+            row=0,column=2,sticky="e",padx=(6,24))
+        self.appearance_choice=tk.StringVar(
+            value=("Σκοτεινό" if self.gui_locale.language=="el" else "Dark")
+                  if self.appearance_mode=="dark" else
+                  ("Φωτεινό" if self.gui_locale.language=="el" else "Light"))
+        self.appearance_control=ttk.Combobox(header,textvariable=self.appearance_choice,
+                                            values=self._appearance_options(),
+                                            state="readonly",width=12)
+        self.appearance_control.grid(row=0,column=3,sticky="e",padx=(0,14))
+        self.appearance_control.bind("<<ComboboxSelected>>",self._appearance_selected)
+        ttk.Label(header,text="Appearance",style="HeroMeta.TLabel").grid(
+            row=1,column=3,sticky="e",padx=(0,14))
         self.language_choice=tk.StringVar(value="Ελληνικά" if self.gui_locale.language=='el' else "English")
         self.language_control=ttk.Combobox(header,textvariable=self.language_choice,
                                            values=("English","Ελληνικά"),state="readonly",width=13)
-        self.language_control.pack(side="right",padx=(8,0))
+        self.language_control.grid(row=0,column=4,sticky="e")
         self.language_control.bind("<<ComboboxSelected>>",self._language_selected)
-        ttk.Label(header,text="Interface language").pack(side="right",padx=4)
-        ttk.Label(header,text="Search profiles · honest per-round ETA · safe review of unverified lyrics",style="Hint.TLabel").pack(anchor="w")
+        ttk.Label(header,text="Interface language",style="HeroMeta.TLabel").grid(
+            row=1,column=4,sticky="e")
         self.notebook=ttk.Notebook(self)
-        self.notebook.pack(fill="both",expand=True,padx=15,pady=(0,15))
-        self.quick_tab=ttk.Frame(self.notebook,padding=12)
-        self.search_tab=ttk.Frame(self.notebook,padding=12)
-        self.run_tab=ttk.Frame(self.notebook,padding=12)
-        self.review_tab=ttk.Frame(self.notebook,padding=12)
-        self.sync_tab=ttk.Frame(self.notebook,padding=12)
-        self.health_tab=ttk.Frame(self.notebook,padding=12)
-        self.dashboard_tab=ttk.Frame(self.notebook,padding=12)
-        self.repair_tab=ttk.Frame(self.notebook,padding=12)
+        self.notebook.pack(fill="both",expand=True,padx=18,pady=(0,18))
+        self.quick_tab=ttk.Frame(self.notebook,padding=18)
+        self.search_tab=ttk.Frame(self.notebook,padding=(10,12))
+        self.run_tab=ttk.Frame(self.notebook,padding=18)
+        self.review_tab=ttk.Frame(self.notebook,padding=18)
+        self.sync_tab=ttk.Frame(self.notebook,padding=18)
+        self.health_tab=ttk.Frame(self.notebook,padding=18)
+        self.dashboard_tab=ttk.Frame(self.notebook,padding=18)
+        self.repair_tab=ttk.Frame(self.notebook,padding=18)
         self.notebook.add(self.quick_tab,text='  Quick Search  ')
         self.notebook.add(self.search_tab,text="  Saved searches  ")
         self.notebook.add(self.run_tab,text="  Live progress  ")
@@ -257,6 +293,11 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self._build_timing_repair()
         self._build_health()
         self._build_results_dashboard()
+        # Accent the existing primary actions, without touching their commands.
+        if hasattr(self,"search_start_button"):
+            self.search_start_button.configure(style="Primary.TButton")
+        if hasattr(self,"stop_button"):
+            self.stop_button.configure(style="Danger.TButton")
 
     def _build_health(self):
         """States are derived from this run's actual provider output."""
@@ -314,7 +355,22 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self._run_profile()
 
     def _build_profiles(self):
-        outer=self.search_tab
+        # Only the long advanced form scrolls; 940px screens no longer cut off
+        # the setup options or Start Search button. Other tabs stay unchanged.
+        host=self.search_tab
+        canvas=tk.Canvas(host,highlightthickness=0,borderwidth=0,
+                         background=self.palette["surface"])
+        scrollbar=ttk.Scrollbar(host,orient="vertical",command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right",fill="y")
+        canvas.pack(side="left",fill="both",expand=True)
+        outer=ttk.Frame(canvas,padding=(8,4,14,16))
+        window=canvas.create_window((0,0),window=outer,anchor="nw")
+        outer.bind("<Configure>",lambda e:canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>",lambda e:canvas.itemconfigure(window,width=e.width))
+        canvas.bind("<MouseWheel>",lambda e:canvas.yview_scroll(int(-e.delta/120),"units"))
+        self.profiles_canvas=canvas
+        self.profiles_content=outer
         outer.columnconfigure(1,weight=1)
         self.name=tk.StringVar()
         self.folder=tk.StringVar()
@@ -433,10 +489,27 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self._tool_tip(lrclib_button,"Starts the bundled LRCLIB setup script in a separate Windows terminal, with its own prompts. Already downloaded? Use Choose database instead.")
         self._tool_tip(self.g2g_button,"One-click optional AUEB G2G setup: isolated Python environment, downloads, verification and progress. Requires approval, internet and significant free disk space.")
         row+=1
-        ttk.Button(outer,text="Save profile and START SEARCH",
-                   command=self._run_profile).grid(row=row,column=0,columnspan=3,sticky="ew",padx=5,pady=8)
+        self.search_start_button=ttk.Button(outer,text="Save profile and START SEARCH",
+                   command=self._run_profile,style="Primary.TButton")
+        self.search_start_button.grid(row=row,column=0,columnspan=3,sticky="ew",padx=5,pady=(12,10))
         ttk.Label(outer,text="The GUI stores profiles in your local user settings. Original MP3s/ID3 files are never modified.",
                   style="Hint.TLabel").grid(row=row+1,column=0,columnspan=3,sticky="w",padx=5)
+        # Native wheel scrolling reaches child controls, without a global mouse
+        # binding that could unexpectedly scroll tabs or editable lyric text.
+        def wheel(event):
+            if self.notebook.select()!=str(self.search_tab):
+                return None
+            amount=int(-event.delta/120) if getattr(event,"delta",0) else (
+                -1 if getattr(event,"num",0)==4 else 1)
+            if amount:
+                self.profiles_canvas.yview_scroll(amount,"units")
+            return "break"
+        for widget in (canvas,outer,*tuple(self._iter_ui_children(outer))):
+            if isinstance(widget,ttk.Combobox):
+                continue  # Wheel within a focused combo retains native selection.
+            widget.bind("<MouseWheel>",wheel,add="+")
+            widget.bind("<Button-4>",wheel,add="+")
+            widget.bind("<Button-5>",wheel,add="+")
 
     def _build_progress(self):
         ttk.Label(self.run_tab,text="Search progress",style="Header.TLabel").pack(anchor="w",pady=(0,10))
@@ -461,7 +534,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                   style="Hint.TLabel").pack(anchor="w",pady=(0,8))
         controls=ttk.Frame(self.run_tab)
         controls.pack(fill="x")
-        self.stop_button=ttk.Button(controls,text="STOP SEARCH — keep app open",state="disabled",command=self._stop)
+        self.stop_button=ttk.Button(controls,text="STOP SEARCH — keep app open",state="disabled",command=self._stop,style="Danger.TButton")
         self.stop_button.pack(side="left")
         ttk.Button(controls,text="Clear displayed log",command=self._clear_log).pack(side="left",padx=10)
         ttk.Button(controls,text="Resume previous search",command=self._resume_previous).pack(side="left",padx=10)
@@ -478,7 +551,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             frame.grid_columnconfigure(index,weight=1)
             value=tk.StringVar(value="0")
             self.counter_vars[key]=value
-            ttk.Label(item,textvariable=value,font=("Segoe UI",21,"bold")).pack()
+            ttk.Label(item,textvariable=value,style="Metric.TLabel").pack()
             ttk.Label(item,text=label,wraplength=200,justify="center").pack()
 
     def _build_review(self):

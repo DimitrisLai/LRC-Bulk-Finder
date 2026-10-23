@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.9.4 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.9.5 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -15,6 +15,10 @@ LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music librarie
 Lyrics are saved alongside the MP3 with the same base filename, making them compatible with many portable music players and car stereos that support synchronized LRC text.
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
+
+## v2.9.5 — Modern Light / Dark interface (Windows)
+
+The Control Center has a cleaner Windows interface using the standard ttk engine (no heavyweight new GUI dependencies). The refreshed design includes a distinct indigo Start Search button, a separate STOP action, readable counters and tables, a modern header, and vertical scrolling for the Saved searches form. Switch **Appearance → Light / Dark** or **Εμφάνιση → Φωτεινό / Σκοτεινό** at the top-right. Both the theme and interface language persist across restarts without changing saved profiles, the current scan or lyric files. See [release notes](RELEASE_NOTES_V2_9_5.md) and the [latest releases](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases).
 
 ## v2.9.4 — One-click optional Greek G2G AI setup (Windows)
 

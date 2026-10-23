@@ -1135,3 +1135,15 @@ for _english, _greek in _UI_G2G_INSTALL_EL.items():
 UI_EL.setdefault('Cancel installation', 'Ακύρωση εγκατάστασης')
 UI_EL.setdefault('Cancel Greek AI installation', 'Ακύρωση εγκατάστασης ελληνικού AI')
 UI_EL.setdefault('Stopping optional AI installer...', 'Διακοπή εγκατάστασης προαιρετικού AI...')
+
+# v2.9.5 visual refresh labels. No search/status identifiers are altered.
+_UI_APPEARANCE_EL={
+    "Appearance":"Εμφάνιση",
+    "Light":"Φωτεινό",
+    "Dark":"Σκοτεινό",
+    "Could not save appearance preference: ":"Δεν ήταν δυνατή η αποθήκευση της εμφάνισης: ",
+    "Search profiles · trusted progress · careful lyric review":
+        "Προφίλ αναζήτησης · αξιόπιστη πρόοδος · προσεκτικός έλεγχος στίχων",
+}
+for _english,_greek in _UI_APPEARANCE_EL.items():
+    UI_EL.setdefault(_english,_greek)

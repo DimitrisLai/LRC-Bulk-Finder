@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title LRC Bulk Finder v2.9.4 - Windows Launcher
+title LRC Bulk Finder v2.9.5 - Windows Launcher
 set "APP=%~dp0LRC_Control_Center.exe"
 if not exist "%APP%" (
     echo ERROR: LRC_Control_Center.exe is missing.
