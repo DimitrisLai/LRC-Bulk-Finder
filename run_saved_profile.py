@@ -82,6 +82,7 @@ def main(argv=None):
     parser.add_argument("--profile",help="Saved profile name")
     parser.add_argument("--setup-lrclib",action="store_true",help="Run the consent-based official LRCLIB database downloader")
     parser.add_argument("--setup-g2g",action="store_true",help="Install and verify optional Greek AI into a separate user environment")
+    parser.add_argument("--g2g-status",action="store_true",help="Print optional Greek AI status without downloads or installing anything")
     parser.add_argument("--g2g-model",choices=["g2g","g2g_lite"],default="g2g")
     parser.add_argument("--allow-python-install",action="store_true",help="Also install official Python 3.11 using Windows winget if missing")
     parser.add_argument("--profiles-path",help="Optional alternate profiles.json for portable/test runs")
@@ -89,6 +90,11 @@ def main(argv=None):
     if args.setup_lrclib:
         from auto_install_lrclib_database import main as install_lrclib
         install_lrclib()
+        return 0
+    if args.g2g_status:
+        from g2g_auto import installed
+        print("G2G STATUS: verified and ready" if installed() else
+              "G2G STATUS: not installed or not verified",flush=True)
         return 0
     if args.setup_g2g:
         from g2g_auto import setup
