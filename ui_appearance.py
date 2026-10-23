@@ -88,6 +88,8 @@ def install_theme(root,mode):
     style.configure("Hero.TFrame",background=c["canvas"])
     style.configure("Card.TFrame",background=c["surface"],relief="flat")
     style.configure("TLabel",background=c["surface"],foreground=c["text"],font=("Segoe UI",10))
+    style.configure("HeroAccent.TLabel",background=c["canvas"],foreground=c["accent"],
+                    font=("Segoe UI Symbol",25,"bold"))
     style.configure("HeroTitle.TLabel",background=c["canvas"],foreground=c["text"],
                     font=("Segoe UI",22,"bold"))
     style.configure("HeroSubtitle.TLabel",background=c["canvas"],foreground=c["subtext"],
@@ -194,6 +196,9 @@ def refresh_native_widgets(root,mode):
                                     selectbackground=c["accent"],selectforeground=c["accent_text"],
                                     highlightthickness=1,highlightbackground=c["border"],
                                     relief="flat",borderwidth=0)
+                except tk.TclError:pass
+            elif isinstance(child,tk.Canvas) and child is getattr(root,"profiles_canvas",None):
+                try:child.configure(background=c["surface"])
                 except tk.TclError:pass
             elif isinstance(child,tk.Listbox):
                 try:
