@@ -1,4 +1,4 @@
-"""Windows frozen GUI regression: verify the exact visible v2.9.2 title.
+"""Windows frozen GUI regression: verify the exact visible v{VERSION} title.
 
 Historical issue: the Control Center set the new title then language refresh
 silently restored v2.7.0. The previous frozen check validated liveness only.
@@ -11,6 +11,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+from v245_features import VERSION
 
 
 def visible_control_center_titles():
@@ -55,11 +56,11 @@ def main():
                 raise AssertionError(f"Frozen GUI exited early, status={proc.returncode}")
             # PyInstaller --onefile runs the GUI in a child process, not the launcher PID.
             seen=visible_control_center_titles()
-            if "LRC Bulk Finder v2.9.2 — Control Center" in seen:
-                print("PASS frozen Control Center visible title is v2.9.2 after language initialization.")
+            if f"LRC Bulk Finder v{VERSION} — Control Center" in seen:
+                print(f"PASS frozen Control Center visible title is v{VERSION} after language initialization.")
                 return 0
             time.sleep(.4)
-        raise AssertionError(f"Expected v2.9.2 Control Center title not seen. Visible titles: {seen!r}")
+        raise AssertionError(f"Expected v{VERSION} Control Center title not seen. Visible titles: {seen!r}")
     finally:
         # PyInstaller --onefile has a parent and child; kill both to avoid
         # leaving a background GUI running on GitHub's Windows runner.
