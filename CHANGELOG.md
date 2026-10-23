@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.9.5 — Modernized Windows Control Center
+
+- Light/Dark theme switch with instant update and bilingual EN/EL labels.
+- Persisted appearance preference alongside existing language in one atomic settings JSON.
+- Cleaner typography, spacing, accent primary Search and separate STOP button, modern tabs/trees/progress and readable counters.
+- Long Saved searches tab scrolls on smaller windows so Start Search remains accessible.
+- Same eight main tabs, five Studio tabs, 15 presets, G2G setup, existing files, search behavior and safeguards.
+- Added contrast and GUI-state regression tests; no new GUI dependency.
+
+
 ## v2.9.4 — Verified one-click Greek G2G AI setup for frozen Windows EXE
 
 - Adds an in-app optional installer with explicit user download consent, progress log, self-test and enable-on-success checkbox.
