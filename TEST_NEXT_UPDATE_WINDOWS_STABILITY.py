@@ -56,13 +56,15 @@ class WorkerUnicodeTests(unittest.TestCase):
             self.assertTrue(search_profiles.load_profiles(profiles)["old AI"]["local_ai"])
 
     def test_readonly_profile_baseline_does_not_enable_ai_when_frozen(self):
-        with mock.patch.object(sys,"frozen",True,create=True):
-            from LRC_Control_Center import ControlCenter
-            names=ControlCenter._available_preset_names(None)
+        from LRC_Control_Center import ControlCenter
+        with mock.patch.object(sys,"frozen",True,create=True),\
+             mock.patch("g2g_auto.installed",return_value=None):
+            instance=object.__new__(ControlCenter)
+            names=ControlCenter._available_preset_names(instance)
             self.assertNotIn("Greek Local AI — FULL",names)
             self.assertIn("Greek FULL — Offline First",names)
         with mock.patch.object(sys,"frozen",False,create=True):
-            names=ControlCenter._available_preset_names(None)
+            names=ControlCenter._available_preset_names(instance)
             self.assertIn("Greek Local AI — FULL",names)
 
 

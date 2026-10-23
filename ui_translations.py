@@ -1110,3 +1110,28 @@ _UI_PRESET_V_NEXT_EL = {
 }
 for _english, _greek in _UI_PRESET_V_NEXT_EL.items():
     UI_EL.setdefault(_english, _greek)
+
+# One-click Greek AI installer UI, additive bilingual labels.
+_UI_G2G_INSTALL_EL = {
+    'Install / verify Greek G2G AI (one click)': 'Εγκατάσταση / έλεγχος ελληνικού G2G AI (ένα κλικ)',
+    'Greek AI installation': 'Εγκατάσταση ελληνικού AI',
+    'Installing Greek G2G AI in a separate user environment': 'Εγκατάσταση του ελληνικού G2G AI σε ξεχωριστό περιβάλλον χρήστη',
+    'Greek AI ready': 'Το ελληνικό AI είναι έτοιμο',
+    'Optional model not installed': 'Το προαιρετικό μοντέλο δεν είναι εγκατεστημένο',
+    'Greek AI setup in progress': 'Η εγκατάσταση ελληνικού AI είναι σε εξέλιξη',
+    'Greek AI setup has not finished': 'Η εγκατάσταση ελληνικού AI δεν έχει ολοκληρωθεί',
+    'Greek AI installation running...': 'Εκτελείται η εγκατάσταση του ελληνικού AI...',
+    'Greek AI ready — checkbox enabled': 'Το ελληνικό AI είναι έτοιμο — η επιλογή ενεργοποιήθηκε',
+    'Greek AI setup incomplete — see installation log': 'Η εγκατάσταση AI δεν ολοκληρώθηκε — δείτε το αρχείο καταγραφής',
+    'Install Greek AI': 'Εγκατάσταση ελληνικού AI',
+    'Close': 'Κλείσιμο',
+    'Finish optional Greek AI setup before starting a search.': 'Ολοκληρώστε πρώτα την προαιρετική εγκατάσταση του ελληνικού AI πριν από την αναζήτηση.',
+    'Finish or stop the installation before closing the Control Center.': 'Ολοκληρώστε ή διακόψτε την εγκατάσταση πριν κλείσετε το Κέντρο Ελέγχου.',
+}
+for _english, _greek in _UI_G2G_INSTALL_EL.items():
+    UI_EL.setdefault(_english, _greek)
+
+# Installer cancellation remains optional and never deletes model/cache/music.
+UI_EL.setdefault('Cancel installation', 'Ακύρωση εγκατάστασης')
+UI_EL.setdefault('Cancel Greek AI installation', 'Ακύρωση εγκατάστασης ελληνικού AI')
+UI_EL.setdefault('Stopping optional AI installer...', 'Διακοπή εγκατάστασης προαιρετικού AI...')
