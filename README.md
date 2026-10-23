@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.9.5 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.9.6 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -15,6 +15,12 @@ LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music librarie
 Lyrics are saved alongside the MP3 with the same base filename, making them compatible with many portable music players and car stereos that support synchronized LRC text.
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
+
+## v2.9.6 — Cumulative online provider packs (3–14 sources)
+
+Saved searches now offers **six cumulative tiers** alongside the unchanged Legacy FAST/FULL choice: **Tier 1** LRCLIB + SyncLRC + Unison; **Tier 2** adds LrcAPI; **Tier 3** adds NetEase, Musixmatch and Megalobiz; **Tier 4** adds LiriQo and BetterKuGou; **Tier 5** adds BetterQQ (new review-only QRC/QQ), YouLyTTML, BetterTTML and Tencent; **Tier 6** adds experimental SimpMusic. Every higher tier keeps all prior sources. Changing the tier does **not** change the song limit, Greek mode, search action or saved lyrics. Older saved profiles and presets default to Legacy, completely unchanged.
+
+QQ word-timed XML becomes line-timed human-review candidates only because the public endpoint cannot verify resolved recording identity and duration for safe automatic lyric writing. Some late-stage sources are restricted or unavailable, and may be skipped after safe cooldowns. See [v2.9.6 details](RELEASE_NOTES_V2_9_6.md).
 
 ## v2.9.5 — Modern Light / Dark interface (Windows)
 
