@@ -13,6 +13,7 @@ on:
       - 'Greek_Artists.csv'
       - 'BUILD_GREEK_LEXICON_DB.py'
       - 'QA_V293_UNICODE_FROZEN.py'
+      - 'QA_EXTRA_GUI.py'
       - 'run_saved_profile.py'
       - 'LAUNCH_LRC_BULK_FINDER_WINDOWS.cmd'
       - 'QA_V291_FROZEN_GUI_TITLE.py'
