@@ -45,7 +45,7 @@ AGENT="LRCBulkFinder-Greek-Artist-Lexicon/1.0 (+https://github.com/DimitrisLai/L
 LATIN=re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ0-9 .'’\-]+$")
 GREEK=re.compile("[\u0370-\u03ff\u1f00-\u1fff]")
 ROLE_RE=re.compile(r"\s*\((?:τραγουδιστής|τραγουδίστρια|μουσικός|ράπερ|καλλιτέχνης|"
-                   r"λυρικός τραγουδιστής|ηθοποιός|συνθέτης|singer|rapper|musician|"
+                   r"λυρικός τραγουδιστής|λαϊκός τραγουδιστής|βαρύτονος|τραγουδοποιός - ποιητής|ηθοποιός|συνθέτης|singer|rapper|musician|"
                    r"singer-songwriter|opera singer|actor|composer)\)\s*$",re.I)
 HEADERS=("greeklish","greek")
 AUDIT_HEADERS=("greek","greeklish","category","source_page","identity_source","status")
