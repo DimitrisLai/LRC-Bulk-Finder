@@ -13,6 +13,8 @@ from progress_eta import RoundProgress
 from stop_control import check_stop, interruptible_sleep, stop_requested
 from stage_counters import StageCounters
 from v243_provider_lab import provider_simpmusic
+from v296_provider_tiers import (LEGACY as PACK_LEGACY, PACKS as SOURCE_PACKS,
+    DISPLAY as SOURCE_PACK_LABELS, select_pack, better_qq_review_only)
 from v243_contribution import export_contribution
 from runtime_paths import program_folder
 from v250_manager import record_created_file, filter_selected_tracks
@@ -60,7 +62,7 @@ PROVIDERS = ('LRCLIB', 'SyncLRC', 'Unison', 'BetterKuGou', 'BetterTTML', 'YouLyT
 if os.environ.get('LRC_EXPERIMENTAL_SIMPMUSIC') == '1':
     PROVIDERS += ('SimpMusic',)
 BASE_GAP = {'LRCLIB': 2.4, 'SyncLRC': 2.2, 'Unison': 1.5, 'BetterKuGou': 1.8, 'BetterTTML': 1.8, 'YouLyTTML': 2.5, 'LrcAPI': 1.5, 'LiriQo': 1.5,
-            'NetEase': 1.5, 'Musixmatch': 1.5, 'Megalobiz': 1.5, 'Tencent': 2.0, 'MusicBrainz': 1.2, 'SimpMusic': 2.5}
+            'NetEase': 1.5, 'Musixmatch': 1.5, 'Megalobiz': 1.5, 'Tencent': 2.0, 'BetterQQ': 2.2, 'MusicBrainz': 1.2, 'SimpMusic': 2.5}
 NETWORK_TIMEOUT = 10
 OPTIONAL_TENCENT_AVAILABLE = False
 try:
@@ -1739,6 +1741,10 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
                'BetterTTML':lambda t,a,al,d,r:provider_better('BetterTTML',t,a,al,d,r),
                'YouLyTTML':provider_youly,'LrcAPI':provider_lrcapi,
                'LiriQo':provider_liriqo, 'Tencent':provider_tencent,
+               'BetterQQ':lambda t,a,al,d,r:better_qq_review_only(
+                   t,a,al,d,r,direct_json=direct_json,
+                   query_variants=query_variants,synced_payload=synced_payload,
+                   plausible_lrc=plausible_lrc),
                'SimpMusic':lambda t,a,al,d,r:provider_simpmusic(t,a,al,d,r,
                    direct_json=direct_json,acceptable=acceptable,Hit=Hit,
                    query_variants=query_variants,label_for_query=label_for_query,
@@ -2364,8 +2370,20 @@ def main():
     MB_ENABLED=input('MusicBrainz extra artist/title metadata for this folder? [Y/n] (optional; slower): ').strip().lower() not in {'n','no'}
     MB_DISK_CACHE=MusicBrainzDiskCache(folder) if MB_ENABLED else None
     mode=input(f'Search mode: FAST (5 useful providers) or FULL (all {len(PROVIDERS)})? [F/full]: ').strip().lower()
-    selected_providers=PROVIDERS if mode in {'full','all','12','a'} else FAST_PROVIDERS
-    provider_performance=ProviderPerformance(folder,PROVIDERS)
+    legacy_selected=PROVIDERS if mode in {'full','all','12','a'} else FAST_PROVIDERS
+    pack=os.environ.get("LRC_PROVIDER_PACK",PACK_LEGACY)
+    if pack not in SOURCE_PACK_LABELS:
+        print("Invalid provider tier; falling back to original FAST/FULL.")
+        pack=PACK_LEGACY
+    selected_providers=select_pack(pack,FAST_PROVIDERS,legacy_selected)
+    if pack!=PACK_LEGACY:
+        print(f"PROVIDER PACK: {SOURCE_PACK_LABELS[pack]}; "
+              f"{len(selected_providers)} cumulative sources.",flush=True)
+        print("Tier sources:",", ".join(selected_providers),flush=True)
+        print("Tier 5/6 include experimental, restricted or review-only routes. "
+              "Automatic saves still require verified recording metadata.",flush=True)
+    provider_performance=ProviderPerformance(
+        folder,tuple(dict.fromkeys(PROVIDERS+("BetterQQ",))))
     print('Provider order choices: D=DEFAULT (current order), S=SMART (verified-match history), C=CUSTOM (your exact list)')
     print('Selected provider names:',', '.join(selected_providers))
     order_choice=input('Provider order? [D/s/c]: ').strip().lower()
