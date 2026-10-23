@@ -49,7 +49,13 @@ def run_profile(name,profiles_path=None):
     if not folder.is_dir():
         raise ValueError("Selected music folder does not exist: "+str(folder))
     prior_exp=os.environ.get("LRC_EXPERIMENTAL_SIMPMUSIC")
-    os.environ["LRC_EXPERIMENTAL_SIMPMUSIC"]="1" if profile.get("experimental_simpmusic",False) and profile["provider_mode"]=="full" and profile["action"]!="4" else "0"
+    prior_pack=os.environ.get("LRC_PROVIDER_PACK")
+    selected_pack=profile.get("provider_pack","legacy")
+    # Tier 6 explicitly includes SimpMusic; existing FAST/FULL toggles stay intact.
+    os.environ["LRC_EXPERIMENTAL_SIMPMUSIC"]="1" if profile["action"]!="4" and (
+        selected_pack=="6" or (selected_pack=="legacy" and
+        profile.get("experimental_simpmusic",False) and profile["provider_mode"]=="full")) else "0"
+    os.environ["LRC_PROVIDER_PACK"]=selected_pack
     import LRC_Bulk_Finder as finder
     answers=ProfileAnswers(profile)
     prior_incremental=os.environ.get('LRC_INCREMENTAL')
@@ -69,6 +75,8 @@ def run_profile(name,profiles_path=None):
         finder.select_folder=old_select
         if prior_exp is None:os.environ.pop("LRC_EXPERIMENTAL_SIMPMUSIC",None)
         else:os.environ["LRC_EXPERIMENTAL_SIMPMUSIC"]=prior_exp
+        if prior_pack is None:os.environ.pop("LRC_PROVIDER_PACK",None)
+        else:os.environ["LRC_PROVIDER_PACK"]=prior_pack
         if prior_incremental is None:os.environ.pop('LRC_INCREMENTAL',None)
         else:os.environ['LRC_INCREMENTAL']=prior_incremental
         if finder.LIBRARY_INDEX is not None:
