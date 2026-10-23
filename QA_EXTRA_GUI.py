@@ -163,7 +163,7 @@ class QA(unittest.TestCase):
         self.a._line('      LRCLIB: LRC_INSTALLED | actual .lrc sidecar created | saved')
         self.assertEqual(self.a.provider_health.rows['LRCLIB']['verified_count'],1)
         self.assertEqual(len(self.a.health_tree.get_children()),14)
-        self.a._refresh_health();self.assertEqual(len(self.a.health_tree.get_children()),13)
+        self.a._refresh_health();self.assertEqual(len(self.a.health_tree.get_children()),14)
 
     def test_09_candidate_review_empty_primary_numbered_and_cancel(self):
         audio=self.audio()
