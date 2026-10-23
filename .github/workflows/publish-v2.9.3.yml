@@ -208,7 +208,7 @@ jobs:
       - name: Retrieve the tested, inspected Windows package
         uses: actions/download-artifact@v4
         with:
-          name: lrc-bulk-finder-v293-startup-release-inspected
+          name: lrc-bulk-finder-v293-unicode-release-inspected
           path: publish-assets
       - name: Validate names and SHA256 checksums before uploading
         shell: bash
