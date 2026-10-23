@@ -223,9 +223,14 @@ def make_csv(headers,rows):
 
 def build(root,output=None,api=_api):
     destination=Path(output) if output else root/"Greek_Artists.csv"
+    baseline=root/"Greek_Artists_Baseline_Approved.csv"
+    if not baseline.is_file():
+        raise FileNotFoundError("Approved baseline required; refusing to regenerate public artist CSV")
     if not (root/"Greek_Artists.csv").is_file():
         raise FileNotFoundError("Original Greek_Artists.csv required")
-    old=read_existing(root/"Greek_Artists.csv")
+    # Stable, idempotent import. Previously generated Wikipedia entries are
+    # NOT considered newly manual-approved on the next refresh.
+    old=read_existing(baseline)
     collected={}
     pages={}
     for cat in CATEGORIES:
