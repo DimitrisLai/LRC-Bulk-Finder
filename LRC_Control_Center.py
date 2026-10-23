@@ -776,6 +776,14 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         ttk.Label(self.review_tab,textvariable=self.review_counter,style="Header.TLabel").pack(anchor="w",pady=(0,2))
         self.review_alt_levels=tk.StringVar(value="Alternative levels: none")
         ttk.Label(self.review_tab,textvariable=self.review_alt_levels,style="Hint.TLabel").pack(anchor="w",pady=(0,8))
+        self.review_progress=tk.IntVar(value=0)
+        self.review_progress_bar=ttk.Progressbar(
+            self.review_tab,orient="horizontal",mode="determinate",maximum=100,
+            variable=self.review_progress)
+        self.review_progress_bar.pack(fill="x",pady=(1,4))
+        self.review_progress_label=tk.StringVar(value="0 / 0 (0%)")
+        ttk.Label(self.review_tab,textvariable=self.review_progress_label,
+                  style="Hint.TLabel").pack(anchor="w",pady=(0,8))
         controls=ttk.Frame(self.review_tab)
         controls.pack(fill="x",pady=(0,8))
         ttk.Label(controls,text="Status").pack(side="left",padx=(0,6))
@@ -840,14 +848,6 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.review_stop_button=ttk.Button(buttons,text="Stop batch",state="disabled",
                   command=self._stop_review_batch)
         self.review_stop_button.pack(side="left",padx=8)
-        self.review_progress=tk.IntVar(value=0)
-        self.review_progress_bar=ttk.Progressbar(
-            self.review_tab,orient="horizontal",mode="determinate",maximum=100,
-            variable=self.review_progress)
-        self.review_progress_bar.pack(fill="x",pady=(6,4))
-        self.review_progress_label=tk.StringVar(value="0 / 0 (0%)")
-        ttk.Label(self.review_tab,textvariable=self.review_progress_label,
-                  style="Hint.TLabel").pack(anchor="w",pady=(0,3))
         self.review_batch_status=tk.StringVar(
             value="Ready. Deleted alternatives go to the Recycle Bin. Promotions remain UNVERIFIED.")
         ttk.Label(self.review_tab,textvariable=self.review_batch_status,
