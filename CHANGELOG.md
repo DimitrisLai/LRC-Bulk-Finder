@@ -1,4 +1,13 @@
 # Changelog
+## v2.9.6 — Six cumulative source tiers, safer QQ/QRC discovery
+
+- New opt-in provider pack selector in Saved searches: 3, 4, 7, 9, 13 or 14 cumulative sources.
+- Exact owner-requested Tier 1 = LRCLIB + SyncLRC + Unison; Tier 2 adds LrcAPI.
+- Adds experimental BetterQQ QRC line-timing discovery to upper tiers, strictly manual-candidate only.
+- Retains old FAST/FULL choice, all 15 built-in presets, user settings, source diagnostics and search safeguards.
+- Includes 979-attempt performance log analysis from a private user sample, without uploading private track paths.
+- No claims that timeout-prone providers are definitively dead; high tiers intentionally allow restricted/experimental sources.
+
 
 ## v2.9.5 — Modernized Windows Control Center
 
