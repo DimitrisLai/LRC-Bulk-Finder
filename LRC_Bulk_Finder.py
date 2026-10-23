@@ -313,7 +313,7 @@ def load_provider_cooldowns(path):
     try:
         raw=json.loads(COOLDOWN_PATH.read_text(encoding='utf-8'))
         for name,until in raw.items():
-            if name in PROVIDERS and time.time()<float(until)<time.time()+604801:
+            if name in tuple(dict.fromkeys(PROVIDERS+('BetterQQ',))) and time.time()<float(until)<time.time()+604801:
                 COOLDOWN_UNTIL[name]=float(until)
                 blocked[name]=f'429 cooldown active until {datetime.fromtimestamp(float(until)).isoformat(timespec="seconds")}'
     except (OSError,ValueError,TypeError,AttributeError):
@@ -322,7 +322,7 @@ def load_provider_cooldowns(path):
 
 def record_rate_limit(provider,header):
     # Not a network retry. Records the required cooldown across restarts.
-    if provider not in PROVIDERS:return
+    if provider not in tuple(dict.fromkeys(PROVIDERS+('BetterQQ',))):return
     expiry=time.time()+retry_after_seconds(header)
     COOLDOWN_UNTIL[provider]=max(COOLDOWN_UNTIL.get(provider,0),expiry)
     if not COOLDOWN_PATH:return
@@ -2761,7 +2761,7 @@ def main():
             suffix=('song(s) to check online next.' if offline_stage else
                     'song(s) with timed-out providers eligible for a retry.')
             print(f'Round {rnd} finished; {len(pending)} {suffix}',flush=True)
-            if pending and all(x in blocked for x in PROVIDERS):
+            if pending and all(x in blocked for x in (ACTIVE_PROVIDERS or PROVIDERS)):
                 print('All providers disabled; no reason to repeat immediately.',flush=True)
                 break
     finally:
@@ -2818,7 +2818,7 @@ def main():
         lrclib_queue_path, lrclib_pending = write_lrclib_catchup_queue(folder,missing,lrclib_attempt_log)
         print(f'LRCLIB missed/failed-coverage queue: {lrclib_pending} song(s) — {lrclib_queue_path}')
         n,t=write_summary(folder,missing,states)
-        statistics={source:Counter() for source in PROVIDERS}
+        statistics={source:Counter() for source in tuple(dict.fromkeys(PROVIDERS+('BetterQQ',)))}
         for path,rnd,source,result,_queries,elapsed,_status_summary,_request_count in provider_rows:
             if source in statistics:
                 bucket=('SAVED' if result.startswith('SAVED') else
@@ -2832,7 +2832,7 @@ def main():
         with stats_path.open('w',encoding='utf-8-sig',newline='') as f:
             writer=csv.writer(f)
             writer.writerow(['provider','saved','review','no_match','cached_no_match','error','skipped','other','total_outcomes','elapsed_seconds','average_seconds_per_outcome'])
-            for source in PROVIDERS:
+            for source in statistics:
                 cnt=statistics[source]
                 total=sum(cnt[k] for k in ('SAVED','REVIEW','NO_MATCH','CACHED','ERROR','SKIPPED','OTHER'))
                 writer.writerow([source,cnt['SAVED'],cnt['REVIEW'],cnt['NO_MATCH'],cnt['CACHED'],cnt['ERROR'],cnt['SKIPPED'],cnt['OTHER'],total,
@@ -2861,7 +2861,7 @@ def main():
         print('Provider coverage (request sent vs unavailable):',coverage_path)
         print('LRCLIB catch-up queue (option 3, never automatic):',lrclib_pending,'song(s)')
         print('Per-song resumable checkpoint:',checkpoint.path)
-        print('Saved by provider:',', '.join(f'{source}: {statistics[source]["SAVED"]}' for source in PROVIDERS if statistics[source]['SAVED']) or 'none')
+        print('Saved by provider:',', '.join(f'{source}: {statistics[source]["SAVED"]}' for source in statistics if statistics[source]['SAVED']) or 'none')
         try:
             run_id=datetime.now().strftime('%Y%m%d_%H%M%S')
             archive_root=folder/'LRC_Run_Reports'
