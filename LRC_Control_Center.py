@@ -356,6 +356,118 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         for provider,data in self.provider_health.rows.items():
             self.health_tree.insert("","end",values=(provider,self._tr(data["status"]),data["last_http_success"],data["last_verified"],data["verified_count"],data["detail"]))
 
+    def _start_provider_benchmark(self):
+        # Unlike a real search, this does not save a profile, open a creation
+        # journal or install any lyrics. It only creates a CSV of aggregate data.
+        if self.process is not None and self.process.poll() is None:
+            self._dialog("showwarning","Search running",
+                         "Finish the current search before benchmarking providers.")
+            return
+        if self.benchmark_process is not None and self.benchmark_process.poll() is None:
+            return
+        if self.g2g_setup_process is not None and self.g2g_setup_process.poll() is None:
+            self._dialog("showwarning","Installation running",
+                         "Finish Greek AI installation before testing providers.")
+            return
+        try:
+            profile=self._values()
+            folder=Path(profile["folder"])
+            if not folder.is_dir():raise ValueError("Selected music folder does not exist.")
+            selected=int(self.benchmark_sample.get())
+            if selected not in (5,10,20):raise ValueError("Choose 5, 10 or 20 test songs")
+        except (ValueError,OSError) as error:
+            self._dialog("showerror","Benchmark configuration",str(error))
+            return
+        # A source benchmark is intentionally live, even if the selected search
+        # action is OFFLINE ONLY. State this explicitly and require confirmation.
+        note=("Perform a LIVE online test of "+str(selected)+" songs using "
+              +str(len(self._base_pack_sources())-len(profile["provider_exclusions"]))+
+              " enabled sources?\\n\\n"
+              "No LRC, candidates, MP3s or tags will be created or edited. "
+              "Only an aggregate CSV is written to your personal application-data folder. "
+              "This makes REAL provider network requests, which may take minutes "
+              "and must respect rate limits, provider cooldowns and server restrictions.")
+        if not self._dialog("askyesno","Test My Providers",note):
+            return
+        if getattr(sys,"frozen",False):
+            executable=program_folder()/"LRC_Bulk_Finder_Worker.exe"
+            if not executable.is_file():
+                self._dialog("showerror","Missing worker","Extract both EXEs in the same folder.")
+                return
+            cmd=[str(executable)]
+        else:
+            cmd=[sys.executable,"-u",str(Path(__file__).with_name("run_saved_profile.py"))]
+        cmd+=["--benchmark","--benchmark-folder",str(folder),
+              "--benchmark-pack",profile["provider_pack"],
+              "--benchmark-mode",profile["provider_mode"],
+              "--benchmark-excluded",",".join(profile["provider_exclusions"]),
+              "--benchmark-sample",str(selected)]
+        if not profile["recursive"]:cmd.append("--benchmark-nonrecursive")
+        env=dict(os.environ)
+        env["PYTHONIOENCODING"]="utf-8:backslashreplace"
+        # Benchmark must not inherit any search-only selection or user stop marker.
+        env.pop("LRC_SESSION_ID",None)
+        env.pop("LRC_SELECTED_TRACKS_FILE",None)
+        env.pop("LRC_STOP_FILE",None)
+        try:
+            self.benchmark_process=subprocess.Popen(
+                cmd,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,encoding="utf-8",errors="replace",bufsize=1,
+                cwd=str(program_folder()),env=env,
+                creationflags=(getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0)
+                               if os.name=="nt" else 0),
+                start_new_session=(os.name!="nt"))
+        except (OSError,ValueError) as error:
+            self.benchmark_process=None
+            self._dialog("showerror","Benchmark cannot start",str(error))
+            return
+        self.benchmark_stop_requested=False
+        self.benchmark_start_button.configure(state="disabled")
+        self.benchmark_stop_button.configure(state="normal")
+        self.benchmark_status.set("Provider test running (read-only). Reports will remain in app data.")
+        self.benchmark_tree.delete(*self.benchmark_tree.get_children())
+        threading.Thread(target=self._read_benchmark_process,
+                         args=(self.benchmark_process,),daemon=True).start()
+
+    def _read_benchmark_process(self,process):
+        try:
+            for line in process.stdout:
+                self.messages.put(("benchmark_line",line.rstrip("\\r\\n")))
+            self.messages.put(("benchmark_done",process.wait()))
+        except (OSError,ValueError) as error:
+            self.messages.put(("benchmark_line","Reader error: "+str(error)))
+            self.messages.put(("benchmark_done",process.poll() or 2))
+
+    def _stop_provider_benchmark(self):
+        process=self.benchmark_process
+        if process is None or process.poll() is not None:
+            return
+        if not self._dialog("askyesno","Stop provider benchmark",
+                            "Immediately stop the live provider test? "
+                            "No music files have been modified; a partial CSV "
+                            "may not be available if the worker is killed."):
+            return
+        self.benchmark_stop_requested=True
+        self.benchmark_stop_button.configure(state="disabled")
+        self.benchmark_status.set("Stopping provider benchmark...")
+        threading.Thread(target=lambda:self.messages.put(
+            ("benchmark_stop",kill_search_process(process))),daemon=True).start()
+
+    def _load_benchmark_report(self,path):
+        import csv
+        self.benchmark_tree.delete(*self.benchmark_tree.get_children())
+        with Path(path).open(encoding="utf-8-sig",newline="") as f:
+            rows=list(csv.DictReader(f))
+        for row in rows:
+            self.benchmark_tree.insert("","end",values=(
+                row["provider"],row["attempts"],row["verified_matches"],
+                row["unique_verified_matches"],row["review_only"],row["timeouts"],
+                row["errors"],row["average_seconds"]))
+        self.benchmark_status.set(
+            "Benchmark results: "+str(path)+". "
+            "Unique means the first matching provider in the chosen tier order; "
+            "it is not permission to install lyrics automatically.")
+
     def _approve_alias(self):
         if self.process is not None and self.process.poll() is None:
             self._dialog("showwarning","Search running","Finish the current search before editing aliases.")
@@ -1078,6 +1190,28 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                     self._cleanup_stop_marker()
                     if hasattr(self,'_manager_cleanup_selection'):self._manager_cleanup_selection()
                     self._refresh_review()
+                elif kind=="benchmark_line":
+                    if data.startswith("BENCHMARK REPORT: "):
+                        report_path=data.split("BENCHMARK REPORT: ",1)[1]
+                        try:self._load_benchmark_report(report_path)
+                        except (OSError,ValueError,KeyError) as error:
+                            self.benchmark_status.set("Report could not be opened: "+str(error))
+                    elif data.startswith("BENCHMARK PROGRESS: "):
+                        self.benchmark_status.set(data)
+                    elif data.startswith("BENCHMARK ERROR: "):
+                        self.benchmark_status.set(data)
+                elif kind=="benchmark_done":
+                    self.benchmark_process=None
+                    self.benchmark_start_button.configure(state="normal")
+                    self.benchmark_stop_button.configure(state="disabled")
+                    if data!=0:
+                        self.benchmark_status.set("Benchmark stopped (exit "+str(data)+
+                                                  "). See details in worker log/report.")
+                    elif not self.benchmark_status.get().startswith("Benchmark results:"):
+                        self.benchmark_status.set("Benchmark completed; no aggregate report was received.")
+                elif kind=="benchmark_stop":
+                    success,detail=data
+                    if not success:self.benchmark_status.set("Benchmark stop not verified: "+detail)
                 elif kind=="g2g_line":
                     if self.g2g_setup_window is not None and self.g2g_setup_window.winfo_exists():
                         self.g2g_setup_log.configure(state="normal")
