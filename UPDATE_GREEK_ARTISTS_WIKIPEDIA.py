@@ -158,7 +158,10 @@ def mapping(greek, latin):
 
 
 def key(latin):
-    return " ".join(unicodedata.normalize("NFKC",latin).casefold().split())
+    """Match LRC_Bulk_Finder.normalize exactly, including punctuation folding."""
+    string=unicodedata.normalize("NFKD",str(latin)).casefold()
+    string="".join(ch for ch in string if not unicodedata.combining(ch))
+    return " ".join("".join(ch if ch.isalnum() else " " for ch in string).split())
 
 
 def expand(old_rows,member_sources,identities):
