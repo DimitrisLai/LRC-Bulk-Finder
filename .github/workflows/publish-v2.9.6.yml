@@ -3,7 +3,7 @@ name: Build and publish LRC Bulk Finder v2.9.6 Cumulative Provider Tiers
 
 on:
   push:
-    branches: [feature/cumulative-provider-tiers-v296, main]
+    branches: [feature/cumulative-provider-tiers-v296]
     paths:
       - '.github/workflows/publish-v2.9.6.yml'
       - 'TEST_V291_STARTUP.py'

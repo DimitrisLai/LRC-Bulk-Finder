@@ -1168,3 +1168,30 @@ _V296_TIER_EL={
 }
 for _en,_el in _V296_TIER_EL.items():
     UI_EL.setdefault(_en,_el)
+
+# v2.9.7 Provider Intelligence - English/Greek feature labels.
+_PROVIDER_INTELLIGENCE_EL={
+    "Provider Benchmark — read-only music test":"Benchmark παρόχων — δοκιμή μόνο για ανάγνωση",
+    "Sample size":"Μέγεθος δείγματος",
+    "Test My Providers":"Δοκιμή των παρόχων μου",
+    "Stop benchmark":"Διακοπή benchmark",
+    "No benchmark running. Select a music folder, tier and sources in Saved searches.":"Δεν εκτελείται benchmark. Επιλέξτε φάκελο, επίπεδο και πηγές στις Αποθηκευμένες αναζητήσεις.",
+    "Provider health — current run":"Κατάσταση παρόχων — τρέχουσα αναζήτηση",
+    "The health table is passive; only Test My Providers makes live requests. HTTP 200 does not verify a lyric.":"Ο πίνακας κατάστασης δεν κάνει αιτήματα. Μόνο το benchmark επικοινωνεί με τις πηγές. Το HTTP 200 δεν πιστοποιεί στίχους.",
+    "Individual provider exclusions (optional)":"Εξαίρεση μεμονωμένων παρόχων (προαιρετικά)",
+    "Source":"Πηγή",
+    "Tested":"Δοκιμές",
+    "Verified":"Επαληθευμένα",
+    "Unique":"Μοναδικά",
+    "Review":"Για έλεγχο",
+    "Timeout":"Λήξη χρόνου",
+    "Errors":"Σφάλματα",
+    "Avg sec":"Μέσος χρόνος (δ)",
+    "Benchmark running":"Το benchmark εκτελείται",
+    "Stop provider benchmark":"Διακοπή δοκιμής παρόχων",
+    "Benchmark configuration":"Ρυθμίσεις benchmark",
+    "Benchmark cannot start":"Το benchmark δεν μπορεί να ξεκινήσει",
+    "Provider benchmark running":"Εκτελείται δοκιμή παρόχων",
+}
+for _en,_el in _PROVIDER_INTELLIGENCE_EL.items():
+    UI_EL.setdefault(_en,_el)

@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.9.6 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.9.7 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -15,6 +15,12 @@ LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music librarie
 Lyrics are saved alongside the MP3 with the same base filename, making them compatible with many portable music players and car stereos that support synchronized LRC text.
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
+
+## v2.9.7 — Provider Intelligence (benchmark + exclusions)
+
+**Test My Providers** in Provider health performs a consent-based, non-destructive LIVE benchmark of 5, 10 or 20 songs. It independently measures per-source verified match, unique verified contribution, candidate-only, timeout/error and latency, writing a privacy-safe aggregate CSV to AppData/LRCBulkFinder/benchmarks. It never writes MP3/ID3/lyrics or sidecar candidate files. Existing 429 cooldown protections still apply; API results require testing on your own connection.
+
+Saved searches now also offers **Individual provider exclusions**: uncheck unwanted sources in a tier, save the profile, and skip them during real searches and benchmarks. All six Tier 1-6 cumulative definitions remain intact; old FAST/FULL profiles default to no exclusions. For more detail see [v2.9.7 release notes](RELEASE_NOTES_V2_9_7.md).
 
 ## v2.9.6 — Cumulative online provider packs (3–14 sources)
 
@@ -44,7 +50,7 @@ The repository now includes **730** reviewed/source-linked `greeklish,greek` art
 
 **Existing standalone v2.9.2 downloads remain immutable** and still include the original small CSV. To test this improvement before the next official application build, close Control Center, back up the `Greek_Artists.csv` beside the two EXEs in your *extracted* application folder, replace only that CSV with the [expanded raw file](https://raw.githubusercontent.com/DimitrisLai/LRC-Bulk-Finder/main/Greek_Artists.csv), and restart the app. Your audio, ID3, primary lyrics, profiles and current app version are unchanged. Alternatively use a new official release when the data is bundled.
 
-## Current release — v2.9.2 Bounded Greek Search Preflight
+## Historical release — v2.9.2 Bounded Greek Search Preflight
 
 Fixes the user-reported 3,183-track, zero-progress startup: displays PREFLIGHT DISCOVERY/METADATA progress and honors a selected 20-song limit before expensive ID3 reading. A short search no longer processes all 3,183 track metadata records before searching. Tag-only LIVE exclusions are preserved; original audio and LRC files remain untouched. The three privately provided real MP3s were inspected (two with artist/title, one lacking artist), and their audio is **not included** in this repository or its release archives. [Release notes](RELEASE_NOTES_V2_9_2.md) · [QA plan](TEST_AUDIT_V2_9_2.md). **Official v2.9.2 is now published and all five public downloads passed independent SHA-256 verification:**
 
@@ -406,7 +412,7 @@ Option 2 intentionally makes candidate lyrics playable **without claiming they a
 
 ## 📘 Documentation
 
-The [**current v2.4.3 Complete English User Manual (PDF)**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.4.3/LRC_Bulk_Finder_v2_4_3_Complete_User_Manual_EN.pdf) walks a new user through:
+The [**current v2.9.7 Complete English User Manual (PDF)**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.7/LRC_Bulk_Finder_v2_9_7_Complete_User_Manual_EN.pdf) walks a new user through:
 
 - Installing either the standalone Windows GUI or the full Python/CMD edition.
 - Connecting an existing LRCLIB SQLite database (or choosing online-only), and trying a **20-song first test**.
