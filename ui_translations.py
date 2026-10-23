@@ -1147,3 +1147,24 @@ _UI_APPEARANCE_EL={
 }
 for _english,_greek in _UI_APPEARANCE_EL.items():
     UI_EL.setdefault(_english,_greek)
+
+# v2.9.6 cumulative source packs: translated UI only; stable internal keys.
+_V296_TIER_EL={
+    "Provider pack / cumulative tier":"Πακέτο παρόχων / αθροιστικό επίπεδο",
+    "Legacy — existing FAST/FULL (unchanged)":"Παλαιά επιλογή — FAST/FULL (χωρίς αλλαγές)",
+    "Tier 1 — CORE (3 sources)":"Επίπεδο 1 — ΒΑΣΙΚΟ (3 πηγές)",
+    "Tier 2 — CORE + LrcAPI (4)":"Επίπεδο 2 — ΒΑΣΙΚΟ + LrcAPI (4)",
+    "Tier 3 — BROAD (7 sources)":"Επίπεδο 3 — ΕΥΡΥ (7 πηγές)",
+    "Tier 4 — EXTENDED (9 sources)":"Επίπεδο 4 — ΕΠΕΚΤΕΤΑΜΕΝΟ (9 πηγές)",
+    "Tier 5 — MAXIMUM (13 sources)":"Επίπεδο 5 — ΜΕΓΙΣΤΟ (13 πηγές)",
+    "Tier 6 — EXPERIMENTAL ALL (14 sources)":"Επίπεδο 6 — ΠΕΙΡΑΜΑΤΙΚΟ (14 πηγές)",
+    "Existing FAST/FULL behavior. No provider changes on upgrade.":"Οι παλιές επιλογές FAST/FULL παραμένουν όπως ήταν. Δεν αλλάζουν οι πηγές κατά την αναβάθμιση.",
+    "LRCLIB + SyncLRC + Unison. Smallest online source set.":"LRCLIB + SyncLRC + Unison. Μικρότερο σύνολο διαδικτυακών πηγών.",
+    "Tier 1 plus LrcAPI. Four source searches in priority order.":"Επίπεδο 1 συν LrcAPI. Τέσσερις πηγές με προτεραιότητα.",
+    "Tier 2 plus NetEase, Musixmatch and Megalobiz. Slower scrapers; review-only.":"Επίπεδο 2 συν NetEase, Musixmatch και Megalobiz. Πιο αργές πηγές για έλεγχο.",
+    "Tier 3 plus LiriQo and BetterKuGou. Broader community sources.":"Επίπεδο 3 συν LiriQo και BetterKuGou. Επιπλέον κοινοτικές πηγές.",
+    "Tier 4 plus BetterQQ, YouLyTTML, BetterTTML and Tencent. Restricted/unavailable routes may be skipped.":"Επίπεδο 4 συν BetterQQ, YouLyTTML, BetterTTML και Tencent. Ορισμένες πηγές μπορεί να είναι περιορισμένες.",
+    "Tier 5 plus optional SimpMusic. Slowest; explicitly experimental.":"Επίπεδο 5 συν SimpMusic. Η πιο αργή, πειραματική επιλογή.",
+}
+for _en,_el in _V296_TIER_EL.items():
+    UI_EL.setdefault(_en,_el)
