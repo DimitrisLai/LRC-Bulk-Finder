@@ -1542,7 +1542,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._dialog("showwarning","Greek AI installation running",
                          "Finish the model installation before promoting candidates.");return
         eligible=eligible_primary_paths(items)
-        blocked=len(items)-len(eligible)
+        blocked=sum(row["index"]==1 and not candidate_can_promote(row) for row in items)
+        ignored_alternatives=sum(row["index"]>1 for row in items)
         if not eligible:
             self._dialog("showinfo","No eligible primaries",
                          "No selected primary candidates are eligible. "
@@ -1550,12 +1551,16 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         total=len(eligible)
         preview="\n".join(" • "+p.name for p in eligible[:7])
         if total>7:preview+=f"\n ... and {total-7} more"
+        extra=("This includes ALL eligible primaries in the chosen folder, "
+               "even those hidden by current filters or not selected.\n\n"
+               if scope=="ALL eligible primaries" else "")
         message=(f"Promote {total} {scope} to MARKED .lrc files?\n\n"
+                 +extra+
                  "This is a batch WRITE operation, NOT lyrics verification.\n"
                  "Each new .lrc receives [00:00.00] candidate and stays UNVERIFIED.\n"
                  "Existing .lrc, audio and ID3 are never overwritten.\n"
                  "Numbered alternatives are moved forward, never promoted directly.\n\n"
-                 f"Skipped in this selection: {blocked}\n\n"+preview)
+                 f"Blocked primaries: {blocked}; numbered alternatives excluded: {ignored_alternatives}\n\n"+preview)
         if not self._dialog("askyesno","Confirm batch of UNVERIFIED lyrics",message):
             return
         self.review_bulk_running=True
