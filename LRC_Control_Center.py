@@ -35,6 +35,7 @@ from v243_aliases import approve_alias
 from v243_contribution import export_contribution
 from ui_locale import GuiLocale, read_language, save_language
 from ui_appearance import read_mode, save_mode, install_theme, refresh_native_widgets, PALETTES
+from ui_translations import UI_EL
 from v250_manager import start_session
 from v245_features import VERSION as APP_VERSION
 from v245_gui import V245Mixin
@@ -601,7 +602,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
 
     def _pack_key(self,label):
         for key,value in PROVIDER_PACK_LABELS.items():
-            if label in (value,self._tr(value)):
+            if label in (value,self._tr(value),UI_EL.get(value,value)):
                 return key
         # Locale may have changed since the combobox was populated. Never guess
         # the tier; reject instead of silently running a different source set.
