@@ -77,6 +77,12 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         widget._lrc_tooltip=tooltip
         return tooltip
 
+    def _available_preset_names(self):
+        # An EXE must not advertise presets whose external AI model is absent.
+        return [name for name in PRESET_TEMPLATES
+                if not (getattr(sys,"frozen",False)
+                        and PRESET_TEMPLATES[name].get("local_ai",False))]
+
     def _preset_key(self,display):
         if display in PRESET_TEMPLATES:return display
         # Display text is independent of the persisted/internal preset key.
@@ -161,7 +167,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                     tree.heading(key,text=self._tr(original))
             if hasattr(self,'preset_choice'):
                 current=self._preset_key(self.preset_name.get())
-                self.preset_choice.configure(values=[self._tr(k) for k in PRESET_TEMPLATES])
+                self.preset_choice.configure(values=[self._tr(k) for k in self._available_preset_names()])
                 if current in PRESET_TEMPLATES:self.preset_name.set(self._tr(current))
             for var,raw in self._status_vars.values():
                 localized=self._tr(raw)
@@ -319,12 +325,12 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.preset_description=tk.StringVar(value="Choose a built-in example, then click Apply. Your saved profiles are not replaced.")
         ttk.Label(outer,text="Ready-made preset").grid(row=row,column=0,sticky="w",padx=5,pady=5)
         preset_choice=ttk.Combobox(outer,textvariable=self.preset_name,
-                                   values=list(PRESET_TEMPLATES),state="readonly",width=44)
+                                   values=self._available_preset_names(),state="readonly",width=44)
         self.preset_choice=preset_choice
         preset_choice.grid(row=row,column=1,sticky="ew",padx=5)
         preset_choice.bind("<<ComboboxSelected>>",self._preset_selected)
         ttk.Button(outer,text="Apply preset",command=self._apply_preset).grid(row=row,column=2,sticky="ew",padx=5)
-        self._tool_tip(preset_choice,"Built-in examples: Greek full search, Greek overnight maximum coverage, offline only, quick 20-song test, optional local AI and international FAST. Saved profiles remain yours.")
+        self._tool_tip(preset_choice,"15 presets, grouped Greek first and international second, broadest searches first. Offline-first/offline-only require a configured local LRCLIB SQLite database. Optional G2G model is not bundled. Applying a preset never overwrites saved profiles.")
         row+=1
         ttk.Label(outer,textvariable=self.preset_description,wraplength=950,
                   style="Hint.TLabel").grid(row=row,column=0,columnspan=3,sticky="w",padx=5,pady=(0,8))
@@ -399,6 +405,9 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         for i,(key,label) in enumerate(toggles):
             widget=ttk.Checkbutton(frame,text=label,variable=self.boolvars[key])
             widget.grid(row=i//2,column=i%2,sticky="w",padx=12,pady=4)
+            if key=="local_ai" and getattr(sys,"frozen",False):
+                widget.configure(state="disabled")
+                self.boolvars["local_ai"].set(False)
             self._tool_tip(widget,descriptions[key])
         row+=1
         setup=ttk.LabelFrame(outer,text="Downloads & local setup",padding=8)
@@ -409,6 +418,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         ai_button=ttk.Button(setup,text="Download / set up Greek G2G AI",
                              command=lambda:self._launch_setup("SETUP_GREEK_AI.cmd"))
         ai_button.pack(side="left",padx=5)
+        if getattr(sys,"frozen",False):
+            ai_button.configure(state="disabled")
         self._tool_tip(lrclib_button,"Starts the bundled LRCLIB setup script in a separate Windows terminal, with its own prompts. Already downloaded? Use Choose database instead.")
         self._tool_tip(ai_button,"Starts the bundled local Greek AI installation guide/setup. Optional and model-heavy; standalone EXE cannot embed this model.")
         row+=1
@@ -489,7 +500,12 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
 
     def _apply_preset(self):
         name=self._preset_key(self.preset_name.get())
-        if name not in PRESET_TEMPLATES:return
+        if getattr(sys,"frozen",False) and name in PRESET_TEMPLATES and PRESET_TEMPLATES[name]["local_ai"]:
+            # A name retained in settings or selected programmatically must
+            # still be usable without a modal error on standalone Windows.
+            name="Greek FULL — Offline First"
+            self.preset_name.set(self._tr(name))
+        if name not in self._available_preset_names():return
         folder=self.folder.get()
         database=self.database.get()
         # Presets are editable templates, not silently persisted profiles.
@@ -555,7 +571,14 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                          ("limit",self.limit)):
             var.set(profile.get(name,DEFAULT[name]))
         for key,var in self.boolvars.items():
-            var.set(profile.get(key,DEFAULT[key]))
+            value=profile.get(key,DEFAULT[key])
+            if key=="local_ai" and getattr(sys,"frozen",False):
+                value=False  # Never enable a model missing from the EXE.
+            var.set(value)
+        if getattr(sys,"frozen",False) and profile.get("local_ai",False):
+            self.preset_description.set(
+                "Standalone edition: local AI is not included. Greek dictionary "
+                "matching remains available; this saved profile was loaded safely.")
 
     def _refresh_profiles(self):
         try:self.loaded_profiles=load_profiles()
@@ -605,16 +628,39 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         if self.process is not None and self.process.poll() is None:
             self._dialog("showwarning","Search running","Stop the current search before starting another.")
             return
+        chosen=self.name.get().strip()
+        if getattr(sys,"frozen",False) and chosen=="Greek Local AI — FULL":
+            # Keep the unavailable user's old named profile untouched; create
+            # the supported equivalent as a separate normal profile.
+            chosen="Greek FULL — Offline First"
+            self.name.set(chosen)
+            self.preset_name.set(self._tr(chosen))
+            self._set_values({**DEFAULT,**PRESET_TEMPLATES[chosen],
+                              "folder":self.folder.get(),"database":self.database.get()})
+            self.preset_description.set(
+                "Standalone edition: running Greek FULL dictionary search without local AI.")
+        if chosen in PRESET_TEMPLATES:
+            # Saved profiles are editable, so a familiar preset *name* can
+            # otherwise silently run a completely different action/scope.
+            current=self._values()
+            critical=("action","limit","greek","provider_mode")
+            mismatches=[key for key in critical
+                        if current[key]!=PRESET_TEMPLATES[chosen][key]]
+            if mismatches:
+                details=", ".join(mismatches)
+                if not self._dialog(
+                    "askyesno","Preset settings differ",
+                    "The displayed preset name does not match its current saved settings "
+                    f"({details}).\n\nRestore the built-in {chosen} settings "
+                    "before starting?\n\nChoose No to cancel; save a different "
+                    "profile name to keep custom settings."):
+                    return
+                self._set_values({**DEFAULT,**PRESET_TEMPLATES[chosen],
+                                  "folder":self.folder.get(),"database":self.database.get()})
         if not self._save():return
         profile=self.loaded_profiles[self.name.get()]
         if not Path(profile["folder"]).is_dir():
             self._dialog("showerror","Missing folder","Selected MP3 folder does not exist.")
-            return
-        if getattr(sys,"frozen",False) and profile["local_ai"]:
-            self._dialog("showerror","Optional local AI requires Python build",
-                "The standalone EXE does not contain the external G2G transformer "
-                "model or its Python dependencies. For local AI, run "
-                "OPEN_CONTROL_CENTER.cmd from the complete Python Windows ZIP.")
             return
         if profile["action"] in ("4","5") and not profile["database"].strip():
             # If already configured by the standard application, this is OK.
@@ -639,6 +685,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self.stop_path=self.stop_directory/"stop.request"
             environment=dict(os.environ)
             environment["LRC_STOP_FILE"]=str(self.stop_path)
+            # Windows PyInstaller workers can default to cp1252. A filename
+            # with a Unicode hyphen previously killed the whole worker. The
+            # GUI's pipe is always decoded as UTF-8 below.
+            environment["PYTHONIOENCODING"]="utf-8:backslashreplace"
             # All GUI searches get a new creation-only journal under APPDATA.
             # The worker logs a file only AFTER creating it exclusively.
             self._manager_session_id=start_session(profile['folder'],label=self.name.get())
@@ -701,9 +751,13 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                             report=export_contribution(self.active_folder)
                             if report:self._line("PROVIDER CONTRIBUTION REPORT: "+str(report))
                         except (OSError,ValueError) as error:self._line("Contribution report unavailable: "+str(error))
-                    self.phase.set(("Stopped by user; completed checkpoints preserved"
-                                    if self.stop_requested else
-                                    f"Search finished. Exit code: {data}"))
+                    self.phase.set(
+                        "Stopped by user; completed checkpoints preserved"
+                        if self.stop_requested else
+                        "Search completed successfully"
+                        if data==0 else
+                        f"Worker stopped unexpectedly (exit {data}); see log. "
+                        "Completed tracks are retained; unfinished songs can be retried.")
                     self.stop_button.configure(state="disabled")
                     self.process=None
                     self._cleanup_stop_marker()

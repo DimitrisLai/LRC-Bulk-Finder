@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.9.3 — UTF-8 crash recovery, 15 presets and Greek song-title words
+
+- Fix fatal Windows cp1252/charmap output crash on Unicode U+2010 hyphens in a song name; worker and GUI use UTF-8.
+- Hide unsupported Local AI choices in standalone EXE and safely fall back for old saved AI profiles; full Python/local model option remains.
+- Warn before running mismatched named presets (e.g. FAST 20 accidentally saved as all-song offline-first); nonzero worker exit is shown honestly.
+- Organize 15 Greek/foreign search presets broadest-to-smallest; preserve original six names and Greek translations.
+- Include 730 source-linked Greek artist names and 92 unverified Greek song-title word suggestions, with protected manual spelling priorities.
+- Repack two EXEs with both dictionaries, rebuilt SQLite, English/Greek PDFs and SHA-256 manifest; no private user audio files uploaded.
+
+
 ## v2.9.1 — Windows Startup and Version Display
 
 - Fixed old v2.7.0 title appearing after the v2.9.0 app completed interface language initialization.

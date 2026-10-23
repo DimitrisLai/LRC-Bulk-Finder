@@ -66,7 +66,7 @@ class QA(unittest.TestCase):
 
     def test_02_all_presets_apply_and_keep_paths(self):
         names=list(sp.PRESET_TEMPLATES)
-        self.assertEqual(len(names),6)
+        self.assertEqual(len(names),15)  # v2.9.3: nine Greek + six international presets
         self.a.database.set('/not/existing/SQLite.db')
         for name in names:
             with self.subTest(preset=name):
@@ -274,7 +274,7 @@ class QA(unittest.TestCase):
         while self.a.process is not None and time.monotonic()<deadline:
             self.a.update();time.sleep(.05)
         self.assertIsNone(self.a.process)
-        self.assertIn('Exit code: 0',self.a.phase.get())
+        self.assertIn('Search completed successfully',self.a.phase.get())
         self.assertEqual(str(self.a.stop_button.cget('state')),'disabled')
         self.assertTrue((self.settings/'LRCBulkFinder'/'profiles.json').exists())
         self.assertTrue(all(p.name == 'LRC_Incremental_Library_v2_4.sqlite3' for p in self.music.iterdir()))

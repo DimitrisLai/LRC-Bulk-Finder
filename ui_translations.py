@@ -1065,3 +1065,48 @@ for _english, _greek in UI_V280_EL.items():
 from v290_translations import UI_V290_EL
 for _english, _greek in UI_V290_EL.items():
     UI_EL.setdefault(_english, _greek)
+
+# Greek / foreign preset chooser additions. Additive: do not replace approved UI labels.
+_UI_PRESET_V_NEXT_EL = {
+    'Greek FULL — Online ALL': 'Ελληνικά FULL — Όλα online',
+    'Greek FULL — Online 100 Songs': 'Ελληνικά FULL — 100 online τραγούδια',
+    'Greek FAST — Online ALL': 'Ελληνικά FAST — Όλα online',
+    'Greek FAST — Online 20 Songs': 'Ελληνικά FAST — 20 online τραγούδια',
+    'International MAX — Overnight ALL': 'Ξένα MAX — Όλα, εκτεταμένη αναζήτηση',
+    'International FULL — Online ALL': 'Ξένα FULL — Όλα online',
+    'International FULL — Online 100 Songs': 'Ξένα FULL — 100 online τραγούδια',
+    'International FAST — Online ALL': 'Ξένα FAST — Όλα online',
+    'International OFFLINE ONLY': 'Ξένα — Μόνο offline',
+    'Widest Greek search: all tracks, local LRCLIB first, every full provider, recovery waits and fresh retries. Slowest; needs local SQLite.':
+        'Η πιο πλήρης ελληνική αναζήτηση: όλα τα τραγούδια, πρώτα η τοπική LRCLIB και μετά όλοι οι πάροχοι, με αναμονή επαναφοράς και νέες προσπάθειες. Πολύ αργή· απαιτεί SQLite.',
+    'All Greek songs: local SQLite first, then every full online provider. Reuses prior provider history; needs local SQLite.':
+        'Όλα τα ελληνικά τραγούδια: πρώτα η τοπική SQLite και μετά όλοι οι online πάροχοι. Χρησιμοποιεί το ιστορικό αναζητήσεων· απαιτεί SQLite.',
+    'All Greek songs through full online providers. No local SQLite needed; MusicBrainz and exact fallback enabled.':
+        'Όλα τα ελληνικά τραγούδια σε όλους τους online παρόχους. Δεν χρειάζεται τοπική SQLite· ενεργά MusicBrainz και ακριβής εναλλακτική αναζήτηση.',
+    'Same full Greek online coverage, capped at 100 eligible songs.':
+        'Πλήρης online ελληνική αναζήτηση, με όριο τα 100 κατάλληλα τραγούδια.',
+    '20 Greek songs using local SQLite plus full online fallback; ignores old NO_MATCH provider history. Needs local SQLite.':
+        '20 ελληνικά τραγούδια: τοπική SQLite και πλήρης online εναλλακτική αναζήτηση, χωρίς παλιό ιστορικό NO_MATCH. Απαιτεί SQLite.',
+    'All Greek songs with fewer online providers and no MusicBrainz metadata lookup; no local SQLite needed.':
+        'Όλα τα ελληνικά τραγούδια με λιγότερους online παρόχους και χωρίς αναζήτηση MusicBrainz. Δεν χρειάζεται SQLite.',
+    '20 Greek songs, fast online sources, no local SQLite or MusicBrainz.':
+        '20 ελληνικά τραγούδια, γρήγοροι online πάροχοι, χωρίς τοπική SQLite ή MusicBrainz.',
+    'Greek full offline-first plus your separately installed G2G model; NOT included in the standalone Windows EXE.':
+        'Πλήρης ελληνική αναζήτηση με προτεραιότητα offline και ξεχωριστά εγκατεστημένο G2G. Δεν περιλαμβάνεται στο αυτόνομο EXE.',
+    'Only your configured local LRCLIB SQLite database; no online providers or MusicBrainz.':
+        'Μόνο η επιλεγμένη τοπική βάση LRCLIB SQLite, χωρίς online παρόχους ή MusicBrainz.',
+    'Widest foreign search, all tracks, every full provider, recovery waits and fresh retries. Online; can run many hours.':
+        'Η πιο πλήρης αναζήτηση ξένων τραγουδιών: όλοι οι online πάροχοι, αναμονή επαναφοράς και νέες προσπάθειες. Μπορεί να κρατήσει ώρες.',
+    'All foreign-language songs using full online provider coverage, MusicBrainz and exact fallback.':
+        'Όλα τα ξένα τραγούδια σε όλους τους online παρόχους, με MusicBrainz και ακριβή εναλλακτική αναζήτηση.',
+    'Full foreign online search on the first 100 eligible songs.':
+        'Πλήρης online αναζήτηση ξένων τραγουδιών για τα πρώτα 100 κατάλληλα.',
+    'All foreign songs using fast online providers without MusicBrainz lookup.':
+        'Όλα τα ξένα τραγούδια σε γρήγορους online παρόχους, χωρίς MusicBrainz.',
+    '20-song international FAST test, no Greek conversion and no mandatory local SQLite.':
+        'Γρήγορη δοκιμή 20 ξένων τραγουδιών, χωρίς ελληνική μετατροπή ή υποχρεωτική τοπική SQLite.',
+    'Foreign songs against only your configured local LRCLIB SQLite database; no internet requests.':
+        'Ξένα τραγούδια μόνο από τη ρυθμισμένη τοπική βάση LRCLIB SQLite, χωρίς αιτήματα στο διαδίκτυο.',
+}
+for _english, _greek in _UI_PRESET_V_NEXT_EL.items():
+    UI_EL.setdefault(_english, _greek)

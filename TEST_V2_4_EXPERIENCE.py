@@ -25,7 +25,12 @@ class ExperienceTests(unittest.TestCase):
             app.LIBRARY_INDEX=None
 
     def test_presets_cover_greek_normal_night_offline_ai_and_fast(self):
-        self.assertEqual(len(PRESET_TEMPLATES),6)
+        self.assertGreaterEqual(len(PRESET_TEMPLATES),15)
+        self.assertTrue({
+            "Greek FULL — Offline First", "Greek Night Search — Maximum Coverage",
+            "Greek Quick Test — 20 Songs", "Greek OFFLINE ONLY",
+            "Greek Local AI — FULL", "International FAST — 20 Songs",
+        }.issubset(PRESET_TEMPLATES))
         with tempfile.TemporaryDirectory() as folder:
             for name in PRESET_TEMPLATES:
                 p=preset_profile(name,folder)

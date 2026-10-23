@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Build the optional SMALL public Greeklish vocabulary SQLite database.
 
-Source of truth: Greek_Words_Expanded.csv followed by Greek_Words.csv.
+Source of truth (in ascending override priority): Wikipedia song-title word suggestions,
+Greek_Words_Expanded.csv, followed by owner-approved Greek_Words.csv.
 Only independent Greeklish WORD mappings are included, never a music
 library listing, MP3 filenames, or private user-specific full-title aliases.
 Run: python BUILD_GREEK_LEXICON_DB.py
@@ -21,7 +22,7 @@ from pathlib import Path
 
 SCHEMA_VERSION = 1
 APPLICATION_ID = 0x4C524347  # "LRCG"
-SOURCE_FILES = ('Greek_Words_Expanded.csv', 'Greek_Words.csv')
+SOURCE_FILES = ('Greek_Words_Wikipedia.csv', 'Greek_Words_Expanded.csv', 'Greek_Words.csv')
 
 
 def source_rows(root: Path):

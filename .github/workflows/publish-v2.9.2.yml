@@ -3,7 +3,7 @@ name: Package and publish LRC Bulk Finder v2.9.2 Smart Library Stability release
 
 on:
   push:
-    branches: [fix/v2.9.2-preflight-progress, main]
+    branches: [fix/v2.9.2-preflight-progress]
     paths:
       - '.github/workflows/publish-v2.9.2.yml'
       - 'TEST_V291_STARTUP.py'
