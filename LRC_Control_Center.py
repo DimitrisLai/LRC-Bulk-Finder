@@ -308,7 +308,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
 
     def _build_health(self):
         """States are derived from this run's actual provider output."""
-        names=tuple(dict.fromkeys(PROVIDER_FULL+("SimpMusic",)))
+        names=tuple(dict.fromkeys(PROVIDER_FULL+("BetterQQ","SimpMusic")))
         self.provider_health=ProviderHealth(names)
         ttk.Label(self.health_tab,text="Provider health — current run",style="Header.TLabel").pack(anchor="w")
         ttk.Label(self.health_tab,text="No network probes are made by this screen. An HTTP 200 is not a verified LRC.",wraplength=900).pack(anchor="w",pady=8)
@@ -952,7 +952,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.active_action=profile["action"]
         try:mark_run(self.active_profile,self.active_folder,"running")
         except OSError:pass
-        self.provider_health=ProviderHealth(tuple(dict.fromkeys(PROVIDER_FULL+("SimpMusic",))))
+        self.provider_health=ProviderHealth(tuple(dict.fromkeys(PROVIDER_FULL+("BetterQQ","SimpMusic"))))
         self._refresh_health()
         self.stop_requested=False
         self.stop_button.configure(text="STOP SEARCH — keep app open")
