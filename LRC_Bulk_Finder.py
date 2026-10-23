@@ -13,6 +13,8 @@ from progress_eta import RoundProgress
 from stop_control import check_stop, interruptible_sleep, stop_requested
 from stage_counters import StageCounters
 from v243_provider_lab import provider_simpmusic
+from v296_provider_tiers import (LEGACY as PACK_LEGACY, PACKS as SOURCE_PACKS,
+    DISPLAY as SOURCE_PACK_LABELS, select_pack, better_qq_review_only)
 from v243_contribution import export_contribution
 from runtime_paths import program_folder
 from v250_manager import record_created_file, filter_selected_tracks
@@ -48,7 +50,7 @@ except ImportError as ex:
     print(f'Missing required Python package: {ex}. Run Start_LRC_Finder.bat.')
     raise SystemExit(2)
 
-VERSION = '2.9.5'
+VERSION = '2.9.6'
 HEADERS = {'User-Agent': 'LRCBulkFinder/2.5.0',
            'Accept': 'application/json, text/plain'}
 LRCLIB_IDENTIFIED = False
@@ -60,7 +62,7 @@ PROVIDERS = ('LRCLIB', 'SyncLRC', 'Unison', 'BetterKuGou', 'BetterTTML', 'YouLyT
 if os.environ.get('LRC_EXPERIMENTAL_SIMPMUSIC') == '1':
     PROVIDERS += ('SimpMusic',)
 BASE_GAP = {'LRCLIB': 2.4, 'SyncLRC': 2.2, 'Unison': 1.5, 'BetterKuGou': 1.8, 'BetterTTML': 1.8, 'YouLyTTML': 2.5, 'LrcAPI': 1.5, 'LiriQo': 1.5,
-            'NetEase': 1.5, 'Musixmatch': 1.5, 'Megalobiz': 1.5, 'Tencent': 2.0, 'MusicBrainz': 1.2, 'SimpMusic': 2.5}
+            'NetEase': 1.5, 'Musixmatch': 1.5, 'Megalobiz': 1.5, 'Tencent': 2.0, 'BetterQQ': 2.2, 'MusicBrainz': 1.2, 'SimpMusic': 2.5}
 NETWORK_TIMEOUT = 10
 OPTIONAL_TENCENT_AVAILABLE = False
 try:
@@ -311,7 +313,7 @@ def load_provider_cooldowns(path):
     try:
         raw=json.loads(COOLDOWN_PATH.read_text(encoding='utf-8'))
         for name,until in raw.items():
-            if name in PROVIDERS and time.time()<float(until)<time.time()+604801:
+            if name in tuple(dict.fromkeys(PROVIDERS+('BetterQQ',))) and time.time()<float(until)<time.time()+604801:
                 COOLDOWN_UNTIL[name]=float(until)
                 blocked[name]=f'429 cooldown active until {datetime.fromtimestamp(float(until)).isoformat(timespec="seconds")}'
     except (OSError,ValueError,TypeError,AttributeError):
@@ -320,7 +322,7 @@ def load_provider_cooldowns(path):
 
 def record_rate_limit(provider,header):
     # Not a network retry. Records the required cooldown across restarts.
-    if provider not in PROVIDERS:return
+    if provider not in tuple(dict.fromkeys(PROVIDERS+('BetterQQ',))):return
     expiry=time.time()+retry_after_seconds(header)
     COOLDOWN_UNTIL[provider]=max(COOLDOWN_UNTIL.get(provider,0),expiry)
     if not COOLDOWN_PATH:return
@@ -1739,6 +1741,10 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
                'BetterTTML':lambda t,a,al,d,r:provider_better('BetterTTML',t,a,al,d,r),
                'YouLyTTML':provider_youly,'LrcAPI':provider_lrcapi,
                'LiriQo':provider_liriqo, 'Tencent':provider_tencent,
+               'BetterQQ':lambda t,a,al,d,r:better_qq_review_only(
+                   t,a,al,d,r,direct_json=direct_json,
+                   query_variants=query_variants,synced_payload=synced_payload,
+                   plausible_lrc=plausible_lrc),
                'SimpMusic':lambda t,a,al,d,r:provider_simpmusic(t,a,al,d,r,
                    direct_json=direct_json,acceptable=acceptable,Hit=Hit,
                    query_variants=query_variants,label_for_query=label_for_query,
@@ -2364,8 +2370,20 @@ def main():
     MB_ENABLED=input('MusicBrainz extra artist/title metadata for this folder? [Y/n] (optional; slower): ').strip().lower() not in {'n','no'}
     MB_DISK_CACHE=MusicBrainzDiskCache(folder) if MB_ENABLED else None
     mode=input(f'Search mode: FAST (5 useful providers) or FULL (all {len(PROVIDERS)})? [F/full]: ').strip().lower()
-    selected_providers=PROVIDERS if mode in {'full','all','12','a'} else FAST_PROVIDERS
-    provider_performance=ProviderPerformance(folder,PROVIDERS)
+    legacy_selected=PROVIDERS if mode in {'full','all','12','a'} else FAST_PROVIDERS
+    pack=os.environ.get("LRC_PROVIDER_PACK",PACK_LEGACY)
+    if pack not in SOURCE_PACK_LABELS:
+        print("Invalid provider tier; falling back to original FAST/FULL.")
+        pack=PACK_LEGACY
+    selected_providers=select_pack(pack,FAST_PROVIDERS,legacy_selected)
+    if pack!=PACK_LEGACY:
+        print(f"PROVIDER PACK: {SOURCE_PACK_LABELS[pack]}; "
+              f"{len(selected_providers)} cumulative sources.",flush=True)
+        print("Tier sources:",", ".join(selected_providers),flush=True)
+        print("Tier 5/6 include experimental, restricted or review-only routes. "
+              "Automatic saves still require verified recording metadata.",flush=True)
+    provider_performance=ProviderPerformance(
+        folder,tuple(dict.fromkeys(PROVIDERS+("BetterQQ",))))
     print('Provider order choices: D=DEFAULT (current order), S=SMART (verified-match history), C=CUSTOM (your exact list)')
     print('Selected provider names:',', '.join(selected_providers))
     order_choice=input('Provider order? [D/s/c]: ').strip().lower()
@@ -2743,7 +2761,7 @@ def main():
             suffix=('song(s) to check online next.' if offline_stage else
                     'song(s) with timed-out providers eligible for a retry.')
             print(f'Round {rnd} finished; {len(pending)} {suffix}',flush=True)
-            if pending and all(x in blocked for x in PROVIDERS):
+            if pending and all(x in blocked for x in (ACTIVE_PROVIDERS or PROVIDERS)):
                 print('All providers disabled; no reason to repeat immediately.',flush=True)
                 break
     finally:
@@ -2800,7 +2818,7 @@ def main():
         lrclib_queue_path, lrclib_pending = write_lrclib_catchup_queue(folder,missing,lrclib_attempt_log)
         print(f'LRCLIB missed/failed-coverage queue: {lrclib_pending} song(s) — {lrclib_queue_path}')
         n,t=write_summary(folder,missing,states)
-        statistics={source:Counter() for source in PROVIDERS}
+        statistics={source:Counter() for source in tuple(dict.fromkeys(PROVIDERS+('BetterQQ',)))}
         for path,rnd,source,result,_queries,elapsed,_status_summary,_request_count in provider_rows:
             if source in statistics:
                 bucket=('SAVED' if result.startswith('SAVED') else
@@ -2814,7 +2832,7 @@ def main():
         with stats_path.open('w',encoding='utf-8-sig',newline='') as f:
             writer=csv.writer(f)
             writer.writerow(['provider','saved','review','no_match','cached_no_match','error','skipped','other','total_outcomes','elapsed_seconds','average_seconds_per_outcome'])
-            for source in PROVIDERS:
+            for source in statistics:
                 cnt=statistics[source]
                 total=sum(cnt[k] for k in ('SAVED','REVIEW','NO_MATCH','CACHED','ERROR','SKIPPED','OTHER'))
                 writer.writerow([source,cnt['SAVED'],cnt['REVIEW'],cnt['NO_MATCH'],cnt['CACHED'],cnt['ERROR'],cnt['SKIPPED'],cnt['OTHER'],total,
@@ -2843,7 +2861,7 @@ def main():
         print('Provider coverage (request sent vs unavailable):',coverage_path)
         print('LRCLIB catch-up queue (option 3, never automatic):',lrclib_pending,'song(s)')
         print('Per-song resumable checkpoint:',checkpoint.path)
-        print('Saved by provider:',', '.join(f'{source}: {statistics[source]["SAVED"]}' for source in PROVIDERS if statistics[source]['SAVED']) or 'none')
+        print('Saved by provider:',', '.join(f'{source}: {statistics[source]["SAVED"]}' for source in statistics if statistics[source]['SAVED']) or 'none')
         try:
             run_id=datetime.now().strftime('%Y%m%d_%H%M%S')
             archive_root=folder/'LRC_Run_Reports'

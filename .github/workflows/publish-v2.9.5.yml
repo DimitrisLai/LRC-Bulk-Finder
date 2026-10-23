@@ -3,7 +3,7 @@ name: Build and publish LRC Bulk Finder v2.9.5 Modern UI
 
 on:
   push:
-    branches: [feature/modern-ui-light-dark-v295, main]
+    branches: [feature/modern-ui-light-dark-v295]
     paths:
       - '.github/workflows/publish-v2.9.5.yml'
       - 'TEST_V291_STARTUP.py'

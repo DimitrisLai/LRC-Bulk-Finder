@@ -8,13 +8,14 @@ import json
 import os
 import re
 from pathlib import Path
+from v296_provider_tiers import LEGACY, PACKS, validate_pack
 
 FIELDS=("folder","action","greek","local_ai","musicbrainz","provider_mode",
-        "order","custom_order","recovery_wait","recursive","history","limit",
+        "order","custom_order","provider_pack","recovery_wait","recursive","history","limit",
         "exact_fallback","auto_search","database","incremental","experimental_simpmusic")
 DEFAULT={
     "folder":"","action":"5","greek":True,"local_ai":False,
-    "musicbrainz":True,"provider_mode":"full","order":"d","custom_order":"",
+    "musicbrainz":True,"provider_mode":"full","order":"d","custom_order":"","provider_pack":LEGACY,
     "recovery_wait":False,"recursive":True,"history":True,"limit":"20",
     "exact_fallback":True,"auto_search":True,"database":"","incremental":True,
     "experimental_simpmusic":False,
@@ -50,12 +51,16 @@ def validate_profile(values):
         raise ValueError("Local Greek AI requires Greek mode")
     if data["provider_mode"] not in ("fast","full"):
         raise ValueError("Provider mode must be fast or full")
+    validate_pack(data["provider_pack"])
     if data["order"] not in ("d","s","c"):
         raise ValueError("Order must be d, s or c")
     if data["order"]=="c" and data["action"]!="4":
-        providers=PROVIDER_FULL if data["provider_mode"]=="full" else PROVIDER_FAST
-        if data.get("experimental_simpmusic") and data["provider_mode"]=="full":
-            providers=providers+("SimpMusic",)
+        if data["provider_pack"]!=LEGACY:
+            providers=PACKS[data["provider_pack"]]
+        else:
+            providers=PROVIDER_FULL if data["provider_mode"]=="full" else PROVIDER_FAST
+            if data.get("experimental_simpmusic") and data["provider_mode"]=="full":
+                providers=providers+("SimpMusic",)
         ordered=[v.strip() for v in data["custom_order"].split(",") if v.strip()]
         if len(ordered)!=len(providers) or {v.casefold() for v in ordered}!={v.casefold() for v in providers} or len({v.casefold() for v in ordered})!=len(providers):
             raise ValueError("CUSTOM requires every provider exactly once, comma separated")
