@@ -3,7 +3,7 @@ name: Build and publish LRC Bulk Finder v2.9.4 Optional Greek AI Installer
 
 on:
   push:
-    branches: [feature/one-click-g2g-ai-setup, main]
+    branches: [feature/one-click-g2g-ai-setup]
     paths:
       - '.github/workflows/publish-v2.9.4.yml'
       - 'TEST_V291_STARTUP.py'
