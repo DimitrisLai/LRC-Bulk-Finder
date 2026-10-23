@@ -125,3 +125,69 @@ def bulk_promote(paths,root,recursive=True,*,approved=False,report=None,stop=Non
         if report is not None:
             report(len(detail),len(selected),path,status,message)
     return dict(counts),detail
+
+
+
+def selected_alternative_paths(items):
+    """Keep only numbered .candidate.N.lrc rows from explicit selection."""
+    return [item["path"] for item in items
+            if item["index"]>=2 and candidate_index(item["path"])>=2]
+
+
+def bulk_recycle_alternatives(paths, root, recursive=True, *,
+                              approved=False, report=None, stop=None, recycler=None):
+    """Move explicitly selected numbered alternatives to the OS Recycle Bin.
+
+    Never permanently unlink, rename, or touch the primary, installed LRC,
+    metadata or audio files. If the recycle service fails, leave files intact
+    and report ERROR, without falling back to permanent deletion.
+    """
+    if not approved:
+        raise PermissionError("Explicit confirmation is required to recycle candidates")
+    folder=Path(root).resolve(strict=True)
+    if not folder.is_dir():
+        raise ValueError("Music folder does not exist")
+    selected=[Path(p) for p in paths]
+    if len(selected)!=len(set(selected)):
+        raise ValueError("Duplicate candidate selection")
+    for path in selected:
+        if candidate_index(path) is None or candidate_index(path)<2:
+            raise ValueError("Only NUMBERED alternative .candidate.N.lrc files can be recycled")
+        if path.is_symlink():
+            raise ValueError("Symbolic links may not be recycled from Candidate Review")
+        resolved=path.resolve(strict=False)
+        if not resolved.is_relative_to(folder):
+            raise ValueError("Candidate is outside the selected music folder")
+        if not recursive and resolved.parent!=folder:
+            raise ValueError("Candidate is outside the selected nonrecursive folder")
+    # Late import avoids requiring this library for search-only/source users.
+    # Distribution installs and bundles send2trash; no permanent-unlink fallback.
+    if recycler is None:
+        from send2trash import send2trash
+        recycler=send2trash
+    counts=Counter()
+    detail=[]
+    for path in selected:
+        if stop is not None and stop():
+            counts["STOPPED"]+=len(selected)-len(detail)
+            break
+        # Revalidate every path just before the system recycle action.
+        try:
+            resolved=path.resolve(strict=True)
+            if (path.is_symlink() or candidate_index(path) is None or
+                candidate_index(path)<2 or not path.is_file() or
+                not resolved.is_relative_to(folder) or
+                (not recursive and resolved.parent!=folder)):
+                status,message="SKIPPED","No longer a regular in-scope numbered candidate"
+            else:
+                recycler(str(path))
+                status,message="RECYCLED","Moved numbered candidate to system Recycle Bin / Trash"
+        except FileNotFoundError:
+            status,message="SKIPPED","Candidate no longer exists"
+        except (OSError,ValueError,RuntimeError) as error:
+            status,message="ERROR",str(error)
+        counts[status]+=1
+        detail.append((path,status,message))
+        if report is not None:
+            report(len(detail),len(selected),path,status,message)
+    return dict(counts),detail
