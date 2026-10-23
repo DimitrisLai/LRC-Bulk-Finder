@@ -19,7 +19,8 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog,messagebox,scrolledtext,ttk,simpledialog
 
-from v296_provider_tiers import DISPLAY as PROVIDER_PACK_LABELS, DESCRIPTION as PACK_DESCRIPTIONS, LEGACY as PACK_LEGACY
+from v296_provider_tiers import DISPLAY as PROVIDER_PACK_LABELS, DESCRIPTION as PACK_DESCRIPTIONS, LEGACY as PACK_LEGACY, PACKS as PROVIDER_PACK_SOURCES
+from v297_provider_intelligence import ALL_SOURCES, available_sources
 from search_profiles import (DEFAULT,PROVIDER_FAST,PROVIDER_FULL,load_profiles,
                              save_profiles,validate_profile,PRESET_TEMPLATES,
                              PRESET_DESCRIPTIONS,preset_profile)
@@ -63,6 +64,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.active_profile=None
         self.active_folder=None
         self.active_action=None
+        self.benchmark_process=None
+        self.benchmark_stop_requested=False
         self.messages=queue.Queue()
         self.review_rows={}
         self.loaded_profiles={}
@@ -310,10 +313,38 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         """States are derived from this run's actual provider output."""
         names=tuple(dict.fromkeys(PROVIDER_FULL+("BetterQQ","SimpMusic")))
         self.provider_health=ProviderHealth(names)
+        bench=ttk.LabelFrame(self.health_tab,text="Provider Benchmark — read-only music test",padding=10)
+        bench.pack(fill="x",pady=(0,12))
+        buttons=ttk.Frame(bench)
+        buttons.pack(fill="x")
+        ttk.Label(buttons,text="Sample size").pack(side="left",padx=(0,6))
+        self.benchmark_sample=tk.StringVar(value="10")
+        self.benchmark_sample_picker=ttk.Combobox(buttons,textvariable=self.benchmark_sample,
+                                                   values=("5","10","20"),state="readonly",width=6)
+        self.benchmark_sample_picker.pack(side="left",padx=(0,12))
+        self.benchmark_start_button=ttk.Button(buttons,text="Test My Providers",
+                                              command=self._start_provider_benchmark,
+                                              style="Primary.TButton")
+        self.benchmark_start_button.pack(side="left",padx=(0,10))
+        self.benchmark_stop_button=ttk.Button(buttons,text="Stop benchmark",
+                                             command=self._stop_provider_benchmark,state="disabled")
+        self.benchmark_stop_button.pack(side="left")
+        self.benchmark_status=tk.StringVar(value="No benchmark running. Select a music folder, tier and sources in Saved searches.")
+        ttk.Label(bench,textvariable=self.benchmark_status,style="Hint.TLabel",
+                  wraplength=1000).pack(fill="x",pady=(8,5))
+        cols=("provider","tested","verified","unique","review","timeouts","errors","avg")
+        self.benchmark_tree=ttk.Treeview(bench,columns=cols,show="headings",height=5)
+        for key,title,width in (("provider","Source",130),("tested","Tested",65),
+                                ("verified","Verified",70),("unique","Unique",65),
+                                ("review","Review",65),("timeouts","Timeout",70),
+                                ("errors","Errors",65),("avg","Avg sec",65)):
+            self.benchmark_tree.heading(key,text=title)
+            self.benchmark_tree.column(key,width=width,stretch=True)
+        self.benchmark_tree.pack(fill="x",pady=(2,5))
         ttk.Label(self.health_tab,text="Provider health — current run",style="Header.TLabel").pack(anchor="w")
         ttk.Label(self.health_tab,text="No network probes are made by this screen. An HTTP 200 is not a verified LRC.",wraplength=900).pack(anchor="w",pady=8)
         fields=("provider","status","last_http_success","last_verified","verified_count","detail")
-        self.health_tree=ttk.Treeview(self.health_tab,columns=fields,show="headings",height=17)
+        self.health_tree=ttk.Treeview(self.health_tab,columns=fields,show="headings",height=10)
         for key,label,width in (("provider","Provider",120),("status","Latest state",170),("last_http_success","Latest HTTP 2xx",145),("last_verified","Last verified hit",155),("verified_count","Verified hits",100),("detail","Latest response",340)):
             self.health_tree.heading(key,text=label)
             self.health_tree.column(key,width=width,stretch=True)
@@ -432,8 +463,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                   style="Hint.TLabel").grid(row=row,column=2,sticky="w",padx=5)
         row+=1
         ttk.Label(outer,text="Provider mode").grid(row=row,column=0,sticky="w",padx=5,pady=5)
-        ttk.Combobox(outer,textvariable=self.provider_mode,state="readonly",
-                     values=("fast","full"),width=12).grid(row=row,column=1,sticky="w",padx=5)
+        self.provider_mode_picker=ttk.Combobox(outer,textvariable=self.provider_mode,state="readonly",
+                     values=("fast","full"),width=12)
+        self.provider_mode_picker.grid(row=row,column=1,sticky="w",padx=5)
+        self.provider_mode_picker.bind("<<ComboboxSelected>>",self._source_selection_updated)
         row+=1
         ttk.Label(outer,text="Provider pack / cumulative tier").grid(
             row=row,column=0,sticky="w",padx=5,pady=5)
@@ -447,6 +480,20 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         row+=1
         ttk.Label(outer,textvariable=self.provider_pack_help,wraplength=850,
                   style="Hint.TLabel").grid(row=row,column=0,columnspan=3,sticky="w",padx=5,pady=(0,6))
+        row+=1
+        excluded=ttk.LabelFrame(outer,text="Individual provider exclusions (optional)",padding=9)
+        excluded.grid(row=row,column=0,columnspan=3,sticky="ew",padx=5,pady=(6,8))
+        self.source_enabled={}
+        self.source_checkboxes={}
+        for index,source in enumerate(ALL_SOURCES):
+            self.source_enabled[source]=tk.BooleanVar(value=True)
+            widget=ttk.Checkbutton(excluded,text=source,variable=self.source_enabled[source])
+            widget.grid(row=index//4,column=index%4,sticky="w",padx=10,pady=4)
+            self.source_checkboxes[source]=widget
+        self.exclusions_hint=tk.StringVar()
+        ttk.Label(excluded,textvariable=self.exclusions_hint,style="Hint.TLabel",
+                  wraplength=950).grid(row=4,column=0,columnspan=4,sticky="w",padx=7,pady=(8,0))
+        self._source_selection_updated()
         row+=1
         ttk.Label(outer,text="Provider order").grid(row=row,column=0,sticky="w",padx=5,pady=5)
         ttk.Combobox(outer,textvariable=self.provider_order,state="readonly",
@@ -609,9 +656,32 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         from v296_provider_tiers import pack_from_display
         return pack_from_display(label)
 
+    def _base_pack_sources(self):
+        tier=self._pack_key(self.provider_pack.get())
+        if tier!=PACK_LEGACY:
+            return PROVIDER_PACK_SOURCES[tier]
+        base=PROVIDER_FULL if self.provider_mode.get()=="full" else PROVIDER_FAST
+        if (self.provider_mode.get()=="full" and
+                self.boolvars["experimental_simpmusic"].get()):
+            base=base+("SimpMusic",)
+        return base
+
+    def _source_selection_updated(self,_event=None):
+        selected=set(self._base_pack_sources())
+        for source,widget in self.source_checkboxes.items():
+            if source in selected:
+                widget.grid()
+            else:
+                widget.grid_remove()
+                self.source_enabled[source].set(True)
+        self.exclusions_hint.set(
+            "Unchecked sources are omitted only for this profile. All built-in tiers remain unchanged. "
+            "Disabled providers never receive requests. CUSTOM order still lists the full tier.")
+
     def _pack_changed(self,_event=None):
         tier=self._pack_key(self.provider_pack.get())
         self.provider_pack_help.set(self._tr(PACK_DESCRIPTIONS[tier]))
+        self._source_selection_updated()
 
     def _preset_selected(self,_event=None):
         self.preset_description.set(self._tr(PRESET_DESCRIPTIONS.get(self._preset_key(self.preset_name.get()),"")))
@@ -788,6 +858,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             "folder":self.folder.get(),"database":self.database.get(),
             "action":self.action.get(),"provider_mode":self.provider_mode.get(),
             "provider_pack":self._pack_key(self.provider_pack.get()),
+            "provider_exclusions":[p for p in self._base_pack_sources() if not self.source_enabled[p].get()],
             "order":self.provider_order.get(),"custom_order":self.custom_order.get(),
             "limit":self.limit.get(),
         }
@@ -808,6 +879,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             if key=="local_ai" and not self._g2g_available():
                 value=False  # Never enable AI until a real model is ready.
             var.set(value)
+        self._source_selection_updated()
+        excluded=set(profile.get("provider_exclusions",[]))
+        for source in self._base_pack_sources():
+            self.source_enabled[source].set(source not in excluded)
         if not self._g2g_available() and profile.get("local_ai",False):
             self.preset_description.set(
                 "Greek AI setup has not finished. Dictionary matching is available; "
@@ -864,6 +939,9 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             return
         if self.process is not None and self.process.poll() is None:
             self._dialog("showwarning","Search running","Stop the current search before starting another.")
+            return
+        if self.benchmark_process is not None and self.benchmark_process.poll() is None:
+            self._dialog("showwarning","Benchmark running","Stop or finish the provider benchmark before starting a music search.")
             return
         chosen=self.name.get().strip()
         if not self._g2g_available() and chosen=="Greek Local AI — FULL":
@@ -1309,6 +1387,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         if self.g2g_setup_process is not None and self.g2g_setup_process.poll() is None:
             self._dialog("showwarning","Greek AI installation",
                          "Finish or stop the installation before closing the Control Center.")
+            return
+        if self.benchmark_process is not None and self.benchmark_process.poll() is None:
+            self._dialog("showwarning","Provider benchmark running",
+                         "Stop the benchmark before closing the Control Center.")
             return
         if self.process is not None and self.process.poll() is None:
             self._dialog("showwarning","Search running",
