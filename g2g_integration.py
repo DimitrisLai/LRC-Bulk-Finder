@@ -145,9 +145,21 @@ class G2GManager:
             if self.factory:
                 self.engine=self.factory()
             else:
-                from gr_nlp_toolkit import Pipeline
-                print('    Loading installed/cached local G2G model once...',flush=True)
-                self.engine=Pipeline('g2g')
+                from g2g_auto import installed, ModelProcess
+                import sys
+                details=installed()
+                if getattr(sys,"frozen",False):
+                    if not details:
+                        raise RuntimeError("G2G was not installed and verified; use the Control Center setup button")
+                    print("    Loading verified standalone Greek AI companion...",flush=True)
+                    self.engine=ModelProcess(details)
+                elif details:
+                    print("    Loading installed Greek AI companion...",flush=True)
+                    self.engine=ModelProcess(details)
+                else:
+                    from gr_nlp_toolkit import Pipeline
+                    print('    Loading installed/cached local G2G model once...',flush=True)
+                    self.engine=Pipeline('g2g',use_cpu=True)
             print('    Local G2G model ready.',flush=True)
             return True
         except Exception as exc:
@@ -180,7 +192,10 @@ class G2GManager:
     def release_model(self):
         # CPU RAM used by the large model is not needed while searching servers.
         if self.engine is not None:
+            engine=self.engine
             self.engine=None
+            if callable(getattr(engine, "close", None)):
+                engine.close()
             import gc
             gc.collect()
 
