@@ -99,6 +99,7 @@ def main(argv=None):
     parser.add_argument("--benchmark-excluded",default="",help="Comma-separated disabled source names")
     parser.add_argument("--benchmark-sample",type=int,choices=(5,10,20),default=10)
     parser.add_argument("--benchmark-nonrecursive",action="store_true")
+    parser.add_argument("--benchmark-experimental-simpmusic",action="store_true")
     parser.add_argument("--setup-lrclib",action="store_true",help="Run the consent-based official LRCLIB database downloader")
     parser.add_argument("--setup-g2g",action="store_true",help="Install and verify optional Greek AI into a separate user environment")
     parser.add_argument("--g2g-status",action="store_true",help="Print optional Greek AI status without downloads or installing anything")
@@ -113,7 +114,8 @@ def main(argv=None):
                 raise ValueError("Benchmark needs a folder")
             benchmark(args.benchmark_folder,args.benchmark_pack,args.benchmark_mode,
                       [v.strip() for v in args.benchmark_excluded.split(",") if v.strip()],
-                      args.benchmark_sample,not args.benchmark_nonrecursive)
+                      args.benchmark_sample,not args.benchmark_nonrecursive,
+                      experimental_simpmusic=args.benchmark_experimental_simpmusic)
             return 0
         except KeyboardInterrupt:
             print("BENCHMARK INTERRUPTED: no audio or lyric files changed.",flush=True)
