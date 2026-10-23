@@ -181,6 +181,10 @@ class QA(unittest.TestCase):
         self.assertFalse((self.music/'One.lrc').exists())
         with mock.patch.dict(sys.modules,{'syncedlyrics':types.ModuleType('syncedlyrics')}):
             self.a._promote_selected()
+            deadline=time.monotonic()+10
+            while self.a.review_bulk_running and time.monotonic()<deadline:
+                self.a.update();time.sleep(.03)
+            self.a.update()
         saved=self.music/'One.lrc';self.assertTrue(saved.exists())
         self.assertEqual(saved.read_text().splitlines()[0],'[00:00.00] candidate')
         self.assertEqual(hashlib.sha256(audio.read_bytes()).digest(),original)

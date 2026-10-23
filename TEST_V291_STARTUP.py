@@ -1,4 +1,4 @@
-"""Regression tests for v2.9.7 startup and honest version reporting."""
+"""Regression tests for v2.9.8 startup and honest version reporting."""
 from __future__ import annotations
 import contextlib
 import io
@@ -12,7 +12,7 @@ import LRC_Bulk_Finder as engine
 
 class WorkerStartupTests(unittest.TestCase):
     def test_version_single_truth_and_engine_match(self):
-        self.assertEqual(VERSION,"2.9.7")
+        self.assertEqual(VERSION,"2.9.8")
         self.assertEqual(VERSION,engine.VERSION)
     def test_worker_without_profile_helpfully_identifies_gui(self):
         output=io.StringIO()
@@ -52,14 +52,14 @@ class GuiStartupTests(unittest.TestCase):
         self.root.withdraw()
         self.addCleanup(self.root.destroy)
     def test_initial_title_matches_installed_version(self):
-        self.assertEqual(self.root.title(),"LRC Bulk Finder v2.9.7 — Control Center")
+        self.assertEqual(self.root.title(),"LRC Bulk Finder v2.9.8 — Control Center")
     def test_greek_english_changes_cannot_revert_title(self):
         self.root.language_choice.set("Ελληνικά")
         self.root._language_selected()
-        self.assertEqual(self.root.title(),"LRC Bulk Finder v2.9.7 — Control Center")
+        self.assertEqual(self.root.title(),"LRC Bulk Finder v2.9.8 — Control Center")
         self.root.language_choice.set("English")
         self.root._language_selected()
-        self.assertEqual(self.root.title(),"LRC Bulk Finder v2.9.7 — Control Center")
+        self.assertEqual(self.root.title(),"LRC Bulk Finder v2.9.8 — Control Center")
         self.assertEqual(len(self.root.notebook.tabs()),8)
         self.assertEqual(len(self.root.studio_tabs.tabs()),5)
 

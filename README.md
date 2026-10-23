@@ -2,7 +2,7 @@
 
 **Synchronized lyrics for your entire MP3 collection — online or offline.**
 
-**Windows · Python 3.10+ · Public Beta v2.9.7 · Created by Dimitris L.**  
+**Windows · Python 3.10+ · Public Beta v2.9.8 · Created by Dimitris L.**  
 
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
@@ -15,6 +15,10 @@ LRC Bulk Finder finds timestamped **`.lrc` lyrics files** for MP3 music librarie
 Lyrics are saved alongside the MP3 with the same base filename, making them compatible with many portable music players and car stereos that support synchronized LRC text.
 
 > **Public Beta:** External provider APIs can change, disappear, restrict requests or return incomplete metadata. Finding lyrics for every song is not guaranteed, particularly for rare remixes, instrumentals and extended versions.
+
+## v2.9.8 — Candidate Review Workbench
+
+The Candidate Review tab now has a modern **sortable multi-select table**, filter by status and filename/folder, and visible counters for total/primary/alternative/eligible/blocked candidates. **Promote selected primaries** and **Promote ALL eligible primaries** require explicit confirmation, run with progress and safe Stop between files, and always use the existing conservative promotion rules. Existing LRC files are **never overwritten**; audio/ID3 files are never changed; new LRCs retain the visible **[00:00.00] candidate** UNVERIFIED marker. See the [v2.9.8 notes](RELEASE_NOTES_V2_9_8.md).
 
 ## v2.9.7 — Provider Intelligence (benchmark + exclusions)
 
@@ -412,7 +416,7 @@ Option 2 intentionally makes candidate lyrics playable **without claiming they a
 
 ## 📘 Documentation
 
-The [**current v2.9.7 Complete English User Manual (PDF)**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.7/LRC_Bulk_Finder_v2_9_7_Complete_User_Manual_EN.pdf) walks a new user through:
+The [**current v2.9.7 Complete English User Manual (PDF)**](https://github.com/DimitrisLai/LRC-Bulk-Finder/releases/download/v2.9.8/LRC_Bulk_Finder_v2_9_8_Complete_User_Manual_EN.pdf) walks a new user through:
 
 - Installing either the standalone Windows GUI or the full Python/CMD edition.
 - Connecting an existing LRCLIB SQLite database (or choosing online-only), and trying a **20-song first test**.

@@ -1195,3 +1195,38 @@ _PROVIDER_INTELLIGENCE_EL={
 }
 for _en,_el in _PROVIDER_INTELLIGENCE_EL.items():
     UI_EL.setdefault(_en,_el)
+
+# v2.9.8 candidate workbench: presentation-only bilingual labels.
+_REVIEW_WORKBENCH_EL={
+    "Candidate Review Workbench":"Κέντρο ελέγχου υποψήφιων στίχων",
+    "Total":"Σύνολο",
+    "Primary":"Κύριο",
+    "Alternative":"Εναλλακτικό",
+    "Alternatives":"Εναλλακτικά",
+    "Eligible":"Κατάλληλα",
+    "Blocked primary":"Μη διαθέσιμα κύρια",
+    "All statuses":"Όλες οι καταστάσεις",
+    "Primary eligible":"Κατάλληλα κύρια",
+    "Primary needs review":"Κύρια προς έλεγχο",
+    "Already has LRC":"Υπάρχει ήδη LRC",
+    "Missing / ambiguous audio":"Απουσία / αμφιβολία αρχείου ήχου",
+    "Status":"Κατάσταση",
+    "Kind":"Τύπος",
+    "Folder":"Φάκελος",
+    "Filter text":"Φιλτράρισμα κειμένου",
+    "Visible":"Ορατά",
+    "Selected":"Επιλεγμένα",
+    "Select visible":"Επιλογή ορατών",
+    "Select eligible primaries":"Επιλογή διαθέσιμων κύριων",
+    "Clear selection":"Καθαρισμός επιλογής",
+    "Preview of focused candidate (read-only)":"Προεπισκόπηση επιλεγμένου υποψήφιου (μόνο ανάγνωση)",
+    "Promote selected primaries":"Προώθηση επιλεγμένων κύριων",
+    "Promote ALL eligible primaries":"Προώθηση ΟΛΩΝ των κατάλληλων κύριων",
+    "Stop batch":"Διακοπή ομαδικής ενέργειας",
+    "Confirm batch of UNVERIFIED lyrics":"Επιβεβαίωση ομαδικής προώθησης ΜΗ ΕΠΑΛΗΘΕΥΜΕΝΩΝ στίχων",
+    "No eligible primaries":"Δεν υπάρχουν κατάλληλα κύρια",
+    "Candidate promotion running":"Εκτελείται προώθηση υποψήφιων",
+    "Candidate batch error":"Σφάλμα ομαδικής προώθησης",
+}
+for _en,_el in _REVIEW_WORKBENCH_EL.items():
+    UI_EL.setdefault(_en,_el)
