@@ -50,12 +50,14 @@ def run_profile(name,profiles_path=None):
         raise ValueError("Selected music folder does not exist: "+str(folder))
     prior_exp=os.environ.get("LRC_EXPERIMENTAL_SIMPMUSIC")
     prior_pack=os.environ.get("LRC_PROVIDER_PACK")
+    prior_excluded=os.environ.get("LRC_PROVIDER_EXCLUSIONS")
     selected_pack=profile.get("provider_pack","legacy")
     # Tier 6 explicitly includes SimpMusic; existing FAST/FULL toggles stay intact.
     os.environ["LRC_EXPERIMENTAL_SIMPMUSIC"]="1" if profile["action"]!="4" and (
         selected_pack=="6" or (selected_pack=="legacy" and
         profile.get("experimental_simpmusic",False) and profile["provider_mode"]=="full")) else "0"
     os.environ["LRC_PROVIDER_PACK"]=selected_pack
+    os.environ["LRC_PROVIDER_EXCLUSIONS"]=",".join(profile.get("provider_exclusions",[]))
     import LRC_Bulk_Finder as finder
     answers=ProfileAnswers(profile)
     prior_incremental=os.environ.get('LRC_INCREMENTAL')
@@ -77,6 +79,8 @@ def run_profile(name,profiles_path=None):
         else:os.environ["LRC_EXPERIMENTAL_SIMPMUSIC"]=prior_exp
         if prior_pack is None:os.environ.pop("LRC_PROVIDER_PACK",None)
         else:os.environ["LRC_PROVIDER_PACK"]=prior_pack
+        if prior_excluded is None:os.environ.pop("LRC_PROVIDER_EXCLUSIONS",None)
+        else:os.environ["LRC_PROVIDER_EXCLUSIONS"]=prior_excluded
         if prior_incremental is None:os.environ.pop('LRC_INCREMENTAL',None)
         else:os.environ['LRC_INCREMENTAL']=prior_incremental
         if finder.LIBRARY_INDEX is not None:
@@ -88,6 +92,13 @@ def main(argv=None):
     configure_console_output()
     parser=argparse.ArgumentParser(description="Run one saved LRC Bulk Finder search profile")
     parser.add_argument("--profile",help="Saved profile name")
+    parser.add_argument("--benchmark",action="store_true",help="Test provider sources without installing or writing any LRC")
+    parser.add_argument("--benchmark-folder",help="Audio folder to sample (read-only)")
+    parser.add_argument("--benchmark-pack",default="legacy",help="Existing tier key, or legacy")
+    parser.add_argument("--benchmark-mode",choices=("fast","full"),default="full")
+    parser.add_argument("--benchmark-excluded",default="",help="Comma-separated disabled source names")
+    parser.add_argument("--benchmark-sample",type=int,choices=(5,10,20),default=10)
+    parser.add_argument("--benchmark-nonrecursive",action="store_true")
     parser.add_argument("--setup-lrclib",action="store_true",help="Run the consent-based official LRCLIB database downloader")
     parser.add_argument("--setup-g2g",action="store_true",help="Install and verify optional Greek AI into a separate user environment")
     parser.add_argument("--g2g-status",action="store_true",help="Print optional Greek AI status without downloads or installing anything")
@@ -95,6 +106,21 @@ def main(argv=None):
     parser.add_argument("--allow-python-install",action="store_true",help="Also install official Python 3.11 using Windows winget if missing")
     parser.add_argument("--profiles-path",help="Optional alternate profiles.json for portable/test runs")
     args=parser.parse_args(argv)
+    if args.benchmark:
+        try:
+            from v297_provider_intelligence import benchmark
+            if not args.benchmark_folder:
+                raise ValueError("Benchmark needs a folder")
+            benchmark(args.benchmark_folder,args.benchmark_pack,args.benchmark_mode,
+                      [v.strip() for v in args.benchmark_excluded.split(",") if v.strip()],
+                      args.benchmark_sample,not args.benchmark_nonrecursive)
+            return 0
+        except KeyboardInterrupt:
+            print("BENCHMARK INTERRUPTED: no audio or lyric files changed.",flush=True)
+            return 130
+        except (OSError,RuntimeError,ValueError) as error:
+            print("BENCHMARK ERROR:",error,file=sys.stderr,flush=True)
+            return 2
     if args.setup_lrclib:
         from auto_install_lrclib_database import main as install_lrclib
         install_lrclib()
