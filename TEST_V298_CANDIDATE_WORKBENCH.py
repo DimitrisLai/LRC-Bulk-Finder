@@ -13,7 +13,7 @@ from unittest import mock
 
 from review_candidates_gui import list_review_candidates
 from v298_candidate_workbench import (STATUSES,can_promote,status_for,summarize,
-    filtered,sort_items,primary_paths,bulk_promote)
+    filtered,sort_items,primary_paths,bulk_promote,alternative_breakdown)
 
 
 class ReviewBatchTests(unittest.TestCase):
@@ -32,6 +32,7 @@ class ReviewBatchTests(unittest.TestCase):
         rows=list_review_candidates(self.root)
         self.assertEqual(summarize(rows),dict(total=2,primary=1,alternative=1,
                          eligible=1,blocked_primary=0))
+        self.assertEqual(alternative_breakdown(rows),{2:1})
         self.assertEqual(len(filtered(rows,"Primary eligible")),1)
         self.assertEqual(len(filtered(rows,"Alternative")),1)
         self.assertEqual(len(filtered(rows,"All statuses","alternative")),1)
@@ -135,6 +136,7 @@ class CandidateWorkbenchGuiTests(unittest.TestCase):
         app=self.app
         self.assertIn("Primary: 2",app.review_counter.get())
         self.assertIn("Alternatives: 2",app.review_counter.get())
+        self.assertIn("#2: 2",app.review_alt_levels.get())
         app.review_filter.set("Primary eligible")
         app._render_review()
         self.assertEqual(len(app.review_rows),2)
