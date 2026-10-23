@@ -32,6 +32,7 @@ def configure_console_output():
 
 
 def run_profile(name,profiles_path=None):
+    configure_console_output()  # Also protect direct/profile-API invocations.
     profiles=load_profiles(profiles_path)
     if name not in profiles:
         raise ValueError("Profile not found: "+name)
