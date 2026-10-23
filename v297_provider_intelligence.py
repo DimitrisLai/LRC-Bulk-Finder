@@ -139,7 +139,8 @@ def report_csv(stats, source_count, completed_songs, elapsed, stopped=False, *, 
 
 
 def benchmark(folder,pack,mode,exclusions,limit=10,recursive=True,*,runner=None,
-              source_files=None,read_info=None,report_folder=None):
+              source_files=None,read_info=None,report_folder=None,
+              experimental_simpmusic=False):
     """Explicit online probe; only aggregates counts. No automatic LRC saves.
 
     Provider calls use exactly the same strict match functions as real searches.
@@ -154,6 +155,8 @@ def benchmark(folder,pack,mode,exclusions,limit=10,recursive=True,*,runner=None,
     if mode not in ("fast","full"):raise ValueError("Unknown FAST/FULL mode")
     if pack not in {LEGACY,*PACKS}:raise ValueError("Unknown provider pack")
     legacy=PROVIDER_FAST if mode=="fast" else PROVIDER_FULL
+    if pack==LEGACY and mode=="full" and experimental_simpmusic:
+        legacy=legacy+("SimpMusic",)
     sources=effective_sources(pack,legacy,exclusions)
     if not sources:raise ValueError("No providers enabled")
     check_stop()
