@@ -3,7 +3,7 @@ name: Build and publish LRC Bulk Finder v2.9.7 Provider Intelligence
 
 on:
   push:
-    branches: [feature/provider-intelligence-v297, main]
+    branches: [feature/provider-intelligence-v297]
     paths:
       - '.github/workflows/publish-v2.9.7.yml'
       - 'TEST_V291_STARTUP.py'
