@@ -1,4 +1,13 @@
 # Changelog
+## v2.9.9 — Candidate Review progress + selective Recycle Bin disposal
+
+- Determinate batch progress bar and processed/total percentage for primary promotion and alternative removal.
+- Select visible alternatives, plus delete selected numbered .candidate.N.lrc files to operating-system Recycle Bin/Trash with confirmation.
+- No permanent-unlink fallback. Protects primary candidate, ordinary LRC, audio/ID3, symbolic links and out-of-scope files.
+- No automatic renumbering of surviving alternatives; original batch promotion remains unchanged.
+- Batch STOP and individual file success/error/skip results supported; tests use isolated simulated recycler.
+- Includes send2trash in standalone Windows binary and bilingual EN/EL usage notes.
+
 ## v2.9.8 — Candidate Review Workbench
 
 - New sortable Candidate Review table by audio, candidate, kind, status, index or folder; live text and status filters.
