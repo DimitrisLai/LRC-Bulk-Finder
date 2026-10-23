@@ -13,11 +13,36 @@ from search_profiles import ProfileAnswers,load_profiles,validate_profile
 from stop_control import check_stop
 
 
+def configure_console_output():
+    """Emit Unicode filenames safely to the GUI UTF-8 pipe on Windows.
+
+    Frozen workers can start with cp1252/charmap stdout. One Greek or Unicode
+    hyphen in a filename previously raised UnicodeEncodeError, aborting the
+    entire scan with exit code 2. Retain legible UTF-8 in all normal streams;
+    unencodable edge cases are escaped instead of terminating the worker.
+    """
+    for stream in (sys.stdout,sys.stderr):
+        if callable(getattr(stream,"reconfigure",None)):
+            try:
+                stream.reconfigure(encoding="utf-8",errors="backslashreplace",
+                                   line_buffering=True)
+            except (OSError,ValueError,TypeError,AttributeError):
+                pass  # A redirect with no writable encoding must not stop a run.
+
+
+
 def run_profile(name,profiles_path=None):
     profiles=load_profiles(profiles_path)
     if name not in profiles:
         raise ValueError("Profile not found: "+name)
     profile=validate_profile(profiles[name])
+    if getattr(sys,"frozen",False) and profile["local_ai"]:
+        # Standalone builds do not ship the third-party transformer. A stale
+        # saved profile must never prevent safe dictionary-only Greek search.
+        profile={**profile,"local_ai":False}
+        print("LOCAL AI UNAVAILABLE: standalone uses curated Greek word/artist "
+              "dictionaries instead; original audio and saved settings remain unchanged.",
+              flush=True)
     folder=Path(profile["folder"]).expanduser()
     if not folder.is_dir():
         raise ValueError("Selected music folder does not exist: "+str(folder))
@@ -50,6 +75,7 @@ def run_profile(name,profiles_path=None):
 
 
 def main(argv=None):
+    configure_console_output()
     parser=argparse.ArgumentParser(description="Run one saved LRC Bulk Finder search profile")
     parser.add_argument("--profile",help="Saved profile name")
     parser.add_argument("--setup-lrclib",action="store_true",help="Run the consent-based official LRCLIB database downloader")
