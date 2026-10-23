@@ -24,7 +24,7 @@ class ReviewBatchTests(unittest.TestCase):
         self.audio=self.root/"My Track.wav"
         self.audio.write_bytes(b"IMMUTABLE AUDIO")
         self.primary=self.root/"My Track.candidate.lrc"
-        self.primary.write_text("[00:01.00] Hello\n[00:04.00] World\n",encoding="utf-8")
+        self.primary.write_text("[00:01.00] Hello\n[00:04.00] World\n[00:06.00] Another line\n",encoding="utf-8")
         self.secondary=self.root/"My Track.candidate.2.lrc"
         self.secondary.write_text("[00:02.00] Other\n[00:05.00] Alternative\n",encoding="utf-8")
 
@@ -123,7 +123,7 @@ class CandidateWorkbenchGuiTests(unittest.TestCase):
         for name in ("One","Two"):
             (self.music/(name+".wav")).write_bytes(b"ORIGINAL "+name.encode())
             (self.music/(name+".candidate.lrc")).write_text(
-                "[00:01.00] First\n[00:04.00] Second\n",encoding="utf-8")
+                "[00:01.00] First\n[00:04.00] Second\n[00:07.00] Third\n",encoding="utf-8")
             (self.music/(name+".candidate.2.lrc")).write_text(
                 "[00:01.00] Alt\n[00:03.00] Alt2\n",encoding="utf-8")
         self.app=ControlCenter();self.app.withdraw()
