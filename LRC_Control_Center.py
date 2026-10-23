@@ -1349,7 +1349,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                              if operation=="recycle" else
                              ". Any installed LRC remains marked UNVERIFIED.")
                     self.review_batch_status.set(
-                        f"Batch finished: {done}/{total} processed. {outcome}{warning}")
+                        f"Batch complete: {done}/{total} processed. {outcome}{warning}")
                 elif kind=="review_batch_error":
                     self._dialog("showerror","Candidate batch error",data)
                 elif kind=="g2g_line":
