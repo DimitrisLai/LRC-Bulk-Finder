@@ -219,6 +219,12 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             for var,raw in self._status_vars.values():
                 localized=self._tr(raw)
                 if var.get()!=localized:var.set(localized)
+            if hasattr(self,"review_filter_picker"):
+                current=self._review_filter_key()
+                self.review_filter_picker.configure(
+                    values=[self._tr(k) for k in CANDIDATE_FILTERS])
+                self.review_filter.set(self._tr(current))
+                self._render_review()
             if hasattr(self,'health_tree'):self._refresh_health()
             if hasattr(self,'dashboard_filter_picker'):
                 from v245_translations import UI_V245_EL
@@ -778,7 +784,9 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.review_visible_count=tk.StringVar(value="Visible: 0  |  Selected: 0")
         ttk.Label(controls,textvariable=self.review_visible_count,style="Hint.TLabel").pack(side="right",padx=(12,0))
         columns=("track","candidate","kind","status","number","folder")
-        self.review_tree=ttk.Treeview(self.review_tab,columns=columns,show="headings",
+        grid=ttk.Frame(self.review_tab)
+        grid.pack(fill="both",expand=True)
+        self.review_tree=ttk.Treeview(grid,columns=columns,show="headings",
                                       height=12,selectmode="extended")
         labels=(("track","Audio",230),("candidate","Candidate",265),
                 ("kind","Kind",100),("status","Status",185),
@@ -787,13 +795,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self.review_tree.heading(key,text=caption,
                  command=lambda col=key:self._sort_review(col))
             self.review_tree.column(key,width=width,stretch=(key!="number"))
-        scroll=ttk.Scrollbar(self.review_tab,orient="vertical",command=self.review_tree.yview)
+        scroll=ttk.Scrollbar(grid,orient="vertical",command=self.review_tree.yview)
         self.review_tree.configure(yscrollcommand=scroll.set)
-        grid=ttk.Frame(self.review_tab)
-        grid.pack(fill="both",expand=True)
-        scroll.pack_forget()
-        self.review_tree.pack(in_=grid,side="left",fill="both",expand=True)
-        scroll.pack(in_=grid,side="right",fill="y")
+        self.review_tree.pack(side="left",fill="both",expand=True)
+        scroll.pack(side="right",fill="y")
         self.review_tree.bind("<<TreeviewSelect>>",self._candidate_selected)
         select_actions=ttk.Frame(self.review_tab)
         select_actions.pack(fill="x",pady=(8,7))
