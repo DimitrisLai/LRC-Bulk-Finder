@@ -579,6 +579,9 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         close=ttk.Button(window,text=self._tr("Close"),state="disabled",
                          command=window.destroy)
         close.pack(side="right",padx=12,pady=8)
+        cancel=ttk.Button(window,text=self._tr("Cancel installation"),
+                          command=self._cancel_g2g_setup)
+        cancel.pack(side="right",padx=6,pady=8)
         window.protocol("WM_DELETE_WINDOW",lambda:None if self.g2g_setup_process is not None
                         else window.destroy())
         try:
@@ -587,7 +590,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self.g2g_setup_process=subprocess.Popen(cmd,stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,stderr=subprocess.STDOUT,cwd=str(program_folder()),
                 text=True,encoding="utf-8",errors="replace",bufsize=1,env=env,
-                creationflags=(getattr(subprocess,"CREATE_NO_WINDOW",0) if os.name=="nt" else 0))
+                creationflags=((getattr(subprocess,"CREATE_NO_WINDOW",0) |
+                                getattr(subprocess,"CREATE_NEW_PROCESS_GROUP",0))
+                               if os.name=="nt" else 0),
+                start_new_session=(os.name!="nt"))
         except (OSError,ValueError) as error:
             window.destroy()
             self._dialog("showerror","Cannot start Greek AI installer",str(error))
@@ -596,9 +602,29 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.g2g_setup_log=log
         self.g2g_setup_progress=progress
         self.g2g_setup_close=close
+        self.g2g_setup_cancel=cancel
         self.g2g_status.set("Greek AI installation running...")
         progress.start(12)
         threading.Thread(target=self._read_g2g_install,daemon=True).start()
+
+    def _cancel_g2g_setup(self):
+        process=self.g2g_setup_process
+        if process is None or process.poll() is not None:
+            return
+        if not self._dialog("askyesno","Cancel Greek AI installation",
+                            "Stop this optional model setup now? Partial downloads may "
+                            "remain in the local model cache and can be retried later. "
+                            "Music files are never touched."):
+            return
+        self.g2g_setup_cancel.configure(state="disabled")
+        self.g2g_status.set("Stopping optional AI installer...")
+        from worker_stop import kill_search_process
+        def stop_in_background():
+            success,detail=kill_search_process(process)
+            self.messages.put(("g2g_line","STOP: "+detail))
+            if not success:
+                self.messages.put(("g2g_line","Please inspect remaining installer child processes."))
+        threading.Thread(target=stop_in_background,daemon=True).start()
 
     def _read_g2g_install(self):
         process=self.g2g_setup_process
@@ -873,6 +899,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                     if self.g2g_setup_window is not None and self.g2g_setup_window.winfo_exists():
                         self.g2g_setup_progress.stop()
                         self.g2g_setup_close.configure(state="normal")
+                        self.g2g_setup_cancel.configure(state="disabled")
                     ready=self._g2g_available()
                     self._refresh_g2g_capability()
                     self.g2g_status.set("Greek AI ready — checkbox enabled" if ready else
