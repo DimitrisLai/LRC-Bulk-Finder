@@ -170,7 +170,8 @@ def benchmark(folder,pack,mode,exclusions,limit=10,recursive=True,*,runner=None,
     finder.ACTIVE_PROVIDERS=sources
     finder.blocked.clear()
     finder.load_provider_cooldowns(Path(folder)/"LRC_Provider_Cooldowns.json")
-    finder.configure_lrclib_contact(Path(__file__).resolve().parent)
+    from runtime_paths import program_folder
+    finder.configure_lrclib_contact(program_folder())
     search=runner if runner is not None else finder.search_song
     metrics=empty_metrics(sources)
     began=time.monotonic()
