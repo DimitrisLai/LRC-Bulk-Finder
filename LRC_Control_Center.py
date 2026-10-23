@@ -651,8 +651,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                 if not self._dialog(
                     "askyesno","Preset settings differ",
                     "The displayed preset name does not match its current saved settings "
-                    f"({details}).\\n\\nRestore the built-in {chosen} settings "
-                    "before starting?\\n\\nChoose No to cancel; save a different "
+                    f"({details}).\n\nRestore the built-in {chosen} settings "
+                    "before starting?\n\nChoose No to cancel; save a different "
                     "profile name to keep custom settings."):
                     return
                 self._set_values({**DEFAULT,**PRESET_TEMPLATES[chosen],
