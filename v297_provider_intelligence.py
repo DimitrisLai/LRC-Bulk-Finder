@@ -64,6 +64,12 @@ def select_sample(folder,count,recursive=True,*,files=None,read_info=None,skip_l
     base=Path(folder).expanduser()
     if not base.is_dir():raise ValueError("Selected music folder does not exist")
     source_files=files if files is not None else safe_audio_files(base,recursive)[0]
+    # Sample across the entire library, not just the first alphabetic album.
+    # Fixed seed makes Tier 1 versus Tier 2 benchmarks directly comparable.
+    import random
+    source_files=list(source_files)
+    if files is None:
+        random.Random(297).shuffle(source_files)
     reader=read_info if read_info is not None else finder._read_audio_info
     live=skip_live if skip_live is not None else finder.is_live_track
     result=[]
@@ -154,6 +160,8 @@ def benchmark(folder,pack,mode,exclusions,limit=10,recursive=True,*,runner=None,
         raise ValueError("Benchmark must use 5, 10 or 20 tracks")
     if mode not in ("fast","full"):raise ValueError("Unknown FAST/FULL mode")
     if pack not in {LEGACY,*PACKS}:raise ValueError("Unknown provider pack")
+    if not isinstance(exclusions,list):
+        raise ValueError("Provider exclusions must be a list")
     legacy=PROVIDER_FAST if mode=="fast" else PROVIDER_FULL
     if pack==LEGACY and mode=="full" and experimental_simpmusic:
         legacy=legacy+("SimpMusic",)
