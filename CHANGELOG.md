@@ -1,4 +1,14 @@
 # Changelog
+## v2.9.8 — Candidate Review Workbench
+
+- New sortable Candidate Review table by audio, candidate, kind, status, index or folder; live text and status filters.
+- Counts for primary, numbered alternatives, eligible, blocked and visible/selected rows.
+- True multi-select, Select visible, Select eligible primaries and Clear selection controls.
+- Explicitly confirmed Promote selected primaries and Promote ALL eligible primaries (across the full selected folder, regardless of filters).
+- Non-blocking batch progress, safe stop between candidates and a result summary.
+- Reuses exclusive marked-only LRC creation, no overwrite, ambiguous-audio blocking and numbered-alternative shifting; original audio/ID3 untouched.
+- Additional disposable-file tests for actual batch promotion, cancellation, sorting and GUI interactions.
+
 ## v2.9.7 — Provider benchmark and per-profile exclusions
 
 - New consent-based live benchmark of 5/10/20 representative tracks with independent provider probes.
