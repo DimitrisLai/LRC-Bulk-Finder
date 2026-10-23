@@ -3,7 +3,7 @@ name: Build and publish LRC Bulk Finder v2.9.3 Unicode Stability release
 
 on:
   push:
-    branches: [feature/greek-song-titles-presets-2026, main]
+    branches: [feature/greek-song-titles-presets-2026]
     paths:
       - '.github/workflows/publish-v2.9.3.yml'
       - 'TEST_V291_STARTUP.py'
