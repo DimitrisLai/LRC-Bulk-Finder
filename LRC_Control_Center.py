@@ -33,6 +33,7 @@ from v298_candidate_workbench import (
     filtered as filter_candidates, sort_items as sort_candidates,
     status_for as candidate_status, can_promote as candidate_can_promote,
     primary_paths as eligible_primary_paths, alternative_breakdown,
+    selected_alternative_paths, bulk_recycle_alternatives,
     bulk_promote as batch_promote)
 from runtime_paths import program_folder
 from worker_stop import kill_search_process
@@ -79,6 +80,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.review_sort_descending=False
         self.review_bulk_running=False
         self.review_bulk_stop=False
+        self.review_bulk_kind=None
         self.loaded_profiles={}
         self._build()
         refresh_native_widgets(self,self.appearance_mode)
@@ -774,6 +776,14 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         ttk.Label(self.review_tab,textvariable=self.review_counter,style="Header.TLabel").pack(anchor="w",pady=(0,2))
         self.review_alt_levels=tk.StringVar(value="Alternative levels: none")
         ttk.Label(self.review_tab,textvariable=self.review_alt_levels,style="Hint.TLabel").pack(anchor="w",pady=(0,8))
+        self.review_progress=tk.IntVar(value=0)
+        self.review_progress_bar=ttk.Progressbar(
+            self.review_tab,orient="horizontal",mode="determinate",maximum=100,
+            variable=self.review_progress)
+        self.review_progress_bar.pack(fill="x",pady=(1,4))
+        self.review_progress_label=tk.StringVar(value="0 / 0 (0%)")
+        ttk.Label(self.review_tab,textvariable=self.review_progress_label,
+                  style="Hint.TLabel").pack(anchor="w",pady=(0,8))
         controls=ttk.Frame(self.review_tab)
         controls.pack(fill="x",pady=(0,8))
         ttk.Label(controls,text="Status").pack(side="left",padx=(0,6))
@@ -794,7 +804,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         grid=ttk.Frame(self.review_tab)
         grid.pack(fill="both",expand=True)
         self.review_tree=ttk.Treeview(grid,columns=columns,show="headings",
-                                      height=12,selectmode="extended")
+                                      height=8,selectmode="extended")
         labels=(("track","Audio",230),("candidate","Candidate",265),
                 ("kind","Kind",100),("status","Status",185),
                 ("number","#",55),("folder","Folder",230))
@@ -811,9 +821,11 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         select_actions.pack(fill="x",pady=(8,7))
         ttk.Button(select_actions,text="Select visible",command=self._review_select_visible).pack(side="left",padx=(0,6))
         ttk.Button(select_actions,text="Select eligible primaries",command=self._review_select_eligible).pack(side="left",padx=(0,6))
+        ttk.Button(select_actions,text="Select visible alternatives",
+                   command=self._review_select_alternatives).pack(side="left",padx=(0,6))
         ttk.Button(select_actions,text="Clear selection",command=lambda:self.review_tree.selection_remove(*self.review_tree.selection())).pack(side="left",padx=(0,8))
         ttk.Label(self.review_tab,text="Preview of focused candidate (read-only)").pack(anchor="w")
-        self.candidate_text=scrolledtext.ScrolledText(self.review_tab,height=7,wrap="word",font=("Consolas",10))
+        self.candidate_text=scrolledtext.ScrolledText(self.review_tab,height=5,wrap="word",font=("Consolas",10))
         self.candidate_text.pack(fill="both",expand=True,pady=(3,8))
         self.candidate_text.configure(state="disabled")
         buttons=ttk.Frame(self.review_tab)
@@ -825,10 +837,19 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.review_promote_all_button=ttk.Button(buttons,text="Promote ALL eligible primaries",
                   command=self._promote_all_primary)
         self.review_promote_all_button.pack(side="left",padx=8)
+        recycle_actions=ttk.Frame(self.review_tab)
+        recycle_actions.pack(fill="x",pady=(0,5))
+        self.review_recycle_button=ttk.Button(recycle_actions,
+                  text="Delete selected alternatives (Recycle Bin)",
+                  command=self._recycle_selected_alternatives,style="Danger.TButton")
+        self.review_recycle_button.pack(side="left")
+        ttk.Label(recycle_actions,text="Only numbered alternatives go to your system Recycle Bin.",
+                  style="Hint.TLabel").pack(side="left",padx=12)
         self.review_stop_button=ttk.Button(buttons,text="Stop batch",state="disabled",
                   command=self._stop_review_batch)
         self.review_stop_button.pack(side="left",padx=8)
-        self.review_batch_status=tk.StringVar(value="Ready. Alternatives become primary only after existing promotion routine advances them.")
+        self.review_batch_status=tk.StringVar(
+            value="Ready. Deleted alternatives go to the Recycle Bin. Promotions remain UNVERIFIED.")
         ttk.Label(self.review_tab,textvariable=self.review_batch_status,
                   style="Hint.TLabel",wraplength=1040).pack(fill="x")
 
@@ -1307,19 +1328,32 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                     if not success:self.benchmark_status.set("Benchmark stop not verified: "+detail)
                 elif kind=="review_batch_progress":
                     done,total,name,status=data
+                    percent=round(done*100/total) if total else 0
+                    self.review_progress.set(percent)
+                    self.review_progress_label.set(f"{done} / {total} ({percent}%)")
+                    prefix="Recycling" if self.review_bulk_kind=="recycle" else "Promoting"
+                    suffix="" if self.review_bulk_kind=="recycle" else " (UNVERIFIED)"
                     self.review_batch_status.set(
-                        f"Promoting {done}/{total}: {status} — {name} (UNVERIFIED)")
+                        f"{prefix} {done}/{total}: {status} — {name}{suffix}")
                 elif kind=="review_batch_done":
                     counts,done,total=data
+                    operation=self.review_bulk_kind
                     self.review_bulk_running=False
+                    self.review_bulk_kind=None
                     self.review_promote_button.configure(state="normal")
                     self.review_promote_all_button.configure(state="normal")
+                    self.review_recycle_button.configure(state="normal")
                     self.review_stop_button.configure(state="disabled")
+                    percent=round(done*100/total) if total else 0
+                    self.review_progress.set(percent)
+                    self.review_progress_label.set(f"{done} / {total} ({percent}%)")
                     self._refresh_review()
+                    outcome=", ".join(f"{key}: {n}" for key,n in sorted(counts.items()))
+                    warning=(". Files were moved to the system Recycle Bin / Trash."
+                             if operation=="recycle" else
+                             ". Any installed LRC remains marked UNVERIFIED.")
                     self.review_batch_status.set(
-                        f"Batch complete: {done}/{total} processed. " +
-                        ", ".join(f"{key}: {n}" for key,n in sorted(counts.items())) +
-                        ". Every new LRC remains marked UNVERIFIED.")
+                        f"Batch complete: {done}/{total} processed. {outcome}{warning}")
                 elif kind=="review_batch_error":
                     self._dialog("showerror","Candidate batch error",data)
                 elif kind=="g2g_line":
@@ -1500,6 +1534,11 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         ids=[key for key,item in self.review_rows.items() if candidate_can_promote(item)]
         self.review_tree.selection_set(ids)
 
+    def _review_select_alternatives(self):
+        if self.review_bulk_running:return
+        ids=[key for key,item in self.review_rows.items() if item["index"]>=2]
+        self.review_tree.selection_set(ids)
+
     def _selection(self):
         ids=self.review_tree.selection()
         focus=self.review_tree.focus()
@@ -1572,11 +1611,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                  f"Blocked primaries: {blocked}; numbered alternatives excluded: {ignored_alternatives}\n\n"+preview)
         if not self._dialog("askyesno","Confirm batch of UNVERIFIED lyrics",message):
             return
-        self.review_bulk_running=True
-        self.review_bulk_stop=False
-        self.review_promote_button.configure(state="disabled")
-        self.review_promote_all_button.configure(state="disabled")
-        self.review_stop_button.configure(state="normal")
+        self._begin_review_batch("promote",total)
         self.review_batch_status.set(f"Promoting 0/{total} primaries... All results remain UNVERIFIED.")
         folder=self.folder.get()
         recursive=self.boolvars["recursive"].get()
@@ -1593,11 +1628,73 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                 self.messages.put(("review_batch_error",str(error)))
         threading.Thread(target=worker,daemon=True).start()
 
+    def _begin_review_batch(self,kind,total):
+        self.review_bulk_running=True
+        self.review_bulk_stop=False
+        self.review_bulk_kind=kind
+        self.review_progress.set(0)
+        self.review_progress_label.set(f"0 / {total} (0%)")
+        self.review_promote_button.configure(state="disabled")
+        self.review_promote_all_button.configure(state="disabled")
+        self.review_recycle_button.configure(state="disabled")
+        self.review_stop_button.configure(state="normal")
+
+    def _recycle_selected_alternatives(self):
+        if self.review_bulk_running:return
+        if self.process is not None and self.process.poll() is None:
+            self._dialog("showwarning","Search running",
+                         "Finish the music search before deleting alternatives.");return
+        if self.benchmark_process is not None and self.benchmark_process.poll() is None:
+            self._dialog("showwarning","Benchmark running",
+                         "Finish the benchmark before deleting alternatives.");return
+        if self.g2g_setup_process is not None and self.g2g_setup_process.poll() is None:
+            self._dialog("showwarning","Greek AI installation running",
+                         "Finish installation before deleting alternatives.");return
+        rows=[self.review_rows[key] for key in self.review_tree.selection()
+              if key in self.review_rows]
+        alternatives=selected_alternative_paths(rows)
+        excluded=len(rows)-len(alternatives)
+        if not alternatives:
+            self._dialog("showinfo","No alternatives selected",
+                         "Select one or more numbered alternatives (#2, #3, #4, etc.). "
+                         "Primary candidates and ordinary LRCs cannot be deleted here.")
+            return
+        sample="\n".join(" • "+path.name for path in alternatives[:7])
+        if len(alternatives)>7:
+            sample+=f"\n ... and {len(alternatives)-7} more"
+        prompt=(f"Move {len(alternatives)} selected numbered candidates to the "
+                "system Recycle Bin / Trash?\n\n"
+                "Only the selected .candidate.2.lrc, .candidate.3.lrc, etc. "
+                "sidecar files will be affected. Primary candidates, normal .lrc, "
+                "audio and ID3 are preserved.\n"
+                f"Other selected rows skipped: {excluded}.\n\n"
+                "This can be reversed using your system Recycle Bin / Trash. "
+                "No permanent-delete fallback is used.\n\n"+sample)
+        if not self._dialog("askyesno","Confirm deleting selected alternatives",prompt):
+            return
+        self._begin_review_batch("recycle",len(alternatives))
+        self.review_batch_status.set(
+            f"Moving 0/{len(alternatives)} numbered alternatives to Recycle Bin...")
+        folder=self.folder.get()
+        recursive=self.boolvars["recursive"].get()
+        def on_progress(done,total,path,status,detail):
+            self.messages.put(("review_batch_progress",(done,total,path.name,status)))
+        def worker():
+            try:
+                result,detail=bulk_recycle_alternatives(
+                    alternatives,folder,recursive,approved=True,
+                    report=on_progress,stop=lambda:self.review_bulk_stop)
+                self.messages.put(("review_batch_done",(result,len(detail),len(alternatives))))
+            except (OSError,RuntimeError,ValueError,ImportError,PermissionError) as error:
+                self.messages.put(("review_batch_done",({"ERROR":1},0,len(alternatives))))
+                self.messages.put(("review_batch_error",str(error)))
+        threading.Thread(target=worker,daemon=True).start()
+
     def _stop_review_batch(self):
         if self.review_bulk_running:
             self.review_bulk_stop=True
             self.review_stop_button.configure(state="disabled")
-            self.review_batch_status.set("Stopping after current primary candidate is processed...")
+            self.review_batch_status.set("Stopping after the current candidate file is processed...")
 
     def _build_sync_lab(self):
         area=self._studio_build_tabs()

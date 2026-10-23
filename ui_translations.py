@@ -1230,3 +1230,16 @@ _REVIEW_WORKBENCH_EL={
 }
 for _en,_el in _REVIEW_WORKBENCH_EL.items():
     UI_EL.setdefault(_en,_el)
+
+# v2.9.9: Candidate Review progress and safe OS Recycle Bin actions.
+_REVIEW_RECYCLE_EL={
+    "Select visible alternatives":"Επιλογή ορατών εναλλακτικών",
+    "Delete selected alternatives (Recycle Bin)":"Διαγραφή επιλεγμένων εναλλακτικών (Κάδος)",
+    "Only numbered alternatives go to your system Recycle Bin.":"Μόνο αριθμημένες εναλλακτικές μεταφέρονται στον Κάδο Ανακύκλωσης.",
+    "Confirm deleting selected alternatives":"Επιβεβαίωση διαγραφής επιλεγμένων εναλλακτικών",
+    "No alternatives selected":"Δεν έχουν επιλεγεί εναλλακτικές",
+    "0 / 0 (0%)":"0 / 0 (0%)",
+    "Candidate Review Workbench":"Κέντρο ελέγχου υποψήφιων στίχων",
+}
+for _en,_el in _REVIEW_RECYCLE_EL.items():
+    UI_EL.setdefault(_en,_el)

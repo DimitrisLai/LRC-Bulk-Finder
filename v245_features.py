@@ -15,7 +15,7 @@ import urllib.request
 from pathlib import Path
 
 AUDIO_EXTS = frozenset(('.mp3', '.flac', '.m4a', '.mp4', '.ogg', '.opus', '.wav'))
-VERSION = '2.9.8'
+VERSION = '2.9.9'
 MAX_TRACKS = 100_000
 MAX_LRC_BYTES = 150_000
 STAMP = re.compile(r'\[(\d{1,4}):([0-5]\d)\.(\d{2,3})\]')
