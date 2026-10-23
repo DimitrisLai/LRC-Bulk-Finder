@@ -771,7 +771,9 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                        "These remain UNVERIFIED. Existing .lrc and audio/ID3 files are never overwritten.",
                   style="Hint.TLabel",wraplength=1050).pack(anchor="w",pady=(0,10))
         self.review_counter=tk.StringVar(value="Total: 0  |  Primary: 0  |  Alternatives: 0  |  Eligible: 0")
-        ttk.Label(self.review_tab,textvariable=self.review_counter,style="Header.TLabel").pack(anchor="w",pady=(0,8))
+        ttk.Label(self.review_tab,textvariable=self.review_counter,style="Header.TLabel").pack(anchor="w",pady=(0,2))
+        self.review_alt_levels=tk.StringVar(value="Alternative levels: none")
+        ttk.Label(self.review_tab,textvariable=self.review_alt_levels,style="Hint.TLabel").pack(anchor="w",pady=(0,8))
         controls=ttk.Frame(self.review_tab)
         controls.pack(fill="x",pady=(0,8))
         ttk.Label(controls,text="Status").pack(side="left",padx=(0,6))
@@ -1454,6 +1456,12 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             f"Total: {counts['total']}   |   Primary: {counts['primary']}   |   "
             f"Alternatives: {counts['alternative']}   |   Eligible: {counts['eligible']}   |   "
             f"Blocked primary: {counts['blocked_primary']}")
+        alternative_levels=alternative_breakdown(self.review_all_rows)
+        breakdown=[f"#{index}: {count}" for index,count in alternative_levels.items()]
+        self.review_alt_levels.set("Alternative levels: "+(
+             "  |  ".join(breakdown[:8])+
+             (f"  |  +{len(breakdown)-8} further levels" if len(breakdown)>8 else "")
+             if breakdown else "none"))
         shown=sort_candidates(filter_candidates(self.review_all_rows,self._review_filter_key(),
                                                self.review_query.get()),
                              self.review_sort_column,self.review_sort_descending)
