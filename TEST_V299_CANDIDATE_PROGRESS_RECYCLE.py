@@ -154,6 +154,22 @@ class ReviewProgressGuiTests(unittest.TestCase):
         self.assertTrue(app.review_progress_bar.winfo_exists())
         self.assertEqual(app.review_progress.get(),0)
 
+    def test_promotion_also_updates_progress_bar(self):
+        app=self.app
+        with mock.patch.object(app,"_dialog",return_value=True):
+            app._promote_all_primary()
+        deadline=time.monotonic()+10
+        while app.review_bulk_running and time.monotonic()<deadline:
+            app.update()
+            time.sleep(.02)
+        app.update()
+        self.assertFalse(app.review_bulk_running)
+        self.assertEqual(app.review_progress.get(),100)
+        self.assertEqual(app.review_progress_label.get(),"1 / 1 (100%)")
+        self.assertTrue((self.folder/"Testing.lrc").read_text(encoding="utf-8").startswith(
+            "[00:00.00] candidate"))
+        self.assertEqual(self.wav.read_bytes(),b"ORIGINAL AUDIO")
+
     def test_recycle_requires_consent(self):
         app=self.app
         app._review_select_alternatives()
