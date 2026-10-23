@@ -1,4 +1,13 @@
 # Changelog
+## v2.9.7 — Provider benchmark and per-profile exclusions
+
+- New consent-based live benchmark of 5/10/20 representative tracks with independent provider probes.
+- Aggregate-only CSV with verified hits, unique contributions, review candidates, errors, timeouts, skipped and average seconds; no audio/ID3/LRC/candidate writes.
+- Separate GUI benchmark subprocess and Stop control; no simultaneous normal search.
+- Individual source-exclusion checkboxes stored per profile; exclude sources AFTER existing tier selection and ordering.
+- Preserves all six cumulative tiers, old FAST/FULL profiles, 15 presets, cooldowns and strict automatic-save verification.
+- Added no-write, privacy, backward compatibility and GUI regression tests; real provider calls remain opt-in.
+
 ## v2.9.6 — Six cumulative source tiers, safer QQ/QRC discovery
 
 - New opt-in provider pack selector in Saved searches: 3, 4, 7, 9, 13 or 14 cumulative sources.
