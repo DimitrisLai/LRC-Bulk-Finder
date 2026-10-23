@@ -651,6 +651,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         for i,(key,label) in enumerate(toggles):
             widget=ttk.Checkbutton(frame,text=label,variable=self.boolvars[key])
             widget.grid(row=i//2,column=i%2,sticky="w",padx=12,pady=4)
+            if key=="experimental_simpmusic":
+                widget.configure(command=self._source_selection_updated)
             if key=="local_ai":
                 self.g2g_checkbox=widget
                 if not self._g2g_available():
@@ -826,6 +828,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self.preset_choice.configure(values=[self._tr(k) for k in self._available_preset_names()])
 
     def _install_g2g(self):
+        if self.benchmark_process is not None and self.benchmark_process.poll() is None:
+            self._dialog("showwarning","Benchmark running",
+                         "Stop the provider benchmark before installing Greek AI.")
+            return
         if self.process is not None and self.process.poll() is None:
             self._dialog("showwarning","Search running","Finish the search before installing AI.")
             return
@@ -929,6 +935,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self.messages.put(("g2g_done",process.poll() or 2))
 
     def _launch_setup(self,script):
+        if self.benchmark_process is not None and self.benchmark_process.poll() is None:
+            self._dialog("showwarning","Benchmark running",
+                         "Stop the provider benchmark before starting another download.")
+            return
         path=program_folder()/script
         if sys.platform=="win32" and path.is_file() and not getattr(sys,"frozen",False):
             if self.process is not None and self.process.poll() is None:
