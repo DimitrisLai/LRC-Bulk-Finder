@@ -19,6 +19,7 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog,messagebox,scrolledtext,ttk,simpledialog
 
+from v296_provider_tiers import DISPLAY as PROVIDER_PACK_LABELS, DESCRIPTION as PACK_DESCRIPTIONS, LEGACY as PACK_LEGACY
 from search_profiles import (DEFAULT,PROVIDER_FAST,PROVIDER_FULL,load_profiles,
                              save_profiles,validate_profile,PRESET_TEMPLATES,
                              PRESET_DESCRIPTIONS,preset_profile)
@@ -192,6 +193,11 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                         original=tree.heading(key,'text')
                         self._locale_widgets[('heading',str(tree),key)]=original
                     tree.heading(key,text=self._tr(original))
+            if hasattr(self,"pack_picker"):
+                current_pack=self._pack_key(self.provider_pack.get())
+                self.pack_picker.configure(values=[self._tr(value) for value in PROVIDER_PACK_LABELS.values()])
+                self.provider_pack.set(self._tr(PROVIDER_PACK_LABELS[current_pack]))
+                self.provider_pack_help.set(self._tr(PACK_DESCRIPTIONS[current_pack]))
             if hasattr(self,'preset_choice'):
                 current=self._preset_key(self.preset_name.get())
                 self.preset_choice.configure(values=[self._tr(k) for k in self._available_preset_names()])
@@ -377,6 +383,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.database=tk.StringVar()
         self.action=tk.StringVar(value="5")
         self.provider_mode=tk.StringVar(value="full")
+        self.provider_pack=tk.StringVar(value=PROVIDER_PACK_LABELS[PACK_LEGACY])
+        self.provider_pack_help=tk.StringVar(value=PACK_DESCRIPTIONS[PACK_LEGACY])
         self.provider_order=tk.StringVar(value="d")
         self.custom_order=tk.StringVar()
         self.limit=tk.StringVar(value="20")
@@ -425,6 +433,19 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         ttk.Label(outer,text="Provider mode").grid(row=row,column=0,sticky="w",padx=5,pady=5)
         ttk.Combobox(outer,textvariable=self.provider_mode,state="readonly",
                      values=("fast","full"),width=12).grid(row=row,column=1,sticky="w",padx=5)
+        row+=1
+        ttk.Label(outer,text="Provider pack / cumulative tier").grid(
+            row=row,column=0,sticky="w",padx=5,pady=5)
+        self.pack_picker=ttk.Combobox(
+            outer,textvariable=self.provider_pack,state="readonly",width=43,
+            values=[self._tr(name) for name in PROVIDER_PACK_LABELS.values()])
+        self.pack_picker.grid(row=row,column=1,sticky="ew",padx=5)
+        self.pack_picker.bind("<<ComboboxSelected>>",self._pack_changed)
+        ttk.Label(outer,text="Tier 1 ⊂ 2 ⊂ 3 ⊂ 4 ⊂ 5 ⊂ 6",style="Hint.TLabel").grid(
+            row=row,column=2,sticky="w",padx=5)
+        row+=1
+        ttk.Label(outer,textvariable=self.provider_pack_help,wraplength=850,
+                  style="Hint.TLabel").grid(row=row,column=0,columnspan=3,sticky="w",padx=5,pady=(0,6))
         row+=1
         ttk.Label(outer,text="Provider order").grid(row=row,column=0,sticky="w",padx=5,pady=5)
         ttk.Combobox(outer,textvariable=self.provider_order,state="readonly",
@@ -577,6 +598,19 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         ttk.Button(buttons,text="Play audio externally",command=self._play_selected).pack(side="left")
         ttk.Button(buttons,text="Promote selected to MARKED LRC",command=self._promote_selected).pack(side="left",padx=10)
         ttk.Label(buttons,text="Numbered alternatives are read-only until they become primary.").pack(side="right")
+
+    def _pack_key(self,label):
+        for key,value in PROVIDER_PACK_LABELS.items():
+            if label in (value,self._tr(value)):
+                return key
+        # Locale may have changed since the combobox was populated. Never guess
+        # the tier; reject instead of silently running a different source set.
+        from v296_provider_tiers import pack_from_display
+        return pack_from_display(label)
+
+    def _pack_changed(self,_event=None):
+        tier=self._pack_key(self.provider_pack.get())
+        self.provider_pack_help.set(self._tr(PACK_DESCRIPTIONS[tier]))
 
     def _preset_selected(self,_event=None):
         self.preset_description.set(self._tr(PRESET_DESCRIPTIONS.get(self._preset_key(self.preset_name.get()),"")))
@@ -752,6 +786,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         values={
             "folder":self.folder.get(),"database":self.database.get(),
             "action":self.action.get(),"provider_mode":self.provider_mode.get(),
+            "provider_pack":self._pack_key(self.provider_pack.get()),
             "order":self.provider_order.get(),"custom_order":self.custom_order.get(),
             "limit":self.limit.get(),
         }
@@ -764,6 +799,9 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                          ("order",self.provider_order),("custom_order",self.custom_order),
                          ("limit",self.limit)):
             var.set(profile.get(name,DEFAULT[name]))
+        pack=profile.get("provider_pack",PACK_LEGACY)
+        self.provider_pack.set(self._tr(PROVIDER_PACK_LABELS[pack]))
+        self.provider_pack_help.set(self._tr(PACK_DESCRIPTIONS[pack]))
         for key,var in self.boolvars.items():
             value=profile.get(key,DEFAULT[key])
             if key=="local_ai" and not self._g2g_available():
@@ -841,9 +879,9 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             # Saved profiles are editable, so a familiar preset *name* can
             # otherwise silently run a completely different action/scope.
             current=self._values()
-            critical=("action","limit","greek","provider_mode")
+            critical=("action","limit","greek","provider_mode","provider_pack")
             mismatches=[key for key in critical
-                        if current[key]!=PRESET_TEMPLATES[chosen][key]]
+                        if current[key]!=PRESET_TEMPLATES[chosen].get(key,DEFAULT[key])]
             if mismatches:
                 details=", ".join(mismatches)
                 if not self._dialog(
