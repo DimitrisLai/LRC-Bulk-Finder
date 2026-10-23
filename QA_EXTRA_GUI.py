@@ -62,7 +62,7 @@ class QA(unittest.TestCase):
             with self.subTest(tab=self.a.notebook.tab(t,'text')):
                 self.a.notebook.select(t);self.a.update_idletasks()
                 self.assertEqual(self.a.notebook.select(),t)
-        self.assertEqual(len(self.a.provider_health.rows),13)
+        self.assertEqual(len(self.a.provider_health.rows),14)
 
     def test_02_all_presets_apply_and_keep_paths(self):
         names=list(sp.PRESET_TEMPLATES)
@@ -162,7 +162,7 @@ class QA(unittest.TestCase):
         self.assertEqual(self.a.provider_health.rows['LRCLIB']['verified_count'],0)
         self.a._line('      LRCLIB: LRC_INSTALLED | actual .lrc sidecar created | saved')
         self.assertEqual(self.a.provider_health.rows['LRCLIB']['verified_count'],1)
-        self.assertEqual(len(self.a.health_tree.get_children()),13)
+        self.assertEqual(len(self.a.health_tree.get_children()),14)
         self.a._refresh_health();self.assertEqual(len(self.a.health_tree.get_children()),13)
 
     def test_09_candidate_review_empty_primary_numbered_and_cancel(self):
