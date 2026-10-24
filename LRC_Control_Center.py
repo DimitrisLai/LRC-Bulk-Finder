@@ -852,6 +852,9 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             value="Ready. Deleted alternatives go to the Recycle Bin. Promotions remain UNVERIFIED.")
         ttk.Label(self.review_tab,textvariable=self.review_batch_status,
                   style="Hint.TLabel",wraplength=1040).pack(fill="x")
+        ttk.Button(self.review_tab,
+                   text="Compare candidates side by side (v3 Stage 1 — read-only)",
+                   command=self._open_candidate_stage1).pack(anchor="w",pady=(7,3))
 
     def _pack_key(self,label):
         for key,value in PROVIDER_PACK_LABELS.items():
@@ -1458,6 +1461,24 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.log.configure(state="normal")
         self.log.delete("1.0","end")
         self.log.configure(state="disabled")
+
+    def _open_candidate_stage1(self):
+        """Review candidate groups in a separate read-only window."""
+        if self.review_bulk_running:
+            self._dialog("showwarning","Candidate Review","Finish or stop the current batch first.")
+            return
+        if not self.review_all_rows:
+            self._refresh_review()
+        if not self.review_all_rows:
+            self._dialog("showinfo","Candidate Review","No candidates found in the selected folder.")
+            return
+        from v300_candidate_compare_gui import CandidateCompareWindow
+        existing = getattr(self, "_candidate_compare_window", None)
+        if existing is not None and existing.winfo_exists():
+            existing.lift()
+            existing.focus_set()
+            return
+        self._candidate_compare_window = CandidateCompareWindow(self, list(self.review_all_rows))
 
     def _review_filter_key(self):
         value=self.review_filter.get()
