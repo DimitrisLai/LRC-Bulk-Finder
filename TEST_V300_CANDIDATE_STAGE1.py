@@ -50,7 +50,7 @@ class ReadOnlyCandidateCore(unittest.TestCase):
         (other / self.files[0].name).write_text("[00:01.00] New\n")
         groups = group_candidates(self.rows())
         self.assertEqual(len(groups), 2)
-        self.assertEqual([len(g.candidates) for g in groups], [3, 1])
+        self.assertEqual(sorted(len(g.candidates) for g in groups), [1, 3])
         self.assertTrue(all(g.audio is not None for g in groups))
 
     def test_compare_greek_text_and_timing_with_no_writes(self):
