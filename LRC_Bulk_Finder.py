@@ -1914,6 +1914,7 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
                 if history_key:store_search_event(history_key,'VERIFIED_MATCH')
                 timings.append((source,time.monotonic()-started))
                 ACTIVE_HTTP_TRACE=None
+                if source=='LRCLIB':LRCLIB_ACTIVE_DEADLINE=None
                 return hit,'SAVED',f'{source}: {hit.note}',calls
             if history_key:
                 store_search_event(history_key,'REVIEW_AVAILABLE' if had_review else 'NO_MATCH')
@@ -1982,6 +1983,7 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
             print_provider_state(source,'UNEXPECTED_ERROR',time.monotonic()-started,trace,reason)
         timings.append((source,time.monotonic()-started))
         ACTIVE_HTTP_TRACE=None
+        if source=='LRCLIB':LRCLIB_ACTIVE_DEADLINE=None
     if retry_targets:
         # Retry ONLY timed-out sources on THIS song; never successful NO_MATCH
         # providers and never the other tracks in the folder.
