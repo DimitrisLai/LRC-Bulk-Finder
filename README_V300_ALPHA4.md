@@ -29,6 +29,9 @@ Stable main and every previous release are unchanged.
   optional exact fallback share the 30-second **online** budget. Read-only local
   SQLite work occurs before that budget starts and remains usable if online
   LRCLIB is disabled. An active deadline is restored on every provider exit.
+- Preserve the first stalled/budget-exhausted LRCLIB song in the manual
+  catch-up CSV as well as later skipped songs. Previously that first error
+  could be omitted. Genuine completed NO_MATCH remains excluded.
 - Add regression tests demonstrating eight Alpha 3 gaps, plus tests for retained
   child ownership/retry. Add explicit offline QA hooks for frozen GUI/worker
   tests; ordinary launches do not run them or create their synthetic fixtures.

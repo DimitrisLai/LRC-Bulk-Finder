@@ -2087,8 +2087,7 @@ def write_lrclib_catchup_queue(folder, missing, provider_outcomes):
                                 'LRCLIB=SAVED', 'LRCLIB=CACHED_NO_MATCH')):
                 completed.add(path)
             elif item.startswith(('LRCLIB=SKIPPED', 'LRCLIB=UNAVAILABLE',
-                                  'LRCLIB=ERROR (HTTP 503',
-                                  'LRCLIB=ERROR (HTTP 429')):
+                                  'LRCLIB=ERROR (')):
                 queue.setdefault(path, item.split('=',1)[1])
     output=lrclib_catchup_queue_path(folder)
     # Preserve earlier missed coverage if a later run searches only a subset.

@@ -105,6 +105,25 @@ class StopStateTests(unittest.TestCase):
 
 
 class NetworkBudgetGaps(unittest.TestCase):
+    def test_first_stalled_or_budget_exhausted_song_is_in_manual_catchup_queue(self):
+        import csv
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            tracks=[root/f"Song {i}.wav" for i in range(4)]
+            for track in tracks:track.write_bytes(b"original audio sentinel")
+            before={p:p.read_bytes() for p in tracks}
+            outcomes=[
+                (tracks[0],["LRCLIB=ERROR (LRCLIB exceeded per-song wall-clock budget)"]),
+                (tracks[1],["LRCLIB=ERROR (LRCLIB online budget cannot accommodate the required request gap)"]),
+                (tracks[2],["LRCLIB=ERROR (Invalid JSON returned)"]),
+                (tracks[3],["LRCLIB=NO_MATCH"])]
+            report,count=engine.write_lrclib_catchup_queue(root,tracks,outcomes)
+            self.assertEqual(count,3)
+            with report.open(encoding="utf-8-sig",newline="") as source:
+                rows=list(csv.DictReader(source))
+            self.assertEqual({row["MP3 path"] for row in rows},{str(p) for p in tracks[:3]})
+            self.assertEqual(before,{p:p.read_bytes() for p in tracks})
+
     def test_rate_limit_wait_cannot_outlast_active_lrclib_budget(self):
         with mock.patch.object(engine, "next_available", {"LRCLIB": time.monotonic() + .4}), \
              mock.patch.object(engine, "LRCLIB_LAST_FINISHED", 0), \
