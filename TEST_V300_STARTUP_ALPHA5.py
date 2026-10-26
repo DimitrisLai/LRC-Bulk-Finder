@@ -181,6 +181,20 @@ class FileDiscoveryTests(unittest.TestCase):
 
 
 class ProviderAuditTests(unittest.TestCase):
+    def test_stalled_optional_musicbrainz_runs_once_and_preserves_original_searches(self):
+        with mock.patch.multiple(engine,MB_ENABLED=True,MB_DISABLED_REASON=None,MB_CACHE={},
+                MB_CACHE_DURATIONS={},MB_DISK_CACHE=None,GREEK_MODE=False,HISTORY_ENABLED=False,
+                blocked={},errors=Counter(),PROVIDER_RECOVERY_AT={},LRCLIB_503_RETRY_AT=0):
+            with mock.patch.object(engine,'direct_json',side_effect=engine.ProviderFailure('MusicBrainz stalled',stall=True)) as metadata, \
+                 mock.patch.object(engine,'provider_lrclib',return_value=None) as lyrics:
+                for title in ('Song','Song 2'):
+                    _,status,_,_=engine.search_song(title,'Artist','',120,engine.CandidateReview(),only_providers=('LRCLIB',))
+                    self.assertEqual(status,'NOT_FOUND')
+                self.assertEqual(metadata.call_count,1)
+                self.assertEqual([call.args[:4] for call in lyrics.call_args_list],
+                                 [('Song','Artist','',120),('Song 2','Artist','',120)])
+                self.assertIn(('Song','Artist'),engine.query_variants('Song','Artist'))
+
     def test_http_error_body_is_closed_without_losing_retry_after(self):
         import urllib.error
         body=io.BytesIO(b'not needed')
