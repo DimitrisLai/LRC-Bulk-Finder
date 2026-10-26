@@ -102,7 +102,7 @@ class FastStopGuiTests(unittest.TestCase):
         self.app.messages.put(("hardstop_result",(proc,True,"worker stopped")))
         self.app._poll()
         self.assertFalse(directory.exists())
-        self.assertIn("STOP: worker stopped",self.app.log.get("1.0","end") if hasattr(self.app,"log") else self.app.phase.get())
+        self.assertIsNone(self.app.stop_path)
 
     def test_gui_requests_stop_marker_before_force_kill(self):
         proc=type("FakeWorker",(),{"poll":lambda self:None,"pid":13371337})()
