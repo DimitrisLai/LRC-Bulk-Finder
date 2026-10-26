@@ -65,6 +65,10 @@ if os.environ.get('LRC_EXPERIMENTAL_SIMPMUSIC') == '1':
 BASE_GAP = {'LRCLIB': 2.4, 'SyncLRC': 2.2, 'Unison': 1.5, 'BetterKuGou': 1.8, 'BetterTTML': 1.8, 'YouLyTTML': 2.5, 'LrcAPI': 1.5, 'LiriQo': 1.5,
             'NetEase': 1.5, 'Musixmatch': 1.5, 'Megalobiz': 1.5, 'Tencent': 2.0, 'BetterQQ': 2.2, 'MusicBrainz': 1.2, 'SimpMusic': 2.5}
 NETWORK_TIMEOUT = 10
+# Strict LRCLIB wall-clock budget PER SONG, including both keyword searches,
+# optional /api/get fallback, socket reads, and the normal inter-request gap.
+LRCLIB_SONG_BUDGET_SECONDS = 30.0
+LRCLIB_ACTIVE_DEADLINE = None
 OPTIONAL_TENCENT_AVAILABLE = False
 try:
     import syncedlyrics_aio
@@ -926,11 +930,14 @@ def start_incremental_index(folder,paths):
 
 
 class ProviderFailure(Exception):
-    def __init__(self, message, *, rate_limit=False, retry_after=None, timeout=False):
+    def __init__(self, message, *, rate_limit=False, retry_after=None, timeout=False, stall=False):
         super().__init__(message)
         self.rate_limit=rate_limit
         self.retry_after=retry_after
         self.timeout=timeout or rate_limit
+        # A hard wall-clock stall is a provider-wide circuit break, not a
+        # retryable per-song socket timeout. The affected song stays incomplete.
+        self.stall=stall
 
 
 def wait_for(provider):
@@ -941,6 +948,47 @@ def wait_for(provider):
     if provider=='LRCLIB':until=max(until,LRCLIB_LAST_FINISHED+0.5)
     if until>time.monotonic():interruptible_sleep(until-time.monotonic())
     next_available[provider]=time.monotonic()+gap
+
+
+def bounded_lrclib_http(req, deadline):
+    """Hard end-to-end LRCLIB deadline across socket setup and response body.
+
+    urllib timeout=10 is a per-socket-operation limit, not a wall-clock limit.
+    A single stalled/trickling response previously delayed the first track for
+    minutes. The daemon does *network I/O only*: it never touches candidates,
+    diagnostics, global provider state, media or UI. At most one can outlive
+    the deadline, because search_song immediately opens the LRCLIB circuit.
+    """
+    finished=threading.Event()
+    outcome={}
+    remaining=deadline-time.monotonic()
+    if remaining<=0:
+        raise ProviderFailure('LRCLIB exceeded per-song wall-clock budget',
+                              stall=True)
+    def request_on_daemon():
+        try:
+            with urllib.request.urlopen(req,timeout=NETWORK_TIMEOUT) as response:
+                code=getattr(response,'status',None)
+                if code is None:
+                    code=response.getcode() if hasattr(response,'getcode') else None
+                outcome['value']=(code,response.read(2_000_000))
+        except Exception as exc:
+            outcome['error']=exc
+        finally:
+            finished.set()
+    threading.Thread(target=request_on_daemon,daemon=True,
+                     name='lrclib-bounded-http').start()
+    while not finished.wait(min(0.25,max(0.0,deadline-time.monotonic()))):
+        check_stop()
+        if time.monotonic()>=deadline:
+            raise ProviderFailure(
+                f'LRCLIB exceeded {LRCLIB_SONG_BUDGET_SECONDS:g}s total per-song '
+                'network budget; online LRCLIB disabled for this run',
+                stall=True)
+    check_stop()
+    if 'error' in outcome:
+        raise outcome['error']
+    return outcome['value']
 
 
 def direct_get(provider,url,params):
@@ -961,13 +1009,22 @@ def direct_get(provider,url,params):
             request_headers['User-Agent']=LRCLIB_USER_AGENT
             request_headers['Lrclib-Client']=LRCLIB_USER_AGENT
         req=urllib.request.Request(full,headers=request_headers)
-        with urllib.request.urlopen(req,timeout=NETWORK_TIMEOUT) as response:
-            code=getattr(response,'status',None)
-            if code is None:
-                code=response.getcode() if hasattr(response,'getcode') else None
-            payload=response.read(2_000_000)
-            add_http_event(provider,url,str(code) if code is not None else 'HTTP_2XX_UNSPECIFIED',started)
-            return payload.decode('utf-8-sig','replace')
+        if provider=='LRCLIB':
+            deadline=(LRCLIB_ACTIVE_DEADLINE if LRCLIB_ACTIVE_DEADLINE is not None
+                      else time.monotonic()+LRCLIB_SONG_BUDGET_SECONDS)
+            code,payload=bounded_lrclib_http(req,deadline)
+        else:
+            with urllib.request.urlopen(req,timeout=NETWORK_TIMEOUT) as response:
+                code=getattr(response,'status',None)
+                if code is None:
+                    code=response.getcode() if hasattr(response,'getcode') else None
+                payload=response.read(2_000_000)
+        add_http_event(provider,url,str(code) if code is not None else 'HTTP_2XX_UNSPECIFIED',started)
+        return payload.decode('utf-8-sig','replace')
+    except ProviderFailure as ex:
+        # Keep the hard deadline distinct from ordinary retryable socket timeouts.
+        add_http_event(provider,url,'NETWORK_STALL',started,str(ex)[:120])
+        raise
     except urllib.error.HTTPError as ex:
         ra=ex.headers.get('Retry-After') if ex.headers else None
         detail=''
@@ -1730,7 +1787,7 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
     its provider has been disabled for the rest of the run. HTTP 5xx,
     invalid responses and other errors NEVER trigger another round.
     """
-    global ACTIVE_HTTP_TRACE
+    global ACTIVE_HTTP_TRACE, LRCLIB_ACTIVE_DEADLINE
     calls=[];completed=0;failures=0;real_timeouts=0
     if timings is None:timings=[]
     if request_traces is None:request_traces=[]
@@ -1818,6 +1875,8 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
                 continue
         print(f'    {source}...',flush=True)
         started=time.monotonic()
+        if source=='LRCLIB':
+            LRCLIB_ACTIVE_DEADLINE=started+LRCLIB_SONG_BUDGET_SECONDS
         trace=[]
         request_traces.append(trace)
         ACTIVE_HTTP_TRACE=trace
@@ -1855,6 +1914,7 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
                 if history_key:store_search_event(history_key,'VERIFIED_MATCH')
                 timings.append((source,time.monotonic()-started))
                 ACTIVE_HTTP_TRACE=None
+                if source=='LRCLIB':LRCLIB_ACTIVE_DEADLINE=None
                 return hit,'SAVED',f'{source}: {hit.note}',calls
             if history_key:
                 store_search_event(history_key,'REVIEW_AVAILABLE' if had_review else 'NO_MATCH')
@@ -1867,7 +1927,16 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
                 blocked[source]='429 for this run; cooldown recorded'+(f' (Retry-After {ex.retry_after})' if ex.retry_after else '')
                 print_provider_state(source,'HTTP_429_DISABLED',time.monotonic()-started,trace,str(ex)+'; cooldown persisted')
             else:
-                if source=='LRCLIB' and str(ex).startswith('HTTP 503:'):
+                if source=='LRCLIB' and ex.stall:
+                    # One hard stall means the transport may remain blocked in
+                    # one daemon. Never spawn another one during this run.
+                    blocked[source]=('network response stalled past '
+                                     f'{LRCLIB_SONG_BUDGET_SECONDS:g}s budget; '
+                                     'online disabled for this run; catch-up needed')
+                    print_provider_state(source,'UNRESPONSIVE_DISABLED',
+                        time.monotonic()-started,trace,
+                        'Hard wall-clock deadline reached; no more online LRCLIB requests this run')
+                elif source=='LRCLIB' and str(ex).startswith('HTTP 503:'):
                     LRCLIB_503_STREAK+=1
                     # Honor a server-specified Retry-After (+5s safety floor);
                     # otherwise exponential 60s/120s/... capped at 10m.
@@ -1914,6 +1983,7 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
             print_provider_state(source,'UNEXPECTED_ERROR',time.monotonic()-started,trace,reason)
         timings.append((source,time.monotonic()-started))
         ACTIVE_HTTP_TRACE=None
+        if source=='LRCLIB':LRCLIB_ACTIVE_DEADLINE=None
     if retry_targets:
         # Retry ONLY timed-out sources on THIS song; never successful NO_MATCH
         # providers and never the other tracks in the folder.
