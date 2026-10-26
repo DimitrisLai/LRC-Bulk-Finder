@@ -1,0 +1,109 @@
+name: v3 Stage 1 Fast STOP Windows Preview
+
+on:
+  push:
+    branches: [fix/v300-fast-stop-alpha3]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-preview:
+    if: github.repository == 'DimitrisLai/LRC-Bulk-Finder'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout stage 1 source
+        uses: actions/checkout@v4
+      - name: Install Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install runtime and packaging requirements
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check mutagen Unidecode syncedlyrics pygame soundfile python-vlc tkinterdnd2 screeninfo pillow pyinstaller send2trash
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run full offline regression suite (including stage 1)
+        shell: pwsh
+        run: |
+          python -m compileall -q candidate_review_v3.py v300_candidate_compare_gui.py TEST_V300_CANDIDATE_STAGE1.py TEST_V300_LRCLIB_DEADLINE.py TEST_V300_FAST_STOP.py LRC_Control_Center.py LRC_Bulk_Finder.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -p 'TEST_*.py' -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python QA_V260_PLAYER_SMOKE.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build bundled local Greek lexicon
+        shell: pwsh
+        run: |
+          python BUILD_GREEK_LEXICON_DB.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build complete GUI and worker standalone EXEs
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed --name LRC_Control_Center --collect-all syncedlyrics --collect-all mutagen --hidden-import LRC_Bulk_Finder --hidden-import g2g_auto --hidden-import g2g_integration --hidden-import incremental_library --hidden-import lyric_sync_lab --hidden-import tooltip_help --hidden-import stop_control --hidden-import stage_counters --hidden-import worker_stop --collect-all send2trash --hidden-import send2trash --hidden-import candidate_review_v3 --hidden-import v300_candidate_compare_gui --hidden-import v298_candidate_workbench --hidden-import v297_provider_intelligence --hidden-import v296_provider_tiers --hidden-import ui_locale --hidden-import ui_appearance --hidden-import ui_translations --hidden-import v245_features --hidden-import v245_gui --hidden-import v245_translations --hidden-import v250_manager --hidden-import v250_gui --hidden-import v250_translations --hidden-import v260_studio --hidden-import v260_studio_gui --hidden-import v260_player --hidden-import v260_translations --hidden-import v270_gui --hidden-import v270_precision --hidden-import v270_waveform --hidden-import v270_vlc --hidden-import v270_translations --hidden-import v280_karaoke_core --hidden-import v280_karaoke_gui --hidden-import v280_translations --hidden-import v290_smart_library --hidden-import v290_smart_gui --hidden-import v290_translations --hidden-import vlc --collect-all soundfile --collect-all pygame --collect-all tkinterdnd2 --collect-all screeninfo --collect-all PIL LRC_Control_Center.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pyinstaller --noconfirm --clean --onefile --console --name LRC_Bulk_Finder_Worker --collect-all syncedlyrics --collect-all mutagen --hidden-import LRC_Bulk_Finder --hidden-import g2g_auto --hidden-import g2g_integration --hidden-import auto_install_lrclib_database --hidden-import v298_candidate_workbench --hidden-import v297_provider_intelligence --hidden-import v296_provider_tiers --hidden-import search_profiles --hidden-import incremental_library --hidden-import stop_control --hidden-import stage_counters --hidden-import v250_manager run_saved_profile.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $archive = python -m PyInstaller.utils.cliutils.archive_viewer --list --recursive dist/LRC_Control_Center.exe 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0 -or $archive -notmatch 'candidate_review_v3' -or $archive -notmatch 'v300_candidate_compare_gui') { throw 'Stage 1 modules missing in GUI EXE' }
+      - name: Frozen Windows smoke
+        shell: pwsh
+        run: |
+          python TEST_V2_4_1_FROZEN_SMOKE.py dist/LRC_Bulk_Finder_Worker.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $p = Start-Process -FilePath (Resolve-Path dist/LRC_Control_Center.exe) -PassThru
+          Start-Sleep -Seconds 6
+          $p.Refresh()
+          if ($p.HasExited) { throw "Stage 1 GUI failed to start, exit $($p.ExitCode)" }
+          Stop-Process -Id $p.Id -Force
+          python QA_V291_FROZEN_GUI_TITLE.py dist/LRC_Control_Center.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Create preview-only standalone ZIP + checksum
+        shell: pwsh
+        run: |
+          python BUILD_V300_FAST_STOP.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retain standalone Windows stage 1 test download
+        uses: actions/upload-artifact@v4
+        with:
+          name: LRC-Bulk-Finder-v3-Stage1-Fast-STOP-Windows-Test
+          path: |
+            dist/LRC_Bulk_Finder_v3_Stage1_Fast_STOP_Windows_Test.zip
+            dist/LRC_Bulk_Finder_v3_Stage1_Fast_STOP_Windows_Test.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-preview:
+    if: github.repository == 'DimitrisLai/LRC-Bulk-Finder'
+    needs: windows-preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: LRC-Bulk-Finder-v3-Stage1-Fast-STOP-Windows-Test
+          path: publish-assets
+      - name: Verify downloaded standalone ZIP hash
+        run: |
+          set -euo pipefail
+          cd publish-assets
+          sha256sum -c LRC_Bulk_Finder_v3_Stage1_Fast_STOP_Windows_Test.zip.sha256
+      - name: Publish a distinct, clearly labeled alpha release only
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view v3.0.0-alpha.3 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Alpha release already exists; leaving all published assets intact.'
+            exit 0
+          fi
+          gh release create v3.0.0-alpha.3 \
+            publish-assets/LRC_Bulk_Finder_v3_Stage1_Fast_STOP_Windows_Test.zip \
+            publish-assets/LRC_Bulk_Finder_v3_Stage1_Fast_STOP_Windows_Test.zip.sha256 \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title 'LRC Bulk Finder v3.0 Stage 1 — Fast STOP and Safe Cancellation (ALPHA 3)' \
+            --notes-file README_V300_FAST_STOP.md --prerelease
+          gh release view v3.0.0-alpha.3 --repo "$GITHUB_REPOSITORY" --json tagName,url
