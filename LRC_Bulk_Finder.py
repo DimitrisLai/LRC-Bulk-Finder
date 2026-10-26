@@ -930,7 +930,7 @@ def start_incremental_index(folder,paths):
 
 
 class ProviderFailure(Exception):
-    def __init__(self, message, *, rate_limit=False, retry_after=None, timeout=False, stall=False):
+    def __init__(self, message, *, rate_limit=False, retry_after=None, timeout=False, stall=False, budget=False):
         super().__init__(message)
         self.rate_limit=rate_limit
         self.retry_after=retry_after
@@ -938,6 +938,7 @@ class ProviderFailure(Exception):
         # A hard wall-clock stall is a provider-wide circuit break, not a
         # retryable per-song socket timeout. The affected song stays incomplete.
         self.stall=stall
+        self.budget=budget
 
 
 def wait_for(provider):
@@ -946,7 +947,14 @@ def wait_for(provider):
     # LRCLIB documents a gap *between* sequential requests. The older
     # start-to-start delay could send two long requests back-to-back.
     if provider=='LRCLIB':until=max(until,LRCLIB_LAST_FINISHED+0.5)
+    deadline=LRCLIB_ACTIVE_DEADLINE if provider=='LRCLIB' else None
+    if deadline is not None and until>=deadline:
+        # Respect the required gap by sending nothing, rather than sleeping
+        # outside the advertised online budget or bypassing the rate limit.
+        raise ProviderFailure('LRCLIB online budget cannot accommodate the required request gap; request not sent',budget=True)
     if until>time.monotonic():interruptible_sleep(until-time.monotonic())
+    if deadline is not None and time.monotonic()>=deadline:
+        raise ProviderFailure('LRCLIB online budget exhausted during request pacing; request not sent',budget=True)
     next_available[provider]=time.monotonic()+gap
 
 
@@ -986,6 +994,8 @@ def bounded_lrclib_http(req, deadline):
                 'network budget; online LRCLIB disabled for this run',
                 stall=True)
     check_stop()
+    if time.monotonic()>=deadline:
+        raise ProviderFailure('LRCLIB response completed after its wall-clock deadline',stall=True)
     if 'error' in outcome:
         raise outcome['error']
     return outcome['value']
@@ -997,10 +1007,10 @@ def direct_get(provider,url,params):
     Never expose the full URL with query parameters in diagnostic reports.
     """
     global LRCLIB_LAST_FINISHED
-    wait_for(provider)
     full=url+'?'+urllib.parse.urlencode(params)
     started=time.monotonic()
     try:
+        wait_for(provider)
         request_headers=dict(HEADERS)
         if provider=='MusicBrainz':
             # MusicBrainz requires a project-identifying User-Agent.
@@ -1023,7 +1033,7 @@ def direct_get(provider,url,params):
         return payload.decode('utf-8-sig','replace')
     except ProviderFailure as ex:
         # Keep the hard deadline distinct from ordinary retryable socket timeouts.
-        add_http_event(provider,url,'NETWORK_STALL',started,str(ex)[:120])
+        add_http_event(provider,url,'REQUEST_BUDGET' if ex.budget else 'NETWORK_STALL',started,str(ex)[:120])
         raise
     except urllib.error.HTTPError as ex:
         ra=ex.headers.get('Retry-After') if ex.headers else None
@@ -1593,6 +1603,7 @@ def provider_lrclib(title,artist,album,duration,review):
     Old implementation could issue 4+ calls/song and trigger 429 immediately.
     A Greek spelling alternative counts as search inside the FIRST round.
     """
+    global LRCLIB_ACTIVE_DEADLINE
     if LOCAL_LRCLIB is not None and not STAGED_ONLINE_MODE:
         local_hit=local_lrclib_search(title,artist,duration,review)
         if local_hit:
@@ -1601,6 +1612,17 @@ def provider_lrclib(title,artist,album,duration,review):
         if not LRCLIB_ONLINE_FALLBACK:
             print('      LRCLIB: offline snapshot checked; online fallback disabled for this catch-up run.',flush=True)
             return None
+    # Local SQLite work is independent of the ONLINE transport deadline.
+    # All following keyword requests and the optional exact fallback share it.
+    previous_deadline=LRCLIB_ACTIVE_DEADLINE
+    LRCLIB_ACTIVE_DEADLINE=time.monotonic()+LRCLIB_SONG_BUDGET_SECONDS
+    try:
+        return _provider_lrclib_online(title,artist,album,duration,review)
+    finally:
+        LRCLIB_ACTIVE_DEADLINE=previous_deadline
+
+
+def _provider_lrclib_online(title,artist,album,duration,review):
     candidates=[]
     seen=set()
     for qt,qa in query_variants(title,artist)[:2]:
@@ -1927,15 +1949,14 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
                 blocked[source]='429 for this run; cooldown recorded'+(f' (Retry-After {ex.retry_after})' if ex.retry_after else '')
                 print_provider_state(source,'HTTP_429_DISABLED',time.monotonic()-started,trace,str(ex)+'; cooldown persisted')
             else:
-                if source=='LRCLIB' and ex.stall:
+                if source=='LRCLIB' and (ex.stall or ex.budget):
                     # One hard stall means the transport may remain blocked in
                     # one daemon. Never spawn another one during this run.
-                    blocked[source]=('network response stalled past '
-                                     f'{LRCLIB_SONG_BUDGET_SECONDS:g}s budget; '
+                    blocked[source]=('online request budget exhausted; '
                                      'online disabled for this run; catch-up needed')
-                    print_provider_state(source,'UNRESPONSIVE_DISABLED',
+                    print_provider_state(source,'BUDGET_EXHAUSTED_DISABLED' if ex.budget else 'UNRESPONSIVE_DISABLED',
                         time.monotonic()-started,trace,
-                        'Hard wall-clock deadline reached; no more online LRCLIB requests this run')
+                        str(ex)+'; no more online LRCLIB requests this run')
                 elif source=='LRCLIB' and str(ex).startswith('HTTP 503:'):
                     LRCLIB_503_STREAK+=1
                     # Honor a server-specified Retry-After (+5s safety floor);

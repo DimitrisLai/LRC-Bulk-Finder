@@ -1243,3 +1243,11 @@ _REVIEW_RECYCLE_EL={
 }
 for _en,_el in _REVIEW_RECYCLE_EL.items():
     UI_EL.setdefault(_en,_el)
+
+UI_EL.update({
+    "Alpha 4 — STOP reliability test":"Alpha 4 — δοκιμή αξιόπιστης διακοπής",
+    "Worker exited; verifying child-process shutdown...":"Ο worker τερματίστηκε· ελέγχεται ο τερματισμός των θυγατρικών διεργασιών...",
+    "STOP NOT VERIFIED — retry STOP before starting another search":"Η ΔΙΑΚΟΠΗ ΔΕΝ ΕΠΑΛΗΘΕΥΤΗΚΕ — δοκιμάστε ξανά πριν από νέα αναζήτηση",
+    "Stopped by user; observed worker tree verified stopped; completed checkpoints preserved":"Διακόπηκε από τον χρήστη· επαληθεύτηκε ο τερματισμός των παρατηρημένων διεργασιών· διατηρήθηκαν τα ολοκληρωμένα σημεία ελέγχου",
+    "Worker tree shutdown is not verified. Retry STOP before closing the Control Center.":"Ο τερματισμός των διεργασιών δεν έχει επαληθευτεί. Δοκιμάστε ξανά τη διακοπή πριν κλείσετε το Control Center.",
+})

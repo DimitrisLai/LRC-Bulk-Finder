@@ -106,7 +106,13 @@ def main(argv=None):
     parser.add_argument("--g2g-model",choices=["g2g","g2g_lite"],default="g2g")
     parser.add_argument("--allow-python-install",action="store_true",help="Also install official Python 3.11 using Windows winget if missing")
     parser.add_argument("--profiles-path",help="Optional alternate profiles.json for portable/test runs")
+    parser.add_argument("--qa-stop-fixture",help=argparse.SUPPRESS)
+    parser.add_argument("--qa-stage",default="preflight",choices=("preflight","slow-network-read","provider-cooldown"),help=argparse.SUPPRESS)
+    parser.add_argument("--qa-depth",type=int,default=0,choices=(0,1,2),help=argparse.SUPPRESS)
     args=parser.parse_args(argv)
+    if args.qa_stop_fixture:
+        from QA_V300_FROZEN_STOP import fixture
+        return fixture(args.qa_stop_fixture,args.qa_stage,args.qa_depth)
     if args.benchmark:
         try:
             from v297_provider_intelligence import benchmark

@@ -36,7 +36,7 @@ from v298_candidate_workbench import (
     selected_alternative_paths, bulk_recycle_alternatives,
     bulk_promote as batch_promote)
 from runtime_paths import program_folder
-from worker_stop import kill_search_process
+from worker_stop import kill_search_process, StopContext
 from v243_health import ProviderHealth
 from v243_resume import last_run, mark_run
 from v243_aliases import approve_alias
@@ -69,6 +69,9 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self._hardstop_pending=False
         self._stop_cleanup_deferred=False
         self._stop_kill_attempted=False
+        self._stopping_process=None
+        self._stop_context=None
+        self._stop_verification_failed=False
         self.g2g_setup_process=None
         self.g2g_setup_window=None
         self.active_profile=None
@@ -281,6 +284,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                   style="HeroSubtitle.TLabel").grid(row=1,column=1,sticky="nw",pady=(1,0))
         ttk.Label(header,text=f"v{APP_VERSION}",style="HeroMeta.TLabel").grid(
             row=0,column=2,sticky="e",padx=(6,24))
+        ttk.Label(header,text="Alpha 4 — STOP reliability test",style="HeroMeta.TLabel").grid(
+            row=1,column=2,sticky="e",padx=(6,24))
         self.appearance_choice=tk.StringVar(
             value=("Σκοτεινό" if self.gui_locale.language=="el" else "Dark")
                   if self.appearance_mode=="dark" else
@@ -1161,7 +1166,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._dialog("showerror","Delete profile",str(error))
 
     def _run_profile(self):
-        if self._hardstop_pending:
+        if self._hardstop_pending or self._stop_verification_failed:
             self._dialog("showwarning","Search stopping",
                          "Worker tree shutdown is still being verified; do not start another worker yet.")
             return
@@ -1272,6 +1277,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self._hardstop_pending=False
         self._stop_cleanup_deferred=False
         self._stop_kill_attempted=False
+        self._stopping_process=None
+        self._stop_verification_failed=False
         self.stop_button.configure(text="STOP SEARCH — keep app open")
         for value in self.counter_vars.values():value.set("0")
         self.notebook.select(self.run_tab)
@@ -1279,17 +1286,17 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.phase.set("Starting "+self.name.get()+"...")
         self.progress_text.set("Waiting for first completed song; ETA appears after 3 timed samples.")
         self.bar["value"]=0
-        self.reader=threading.Thread(target=self._read_process,daemon=True)
+        self.reader=threading.Thread(target=self._read_process,args=(self.process,),daemon=True)
         self.reader.start()
 
-    def _read_process(self):
-        process=self.process
+    def _read_process(self,process=None):
+        process=process if process is not None else self.process
         try:
             for line in process.stdout:
                 self.messages.put(("line",(process,line.rstrip("\r\n"))))
             self.messages.put(("ended",(process,process.wait())))
         except Exception as error:
-            self.messages.put(("error",str(error)))
+            self.messages.put(("error",(process,str(error))))
 
     def _finish_search_worker(self,process,exit_code):
         """Finalize exactly once, independent of inherited stdout pipe handles.
@@ -1324,7 +1331,12 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self._stop_kill_attempted=False
         if self._hardstop_pending:
             # Keep the stop marker while descendant termination is checked.
+            self._stopping_process=process
+            self.phase.set("Worker exited; verifying child-process shutdown...")
             self._stop_cleanup_deferred=True
+        elif self._stop_verification_failed:
+            self.phase.set("STOP NOT VERIFIED — retry STOP before starting another search")
+            self.stop_button.configure(state="normal",text="RETRY STOP")
         else:
             self._cleanup_stop_marker()
         if hasattr(self,'_manager_cleanup_selection'):
@@ -1450,24 +1462,33 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                                         "Greek AI setup incomplete — see installation log")
                 elif kind=="hardstop_result":
                     process,success,detail=data
+                    if process is not self._stopping_process and process is not self.process:
+                        continue
                     self._hardstop_pending=False
+                    self._stop_verification_failed=not success
                     if process.poll() is not None:
                         self._finish_search_worker(process,process.poll())
-                    if self._stop_cleanup_deferred:
+                    if success:
                         self._stop_cleanup_deferred=False
                         self._cleanup_stop_marker()
+                        if self._stop_context is not None:
+                            self._stop_context.close()
+                        self._stop_context=None
+                        self._stopping_process=None
+                        self.phase.set("Stopped by user; observed worker tree verified stopped; completed checkpoints preserved")
+                        self.stop_button.configure(state="disabled",text="STOP SEARCH — keep app open")
                     if not success:
-                        alive=self.process is process and process.poll() is None
-                        if alive:
-                            self.stop_requested=False
-                            self.stop_button.configure(state="normal",text="RETRY STOP")
-                            self.phase.set("STOP COULD NOT BE VERIFIED: "+detail)
-                        else:
-                            self._line("STOP tree verification incomplete: "+detail)
+                        self._stopping_process=process
+                        self.stop_button.configure(state="normal",text="RETRY STOP")
+                        self.phase.set("STOP NOT VERIFIED: "+detail)
+                        self._line("STOP tree verification incomplete: "+detail)
                     else:
                         self._line("STOP: "+detail+" Completed checkpoints remain available.")
                 elif kind=="error":
-                    self._line("Control Center reader error: "+data)
+                    if isinstance(data,tuple):
+                        source,detail=data
+                        if source is self.process:self._line("Control Center reader error: "+detail)
+                    else:self._line("Control Center reader error: "+data)
         except queue.Empty:pass
         # Independent stop completion: a child may have inherited stdout, so
         # reader EOF is NOT required to finish a stopped search.
@@ -1478,6 +1499,12 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.after(110,self._poll)
 
     def _line(self,line):
+        self._append_log_line(line)
+        # Queued output from the same dying worker must not replace the
+        # STOP/verifying/error status with a fresh "Searching" progress line.
+        if (self.stop_requested and (self._hardstop_pending or self._stop_verification_failed or self.process is not None)
+                and not line.startswith("STAGE COUNTERS:")):
+            return
         if line.startswith("PREFLIGHT DISCOVERY:"):
             self.phase.set("Preflight: scanning filenames and existing lyrics")
             self.progress_text.set(line)
@@ -1498,13 +1525,6 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                 ("found",found),("candidate",candidate),("not_found",not_found),
                 ("total_found",total_found),("total_candidate",total_candidate),("skipped",skipped or "0")):
                 self.counter_vars[key].set(number)
-        self.log.configure(state="normal")
-        self.log.insert("end",line+"\n")
-        # Bound memory for multi-day searches.
-        if int(self.log.index("end-1c").split(".")[0])>6000:
-            self.log.delete("1.0","2000.0")
-        self.log.see("end")
-        self.log.configure(state="disabled")
         match=re.search(r"PROGRESS ROUND (\w+): (\d+)/(\d+) \(([\d.]+)%\) \| elapsed (.*?) \| THIS ROUND ETA: (.*?)(?: \||$)",line)
         if match:
             stage,done,total,pct,elapsed,eta=match.groups()
@@ -1516,9 +1536,20 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self.bar["value"]=0
             self.progress_text.set("New round: ETA starts after 3 completed uncached songs")
 
+    def _append_log_line(self,line):
+        self.log.configure(state="normal")
+        self.log.insert("end",line+"\n")
+        if int(self.log.index("end-1c").split(".")[0])>6000:
+            self.log.delete("1.0","2000.0")
+        self.log.see("end")
+        self.log.configure(state="disabled")
+
     def _stop(self):
-        process=self.process
-        if process is None or process.poll() is not None or self.stop_requested:
+        retry=self._stop_verification_failed
+        process=self._stopping_process if retry else self.process
+        if process is None or self._hardstop_pending:
+            return
+        if not retry and (process.poll() is not None or self.stop_requested):
             return
         if not self._dialog("askyesno",
                 "Stop search now?",
@@ -1531,11 +1562,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self._hardstop_pending=True
         self._stop_cleanup_deferred=False
         self._stop_kill_attempted=True
-        # First request cooperative cancellation. Hard-stop still follows
-        # immediately so a network request cannot delay the user's STOP.
-        if self.stop_path:
-            try:self.stop_path.write_text("STOP",encoding="ascii")
-            except OSError:pass
+        self._stopping_process=process
+        if self._stop_context is None:self._stop_context=StopContext()
         self.stop_button.configure(state="disabled",text="Stopping worker...")
         self.phase.set("Stopping search worker — app remains open...")
         self.progress_text.set("Previously saved checkpoints remain; unfinished song may be retried.")
@@ -1543,7 +1571,17 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                          args=(process,),daemon=True).start()
 
     def _hard_stop_worker(self,process):
-        result=kill_search_process(process)
+        # Snapshot first, then request cancellation. A fast cooperative exit
+        # must not erase the tree before it can be observed. No Tk calls here.
+        marker=self.stop_path
+        def request_stop():
+            if marker:
+                try:marker.write_text("STOP",encoding="ascii")
+                except OSError:pass
+        try:
+            result=kill_search_process(process,context=self._stop_context,request_stop=request_stop)
+        except Exception as error:
+            result=False,f"{type(error).__name__}: {error}"
         self.messages.put(("hardstop_result",(process,*result)))
 
     def _cleanup_stop_marker(self):
@@ -1952,6 +1990,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._dialog("showerror","Cannot save candidate",str(error))
 
     def _close(self):
+        if self._hardstop_pending or self._stop_verification_failed:
+            self._dialog("showwarning","Search stopping",
+                         "Worker tree shutdown is not verified. Retry STOP before closing the Control Center.")
+            return
         if self.review_bulk_running:
             self._dialog("showwarning","Candidate promotion running",
                          "Stop the candidate batch before closing the Control Center.")
@@ -1979,4 +2021,8 @@ def main():
 
 
 if __name__=="__main__":
-    main()
+    if len(sys.argv)==3 and sys.argv[1]=="--qa-stop-smoke":
+        from QA_V300_FROZEN_STOP import smoke
+        sys.exit(smoke(sys.argv[2]))
+    else:
+        main()
