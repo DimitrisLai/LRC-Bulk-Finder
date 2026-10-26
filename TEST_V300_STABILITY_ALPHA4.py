@@ -50,6 +50,8 @@ class StopStateTests(unittest.TestCase):
         a._manager_cleanup_selection = mock.Mock()
         a._dialog = mock.Mock(return_value=True)
         a.review_bulk_running = False
+        a.g2g_setup_process = None
+        a.benchmark_process = None
         a.stop_directory = Path(self.tmp.name) / "stop"
         a.stop_directory.mkdir()
         a.stop_path = a.stop_directory / "stop.request"
