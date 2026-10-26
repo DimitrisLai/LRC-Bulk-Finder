@@ -66,6 +66,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.stop_directory=None
         self.stop_path=None
         self.stop_requested=False
+        self._hardstop_pending=False
+        self._stop_cleanup_deferred=False
         self.g2g_setup_process=None
         self.g2g_setup_window=None
         self.active_profile=None
@@ -1262,6 +1264,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.provider_health=ProviderHealth(tuple(dict.fromkeys(PROVIDER_FULL+("BetterQQ","SimpMusic"))))
         self._refresh_health()
         self.stop_requested=False
+        self._hardstop_pending=False
+        self._stop_cleanup_deferred=False
         self.stop_button.configure(text="STOP SEARCH — keep app open")
         for value in self.counter_vars.values():value.set("0")
         self.notebook.select(self.run_tab)
@@ -1276,37 +1280,92 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         process=self.process
         try:
             for line in process.stdout:
-                self.messages.put(("line",line.rstrip("\r\n")))
-            self.messages.put(("ended",process.wait()))
+                self.messages.put(("line",(process,line.rstrip("\r\n"))))
+            self.messages.put(("ended",(process,process.wait())))
         except Exception as error:
             self.messages.put(("error",str(error)))
+
+    def _finish_search_worker(self,process,exit_code):
+        """Finalize exactly once, independent of inherited stdout pipe handles.
+
+        The old reader may stay blocked in `for line in process.stdout` after
+        the worker exits if a child inherited the same pipe. A late reader
+        message must never finish a *new* search.
+        """
+        if process is not self.process:
+            return
+        if self.active_profile and self.active_folder:
+            try:
+                mark_run(self.active_profile,self.active_folder,
+                         "stopped" if self.stop_requested or exit_code!=0 else "finished")
+            except OSError:
+                pass
+        if exit_code==0 and not self.stop_requested and self.active_folder and self.active_action in ("1","5"):
+            # Unchanged completed-search contribution behavior.
+            try:
+                report=export_contribution(self.active_folder)
+                if report:self._line("PROVIDER CONTRIBUTION REPORT: "+str(report))
+            except (OSError,ValueError) as error:
+                self._line("Contribution report unavailable: "+str(error))
+        self.phase.set(
+            "Stopped by user; completed checkpoints preserved"
+            if self.stop_requested else
+            "Search completed successfully" if exit_code==0 else
+            f"Worker stopped unexpectedly (exit {exit_code}); see log. "
+            "Completed tracks are retained; unfinished songs can be retried.")
+        self.stop_button.configure(state="disabled")
+        self.process=None
+        if self._hardstop_pending:
+            # Keep the stop marker while descendant termination is checked.
+            self._stop_cleanup_deferred=True
+        else:
+            self._cleanup_stop_marker()
+        if hasattr(self,'_manager_cleanup_selection'):
+            self._manager_cleanup_selection()
+        self._refresh_review_background()
+
+    def _refresh_review_background(self):
+        """Do not hang the Tk event loop scanning 5k+ paths after STOP."""
+        folder=self.folder.get()
+        recursive=self.boolvars["recursive"].get()
+        if not folder or not Path(folder).is_dir():
+            self.review_all_rows=[]
+            self._render_review()
+            return
+        def scan():
+            try:
+                rows=list_review_candidates(folder,recursive)
+                self.messages.put(("review_refresh_ready",(folder,recursive,rows,None)))
+            except (OSError,ValueError) as error:
+                self.messages.put(("review_refresh_ready",(folder,recursive,[],str(error))))
+        threading.Thread(target=scan,daemon=True,name="review-refresh-after-stop").start()
 
     def _poll(self):
         try:
             for _ in range(200):
                 kind,data=self.messages.get_nowait()
-                if kind=="line":self._line(data)
+                if kind=="line":
+                    # Per-worker identities keep stale log output from earlier
+                    # readers out of a newly started search.
+                    if isinstance(data,tuple) and len(data)==2:
+                        source,line=data
+                        if source is self.process:self._line(line)
+                    else:
+                        self._line(data)  # legacy tests/queued diagnostics
                 elif kind=="ended":
-                    if self.active_profile and self.active_folder:
-                        try:mark_run(self.active_profile,self.active_folder, "stopped" if self.stop_requested or data!=0 else "finished")
-                        except OSError:pass
-                    if data==0 and not self.stop_requested and self.active_folder and self.active_action in ("1","5"):
-                        try:
-                            report=export_contribution(self.active_folder)
-                            if report:self._line("PROVIDER CONTRIBUTION REPORT: "+str(report))
-                        except (OSError,ValueError) as error:self._line("Contribution report unavailable: "+str(error))
-                    self.phase.set(
-                        "Stopped by user; completed checkpoints preserved"
-                        if self.stop_requested else
-                        "Search completed successfully"
-                        if data==0 else
-                        f"Worker stopped unexpectedly (exit {data}); see log. "
-                        "Completed tracks are retained; unfinished songs can be retried.")
-                    self.stop_button.configure(state="disabled")
-                    self.process=None
-                    self._cleanup_stop_marker()
-                    if hasattr(self,'_manager_cleanup_selection'):self._manager_cleanup_selection()
-                    self._refresh_review()
+                    if isinstance(data,tuple) and len(data)==2:
+                        process,code=data
+                        self._finish_search_worker(process,code)
+                    elif self.process is not None:
+                        self._finish_search_worker(self.process,data)
+                elif kind=="review_refresh_ready":
+                    folder,recursive,rows,error=data
+                    if (self.process is None and not self.review_bulk_running and
+                        folder==self.folder.get() and recursive==self.boolvars["recursive"].get()):
+                        if error:self._line("Candidate refresh unavailable: "+error)
+                        else:
+                            self.review_all_rows=rows
+                            self._render_review()
                 elif kind=="benchmark_line":
                     if data.startswith("BENCHMARK REPORT: "):
                         report_path=data.split("BENCHMARK REPORT: ",1)[1]
@@ -1376,17 +1435,32 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                     self.g2g_status.set("Greek AI ready — checkbox enabled" if ready else
                                         "Greek AI setup incomplete — see installation log")
                 elif kind=="hardstop_result":
-                    success,detail=data
+                    process,success,detail=data
+                    self._hardstop_pending=False
+                    if process.poll() is not None:
+                        self._finish_search_worker(process,process.poll())
+                    if self._stop_cleanup_deferred:
+                        self._stop_cleanup_deferred=False
+                        self._cleanup_stop_marker()
                     if not success:
-                        alive=self.process is not None and self.process.poll() is None
-                        self.stop_requested=not alive
-                        self.stop_button.configure(state="normal" if alive else "disabled")
-                        self.phase.set("STOP NOT FULLY VERIFIED: "+detail)
+                        alive=self.process is process and process.poll() is None
+                        if alive:
+                            self.stop_requested=False
+                            self.stop_button.configure(state="normal",text="RETRY STOP")
+                            self.phase.set("STOP COULD NOT BE VERIFIED: "+detail)
+                        else:
+                            self._line("STOP tree verification incomplete: "+detail)
                     else:
                         self._line("STOP: "+detail+" Completed checkpoints remain available.")
                 elif kind=="error":
                     self._line("Control Center reader error: "+data)
         except queue.Empty:pass
+        # Independent stop completion: a child may have inherited stdout, so
+        # reader EOF is NOT required to finish a stopped search.
+        if self.stop_requested and self.process is not None:
+            done=self.process.poll()
+            if done is not None:
+                self._finish_search_worker(self.process,done)
         self.after(110,self._poll)
 
     def _line(self,line):
@@ -1440,6 +1514,13 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                 "might not have been written. Restarting can retry that song."):
             return
         self.stop_requested=True
+        self._hardstop_pending=True
+        self._stop_cleanup_deferred=False
+        # First request cooperative cancellation. Hard-stop still follows
+        # immediately so a network request cannot delay the user's STOP.
+        if self.stop_path:
+            try:self.stop_path.write_text("STOP",encoding="ascii")
+            except OSError:pass
         self.stop_button.configure(state="disabled",text="Stopping worker...")
         self.phase.set("Stopping search worker — app remains open...")
         self.progress_text.set("Previously saved checkpoints remain; unfinished song may be retried.")
@@ -1447,7 +1528,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                          args=(process,),daemon=True).start()
 
     def _hard_stop_worker(self,process):
-        self.messages.put(("hardstop_result",kill_search_process(process)))
+        result=kill_search_process(process)
+        self.messages.put(("hardstop_result",(process,*result)))
 
     def _cleanup_stop_marker(self):
         directory=self.stop_directory
