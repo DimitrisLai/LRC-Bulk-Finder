@@ -19,6 +19,10 @@ Stable main and every previous release are unchanged.
 - Capture the tree on the background STOP thread **before** writing the
   cooperative marker. Otherwise a fast cooperative exit could erase its
   ownership relationships before discovery. Hard termination follows directly.
+- STOP also responds if the parent already exited before the click but its
+  stdout reader is still waiting. It must not silently do nothing or allow a
+  second worker. If the original tree was never observed, the result is
+  explicitly unverified; it never claims unknown descendants were killed.
 - Ignore stale STOP results and reader errors from previous workers. Bind each
   reader to the process passed at launch. STOP-thread errors always return a
   failure result. Queued progress cannot replace the stopping/error status.

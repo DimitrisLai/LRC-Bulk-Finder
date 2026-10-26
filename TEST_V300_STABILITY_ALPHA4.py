@@ -115,6 +115,26 @@ class StopStateTests(unittest.TestCase):
         a._recycle_selected_alternatives()
         self.assertEqual(a._dialog.call_count,3)
 
+    def test_stop_is_not_a_silent_noop_if_parent_exited_before_click(self):
+        a=self.app
+        a._hardstop_pending=False
+        a.stop_requested=False
+        a._stopping_process=None
+        with mock.patch.object(a,"_hard_stop_worker") as stop:
+            a._stop()
+            until=time.monotonic()+1
+            while not stop.called and time.monotonic()<until:time.sleep(.01)
+        stop.assert_called_once_with(self.proc)
+
+    def test_exited_parent_with_pending_reader_still_blocks_new_workers(self):
+        a=self.app
+        a._hardstop_pending=False
+        a._stop_verification_failed=False
+        a.stop_requested=False
+        self.assertTrue(a._search_is_active_or_stopping())
+        a._run_profile()
+        a._dialog.assert_called_once()
+
 
 class NetworkBudgetGaps(unittest.TestCase):
     def test_real_engine_budget_messages_reach_provider_health_without_verification_claim(self):

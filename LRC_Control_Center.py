@@ -1167,7 +1167,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
 
     def _search_is_active_or_stopping(self):
         return (self._hardstop_pending or self._stop_verification_failed or
-                (self.process is not None and self.process.poll() is None))
+                self.process is not None)
 
     def _run_profile(self):
         if self._hardstop_pending or self._stop_verification_failed:
@@ -1553,7 +1553,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         process=self._stopping_process if retry else self.process
         if process is None or self._hardstop_pending:
             return
-        if not retry and (process.poll() is not None or self.stop_requested):
+        if not retry and self.stop_requested:
             return
         if not self._dialog("askyesno",
                 "Stop search now?",
