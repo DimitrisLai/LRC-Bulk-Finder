@@ -1245,6 +1245,8 @@ for _en,_el in _REVIEW_RECYCLE_EL.items():
     UI_EL.setdefault(_en,_el)
 
 UI_EL.update({
+    "Online stalled / disabled":"Η σύνδεση κόλλησε / απενεργοποιήθηκε",
+    "Online budget exhausted / disabled":"Εξαντλήθηκε το χρονικό όριο σύνδεσης / απενεργοποιήθηκε",
     "Alpha 4 — STOP reliability test":"Alpha 4 — δοκιμή αξιόπιστης διακοπής",
     "Worker exited; verifying child-process shutdown...":"Ο worker τερματίστηκε· ελέγχεται ο τερματισμός των θυγατρικών διεργασιών...",
     "STOP NOT VERIFIED — retry STOP before starting another search":"Η ΔΙΑΚΟΠΗ ΔΕΝ ΕΠΑΛΗΘΕΥΤΗΚΕ — δοκιμάστε ξανά πριν από νέα αναζήτηση",

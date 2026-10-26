@@ -34,6 +34,8 @@ Stable main and every previous release are unchanged.
 - Preserve the first stalled/budget-exhausted LRCLIB song in the manual
   catch-up CSV as well as later skipped songs. Previously that first error
   could be omitted. Genuine completed NO_MATCH remains excluded.
+- Provider Health recognizes both hard-stall and exhausted-budget states
+  immediately as online disabled, without implying a verified lyrics match.
 - Add regression tests demonstrating eight Alpha 3 gaps, plus tests for retained
   child ownership/retry. Add explicit offline QA hooks for frozen GUI/worker
   tests; ordinary launches do not run them or create their synthetic fixtures.

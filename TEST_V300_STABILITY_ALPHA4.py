@@ -117,6 +117,21 @@ class StopStateTests(unittest.TestCase):
 
 
 class NetworkBudgetGaps(unittest.TestCase):
+    def test_real_engine_budget_messages_reach_provider_health_without_verification_claim(self):
+        import io
+        from contextlib import redirect_stdout
+        from v243_health import ProviderHealth
+        for code in ("UNRESPONSIVE_DISABLED","BUDGET_EXHAUSTED_DISABLED"):
+            health=ProviderHealth(("LRCLIB",))
+            log=io.StringIO()
+            with redirect_stdout(log):
+                engine.print_provider_state("LRCLIB",code,30.0,[],"online request budget exhausted")
+            self.assertEqual(health.observe(log.getvalue().strip()),"LRCLIB")
+            self.assertIn("disabled",health.rows["LRCLIB"]["status"])
+            self.assertEqual(health.rows["LRCLIB"]["verified_count"],0)
+            self.assertEqual(health.rows["LRCLIB"]["last_verified"],"")
+            self.assertEqual(health.rows["LRCLIB"]["last_http_success"],"")
+
     def test_first_stalled_or_budget_exhausted_song_is_in_manual_catchup_queue(self):
         import csv
         with tempfile.TemporaryDirectory() as td:
