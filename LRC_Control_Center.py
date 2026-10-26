@@ -1365,6 +1365,13 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                         self._finish_search_worker(process,code)
                     elif self.process is not None:
                         self._finish_search_worker(self.process,data)
+                    else:
+                        # Preserve legacy worker-exit notification behavior
+                        # for callers that supply only an exit code.
+                        if data != 0:
+                            self.phase.set(
+                                f"Worker stopped unexpectedly (exit {data}); see log. "
+                                "Completed tracks are retained; unfinished songs can be retried.")
                 elif kind=="review_refresh_ready":
                     folder,recursive,rows,error=data
                     if (self.process is None and not self.review_bulk_running and
