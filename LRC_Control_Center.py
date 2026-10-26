@@ -82,6 +82,9 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.messages=queue.Queue()
         self.review_rows={}
         self.review_all_rows=[]
+        self._review_refresh_generation=0
+        self._review_snapshot_folder=None
+        self._review_open_pending=None
         self.review_sort_column="track"
         self.review_sort_descending=False
         self.review_bulk_running=False
@@ -284,7 +287,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                   style="HeroSubtitle.TLabel").grid(row=1,column=1,sticky="nw",pady=(1,0))
         ttk.Label(header,text=f"v{APP_VERSION}",style="HeroMeta.TLabel").grid(
             row=0,column=2,sticky="e",padx=(6,24))
-        ttk.Label(header,text="Alpha 4 — STOP reliability test",style="HeroMeta.TLabel").grid(
+        ttk.Label(header,text="Alpha 5 — Startup and STOP test",style="HeroMeta.TLabel").grid(
             row=1,column=2,sticky="e",padx=(6,24))
         self.appearance_choice=tk.StringVar(
             value=("Σκοτεινό" if self.gui_locale.language=="el" else "Dark")
@@ -774,7 +777,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         header=ttk.Frame(self.review_tab)
         header.pack(fill="x",pady=(0,9))
         ttk.Label(header,text="Candidate Review Workbench",style="Header.TLabel").pack(side="left")
-        ttk.Button(header,text="Refresh candidates",command=self._refresh_review).pack(side="right")
+        ttk.Button(header,text="Refresh candidates",command=self._refresh_review_background).pack(side="right")
         ttk.Button(header,text="Approve Greek alias...",command=self._approve_alias).pack(side="right",padx=(0,8))
         ttk.Label(self.review_tab,
                   text="Batch promotion installs MARKED [00:00.00] candidate LRCs only. "
@@ -1283,6 +1286,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self._stop_kill_attempted=False
         self._stopping_process=None
         self._stop_verification_failed=False
+        self._review_refresh_generation+=1
+        self._review_open_pending=None
         self.stop_button.configure(text="STOP SEARCH — keep app open")
         for value in self.counter_vars.values():value.set("0")
         self.notebook.select(self.run_tab)
@@ -1351,16 +1356,21 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         """Do not hang the Tk event loop scanning 5k+ paths after STOP."""
         folder=self.folder.get()
         recursive=self.boolvars["recursive"].get()
-        if not folder or not Path(folder).is_dir():
+        if self.review_bulk_running:return
+        self._review_refresh_generation+=1
+        generation=self._review_refresh_generation
+        if not folder:
             self.review_all_rows=[]
+            self._review_snapshot_folder=folder
             self._render_review()
             return
+        self.review_batch_status.set("Loading candidate inventory...")
         def scan():
             try:
                 rows=list_review_candidates(folder,recursive)
-                self.messages.put(("review_refresh_ready",(folder,recursive,rows,None)))
+                self.messages.put(("review_refresh_ready",(generation,folder,recursive,rows,None)))
             except (OSError,ValueError) as error:
-                self.messages.put(("review_refresh_ready",(folder,recursive,[],str(error))))
+                self.messages.put(("review_refresh_ready",(generation,folder,recursive,[],str(error))))
         threading.Thread(target=scan,daemon=True,name="review-refresh-after-stop").start()
 
     def _poll(self):
@@ -1389,13 +1399,22 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                                 f"Worker stopped unexpectedly (exit {data}); see log. "
                                 "Completed tracks are retained; unfinished songs can be retried.")
                 elif kind=="review_refresh_ready":
-                    folder,recursive,rows,error=data
-                    if (self.process is None and not self.review_bulk_running and
+                    generation,folder,recursive,rows,error=data
+                    if (generation==self._review_refresh_generation and self.process is None and not self.review_bulk_running and
                         folder==self.folder.get() and recursive==self.boolvars["recursive"].get()):
-                        if error:self._line("Candidate refresh unavailable: "+error)
+                        pending=self._review_open_pending==folder
+                        self._review_open_pending=None
+                        if error:
+                            self._line("Candidate refresh unavailable: "+error)
+                            self.review_batch_status.set("Candidate refresh unavailable: "+error)
                         else:
                             self.review_all_rows=rows
+                            self._review_snapshot_folder=folder
                             self._render_review()
+                            self.review_batch_status.set("Candidate inventory ready")
+                            if pending:
+                                if rows:self._open_candidate_stage1()
+                                else:self._dialog("showinfo","Candidate Review","No candidates found in the selected folder.")
                 elif kind=="benchmark_line":
                     if data.startswith("BENCHMARK REPORT: "):
                         report_path=data.split("BENCHMARK REPORT: ",1)[1]
@@ -1512,6 +1531,18 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         if line.startswith("PREFLIGHT DISCOVERY:"):
             self.phase.set("Preflight: scanning filenames and existing lyrics")
             self.progress_text.set(line)
+        elif line.startswith("PREFLIGHT ENUMERATION:"):
+            self.phase.set("Preflight: enumerating audio files")
+            self.progress_text.set(line)
+        elif line.startswith("PREFLIGHT HISTORY:"):
+            self.phase.set("Preflight: loading search history")
+            self.progress_text.set(line)
+        elif line.startswith(("PREFLIGHT MUSICBRAINZ CACHE:","PREFLIGHT PROVIDER HISTORY:","PREFLIGHT CHECKPOINT:")):
+            self.phase.set("Preflight: loading local metadata caches")
+            self.progress_text.set(line)
+        elif line.startswith("STARTUP COMPLETE:"):
+            self.phase.set("Preflight complete — preparing search")
+            self.progress_text.set(line)
         elif line.startswith("PREFLIGHT METADATA:"):
             self.phase.set("Preflight: reading selected music metadata")
             self.progress_text.set(line)
@@ -1606,17 +1637,19 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         if self.review_bulk_running:
             self._dialog("showwarning","Candidate Review","Finish or stop the current batch first.")
             return
-        if not self.review_all_rows:
-            self._refresh_review()
-        if not self.review_all_rows:
-            self._dialog("showinfo","Candidate Review","No candidates found in the selected folder.")
-            return
-        from v300_candidate_compare_gui import CandidateCompareWindow
         existing = getattr(self, "_candidate_compare_window", None)
         if existing is not None and existing.winfo_exists():
             existing.lift()
             existing.focus_set()
             return
+        if not self.folder.get():
+            self._dialog("showinfo","Candidate Review","Choose an audio folder first.")
+            return
+        if not self.review_all_rows or self._review_snapshot_folder!=self.folder.get():
+            self._review_open_pending=self.folder.get()
+            self._refresh_review_background()
+            return
+        from v300_candidate_compare_gui import CandidateCompareWindow
         self._candidate_compare_window = CandidateCompareWindow(self, list(self.review_all_rows))
 
     def _review_filter_key(self):
@@ -1629,6 +1662,8 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         if self.review_bulk_running:
             return
         folder=self.folder.get()
+        self._review_refresh_generation+=1
+        self._review_snapshot_folder=folder
         self.review_all_rows=[]
         self.review_rows={}
         if folder and Path(folder).is_dir():
@@ -2025,7 +2060,10 @@ def main():
 
 
 if __name__=="__main__":
-    if len(sys.argv)==3 and sys.argv[1]=="--qa-stop-smoke":
+    if len(sys.argv)==3 and sys.argv[1]=="--qa-startup-smoke":
+        from QA_V300_FROZEN_STARTUP import smoke_entry
+        sys.exit(smoke_entry(sys.argv[2],ControlCenter))
+    elif len(sys.argv)==3 and sys.argv[1]=="--qa-stop-smoke":
         from QA_V300_FROZEN_STOP import smoke_entry
         sys.exit(smoke_entry(sys.argv[2],ControlCenter))
     else:

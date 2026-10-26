@@ -11,6 +11,7 @@ from search_checkpoint import SearchCheckpoint, checkpoint_signature
 from search_performance import MusicBrainzDiskCache, ProviderPerformance, choose_provider_order
 from progress_eta import RoundProgress
 from stop_control import check_stop, interruptible_sleep, stop_requested
+from startup_io import read_jsonl_snapshot, StartupBudgetExceeded, CACHE_SECONDS
 from stage_counters import StageCounters
 from v243_provider_lab import provider_simpmusic
 from v296_provider_tiers import (LEGACY as PACK_LEGACY, PACKS as SOURCE_PACKS,
@@ -29,6 +30,7 @@ import asyncio
 import threading
 import difflib
 import json
+import math
 import socket
 import re
 import sys
@@ -65,6 +67,7 @@ if os.environ.get('LRC_EXPERIMENTAL_SIMPMUSIC') == '1':
 BASE_GAP = {'LRCLIB': 2.4, 'SyncLRC': 2.2, 'Unison': 1.5, 'BetterKuGou': 1.8, 'BetterTTML': 1.8, 'YouLyTTML': 2.5, 'LrcAPI': 1.5, 'LiriQo': 1.5,
             'NetEase': 1.5, 'Musixmatch': 1.5, 'Megalobiz': 1.5, 'Tencent': 2.0, 'BetterQQ': 2.2, 'MusicBrainz': 1.2, 'SimpMusic': 2.5}
 NETWORK_TIMEOUT = 10
+HTTP_REQUEST_BUDGET_SECONDS = 15.0
 # Strict LRCLIB wall-clock budget PER SONG, including both keyword searches,
 # optional /api/get fallback, socket reads, and the normal inter-request gap.
 LRCLIB_SONG_BUDGET_SECONDS = 30.0
@@ -162,26 +165,26 @@ def search_history_key(provider,title,artist,album,duration):
     return hashlib.sha256(data.encode('utf-8')).hexdigest()
 
 
-def load_search_history(path):
+def load_search_history(path,*,timeout_seconds=CACHE_SECONDS,progress=None):
     global HISTORY_PATH,HISTORY_CACHE
     HISTORY_PATH=path
     HISTORY_CACHE.clear()
-    if not path.is_file():return
-    cutoff=time.time()-HISTORY_DAYS*86400
+    now=time.time()
+    cutoff=now-HISTORY_DAYS*86400
+    def consume(cache,row):
+        key=str(row['key'])
+        stamp=float(row.get('at',0))
+        if row.get('state')=='NO_MATCH' and math.isfinite(stamp) and cutoff<=stamp<=now:
+            cache[key]=stamp
+        else:
+            cache.pop(key,None)
     try:
-        with path.open(encoding='utf-8') as source:
-            for line in source:
-                try:
-                    row=json.loads(line)
-                    key=str(row['key'])
-                    if row.get('state')=='NO_MATCH' and float(row.get('at',0))>=cutoff:
-                        HISTORY_CACHE[key]=float(row['at'])
-                    else:
-                        # Later REVIEW_AVAILABLE / other statuses invalidate an
-                        # earlier no-match event for the same exact query.
-                        HISTORY_CACHE.pop(key,None)
-                except (ValueError,KeyError,TypeError):continue
-    except OSError as ex:print('Search history could not be read:',ex)
+        snapshot=read_jsonl_snapshot(path,dict,consume,label='PREFLIGHT HISTORY',
+            seconds=timeout_seconds,progress=progress)
+        HISTORY_CACHE.update(snapshot)
+    except (OSError,StartupBudgetExceeded) as ex:
+        print('PREFLIGHT HISTORY: cache unavailable for this run; original history preserved; '
+              'providers will be checked normally. '+str(ex),flush=True)
 
 
 def store_search_event(key,state):
@@ -616,6 +619,7 @@ def musicbrainz_variant(title,artist,duration):
             MB_CACHE[key]=cached
             return cached
     try:
+        print('    MusicBrainz metadata: optional lookup starting (bounded request)...',flush=True)
         query='"'+title.replace('"','')+'" '+artist.replace('"','')
         data=direct_json('MusicBrainz','https://musicbrainz.org/ws/2/recording',
             {'query':query,'fmt':'json','limit':10})
@@ -648,7 +652,7 @@ def musicbrainz_variant(title,artist,duration):
             MB_DISK_CACHE.save(title,artist,duration,GREEK_MODE,MB_CACHE[key])
     except ProviderFailure as ex:
         # Optional metadata lookup never stops a lyrics search.
-        if any(code in str(ex) for code in ('HTTP 503','HTTP 429','HTTP 502','HTTP 500')):
+        if ex.stall or ex.timeout or is_access_denied(ex) or any(code in str(ex) for code in ('HTTP 503','HTTP 429','HTTP 502','HTTP 500')):
             MB_DISABLED_REASON=str(ex)
             print(f'    MusicBrainz unavailable ({ex}); disabling optional lookups for this run.')
         else:
@@ -959,6 +963,10 @@ def wait_for(provider):
 
 
 def bounded_lrclib_http(req, deadline):
+    return bounded_provider_http(req,deadline,'LRCLIB',LRCLIB_SONG_BUDGET_SECONDS)
+
+
+def bounded_provider_http(req, deadline, provider, budget_seconds):
     """Hard end-to-end LRCLIB deadline across socket setup and response body.
 
     urllib timeout=10 is a per-socket-operation limit, not a wall-clock limit.
@@ -969,9 +977,10 @@ def bounded_lrclib_http(req, deadline):
     """
     finished=threading.Event()
     outcome={}
+    check_stop()
     remaining=deadline-time.monotonic()
     if remaining<=0:
-        raise ProviderFailure('LRCLIB exceeded per-song wall-clock budget',
+        raise ProviderFailure(f'{provider} exceeded wall-clock request budget',
                               stall=True)
     def request_on_daemon():
         try:
@@ -981,21 +990,23 @@ def bounded_lrclib_http(req, deadline):
                     code=response.getcode() if hasattr(response,'getcode') else None
                 outcome['value']=(code,response.read(2_000_000))
         except Exception as exc:
+            if isinstance(exc,urllib.error.HTTPError):
+                try:exc.close()
+                except (OSError,ValueError):pass
             outcome['error']=exc
         finally:
             finished.set()
     threading.Thread(target=request_on_daemon,daemon=True,
-                     name='lrclib-bounded-http').start()
+                     name=provider.casefold()+'-bounded-http').start()
     while not finished.wait(min(0.25,max(0.0,deadline-time.monotonic()))):
         check_stop()
         if time.monotonic()>=deadline:
             raise ProviderFailure(
-                f'LRCLIB exceeded {LRCLIB_SONG_BUDGET_SECONDS:g}s total per-song '
-                'network budget; online LRCLIB disabled for this run',
+                f'{provider} exceeded {budget_seconds:g}s wall-clock network budget',
                 stall=True)
     check_stop()
     if time.monotonic()>=deadline:
-        raise ProviderFailure('LRCLIB response completed after its wall-clock deadline',stall=True)
+        raise ProviderFailure(f'{provider} response completed after its wall-clock deadline',stall=True)
     if 'error' in outcome:
         raise outcome['error']
     return outcome['value']
@@ -1024,11 +1035,8 @@ def direct_get(provider,url,params):
                       else time.monotonic()+LRCLIB_SONG_BUDGET_SECONDS)
             code,payload=bounded_lrclib_http(req,deadline)
         else:
-            with urllib.request.urlopen(req,timeout=NETWORK_TIMEOUT) as response:
-                code=getattr(response,'status',None)
-                if code is None:
-                    code=response.getcode() if hasattr(response,'getcode') else None
-                payload=response.read(2_000_000)
+            code,payload=bounded_provider_http(req,time.monotonic()+HTTP_REQUEST_BUDGET_SECONDS,
+                                             provider,HTTP_REQUEST_BUDGET_SECONDS)
         add_http_event(provider,url,str(code) if code is not None else 'HTTP_2XX_UNSPECIFIED',started)
         return payload.decode('utf-8-sig','replace')
     except ProviderFailure as ex:
@@ -1260,7 +1268,7 @@ def export_review_candidates(track,rnd,review,review_folder=None):
 
 def _numbered_promotion_candidates(candidate, stem):
     """List canonical numbered alternatives only; never touch unrelated files."""
-    pattern=re.compile(re.escape(stem)+r'\.candidate\.([2-9]\d*)\.lrc$',re.I)
+    pattern=re.compile(re.escape(stem)+r'\.candidate\.((?:[2-9]|[1-9]\d+))\.lrc$',re.I)
     alternatives=[]
     for path in candidate.parent.iterdir():
         if not path.is_file():continue
@@ -1767,10 +1775,14 @@ def bounded_blocking_search(provider, callback, seconds=13):
         try:result['value']=callback()
         except BaseException as ex:result['error']=ex
     worker=threading.Thread(target=run,daemon=True)
-    worker.start();worker.join(seconds)
+    worker.start()
+    deadline=time.monotonic()+seconds
+    while worker.is_alive() and time.monotonic()<deadline:
+        check_stop()
+        worker.join(min(.1,max(0.0,deadline-time.monotonic())))
     if worker.is_alive():
         blocked[provider]=f'client-side {seconds}s timeout; skip for rest of run'
-        raise ProviderFailure(f'client-side timeout after {seconds}s',timeout=True)
+        raise ProviderFailure(f'client-side deadline after {seconds}s; source disabled for this run',stall=True)
     if 'error' in result:
         raise result['error']
     return result.get('value')
@@ -1957,6 +1969,9 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
                     print_provider_state(source,'BUDGET_EXHAUSTED_DISABLED' if ex.budget else 'UNRESPONSIVE_DISABLED',
                         time.monotonic()-started,trace,
                         str(ex)+'; no more online LRCLIB requests this run')
+                elif ex.stall:
+                    blocked[source]='wall-clock network deadline exceeded; source disabled for this run; incomplete coverage retained'
+                    print_provider_state(source,'UNRESPONSIVE_DISABLED',time.monotonic()-started,trace,str(ex))
                 elif source=='LRCLIB' and str(ex).startswith('HTTP 503:'):
                     LRCLIB_503_STREAK+=1
                     # Honor a server-specified Retry-After (+5s safety floor);
@@ -1968,8 +1983,12 @@ def search_song(title,artist,album,duration,review,*,only_providers=None,retry_t
                                          'overload responses; unanswered songs remain queued for a later run')
                         print('      LRCLIB: CIRCUIT OPEN — stopping online requests for this run; '
                               'do not hammer an overloaded server.',flush=True)
-                    print_provider_state(source,'TEMPORARY_HTTP_503',time.monotonic()-started,trace,
-                        f'{ex}; LRCLIB remains enabled, next probe after ~{int(recovery)}s')
+                    if source in blocked:
+                        print_provider_state(source,'HTTP_503_DISABLED',time.monotonic()-started,trace,
+                            f'{ex}; online circuit open for this run; unanswered songs remain queued')
+                    else:
+                        print_provider_state(source,'TEMPORARY_HTTP_503',time.monotonic()-started,trace,
+                            f'{ex}; LRCLIB remains enabled, next probe after ~{int(recovery)}s')
                 else:
                     if is_access_denied(ex):
                         # Authentication/access failures cannot be repaired by
@@ -2392,6 +2411,7 @@ def run_offline_lrclib_folder(folder):
         if interrupted:print('  Rerun option 4 to continue; songs already having .lrc are skipped.',flush=True)
 
 def main():
+    startup_started=time.monotonic()
     global ROUND, STAGED_ONLINE_MODE
     STAGED_ONLINE_MODE=False
     print(f'\n=== LRC Bulk Finder v{VERSION} | {len(PROVIDERS)} lyrics routes (some aggregate others) ===')
@@ -2501,9 +2521,10 @@ def main():
     recursive=input('Include subfolders? [Y/n]: ').strip().lower()!='n'
     HISTORY_ENABLED=input('Skip identical provider searches completed NO_MATCH in the last 7 days? [Y/n]: ').strip().lower()!='n'
     if HISTORY_ENABLED:
-        load_search_history(folder/'LRC_Completed_Search_History.jsonl')
-    it=folder.rglob('*') if recursive else folder.iterdir()
-    all_mp3,collisions=safe_audio_files(folder,recursive)
+        load_search_history(folder/'LRC_Completed_Search_History.jsonl',progress=lambda msg:print(msg,flush=True))
+    else:
+        print('PREFLIGHT HISTORY: disabled by profile; no history read',flush=True)
+    all_mp3,collisions=safe_audio_files(folder,recursive,progress=lambda msg:print(msg,flush=True))
     if collisions:print('Skipping ambiguous sidecar stems (multiple formats):',len(collisions))
     # A bounded test must not parse ID3/duration metadata for thousands of
     # unselected songs. Inventory cheap filenames first, then validate LIVE
@@ -2658,6 +2679,8 @@ def main():
     completed_by_song={}  # help classify later-round failure accurately
     interrupted=False
     stage_counts=StageCounters()
+    print(f'STARTUP COMPLETE: setup and preflight took {time.monotonic()-startup_started:.1f}s '
+          '(includes prompt time); search-round timers start below.',flush=True)
     try:
         for rnd in (1,2,3):
             ROUND=rnd

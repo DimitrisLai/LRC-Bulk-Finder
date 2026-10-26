@@ -8,10 +8,12 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import math
 import os
 import time
 from collections import defaultdict
 from pathlib import Path
+from startup_io import read_jsonl_snapshot, StartupBudgetExceeded
 
 
 class MusicBrainzDiskCache:
@@ -37,29 +39,27 @@ class MusicBrainzDiskCache:
         return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
     def _load(self):
-        if not self.path.is_file():
-            return
         now=time.time()
+        def consume(data,row):
+            key=row["key"]
+            value=row["value"]
+            when=float(row["at"])
+            if value is not None and (not isinstance(value,list) or len(value)!=2):
+                return
+            if not isinstance(key,str) or (value is not None and not all(isinstance(x,str) and x.strip() for x in value)):
+                return
+            age=now-when
+            limit=self.ttl if value else self.miss_ttl
+            if 0<=age<=limit:
+                data[key]=(when,tuple(value) if value else None)
+            else:
+                data.pop(key,None)
         try:
-            with self.path.open(encoding="utf-8") as source:
-                for line in source:
-                    try:
-                        row=json.loads(line)
-                        key=row["key"]
-                        value=row["value"]
-                        when=float(row["at"])
-                        if value is not None and (not isinstance(value,list) or len(value)!=2):
-                            continue
-                        age=now-when
-                        limit=self.ttl if value else self.miss_ttl
-                        if 0<=age<=limit:
-                            self.data[key]=(when,tuple(value) if value else None)
-                        elif key in self.data:
-                            del self.data[key]
-                    except (KeyError,TypeError,ValueError,AttributeError):
-                        continue
-        except OSError as error:
-            print("Warning: MusicBrainz disk cache unavailable:",error)
+            self.data=read_jsonl_snapshot(self.path,dict,consume,label="PREFLIGHT MUSICBRAINZ CACHE",
+                progress=lambda msg:print(msg,flush=True))
+        except (OSError,StartupBudgetExceeded) as error:
+            self.data={}
+            print("MusicBrainz cache unavailable this run; original file preserved:",error,flush=True)
         # Cap the in-memory data even if historical JSONL grows.
         if len(self.data)>self.max_entries:
             self.data=dict(sorted(self.data.items(),key=lambda p:p[1][0],reverse=True)[:self.max_entries])
@@ -72,7 +72,7 @@ class MusicBrainzDiskCache:
             return False,None
         at,value=entry
         ttl=self.ttl if value else self.miss_ttl
-        if time.time()-at>ttl:
+        if not 0<=time.time()-at<=ttl:
             self.data.pop(key,None)
             self.misses+=1
             return False,None
@@ -114,23 +114,23 @@ class ProviderPerformance:
         self._load()
 
     def _load(self):
-        if not self.path.exists():
-            return
         cutoff=time.time()-self.days*86400
+        def consume(events,item):
+            if (item["provider"] not in self.known or
+                    not cutoff<=float(item["at"])<=time.time() or
+                    item["kind"] not in ("SAVED","REVIEW","NO_MATCH","ERROR")):
+                return
+            elapsed=float(item['seconds'])
+            if not isinstance(item['key'],str) or not math.isfinite(elapsed) or elapsed<0:return
+            item=dict(item)
+            item['seconds']=elapsed
+            events[item["key"]]=item
         try:
-            with self.path.open(encoding="utf-8") as source:
-                for line in source:
-                    try:
-                        item=json.loads(line)
-                        if (item["provider"] not in self.known or
-                                float(item["at"])<cutoff or
-                                item["kind"] not in ("SAVED","REVIEW","NO_MATCH","ERROR")):
-                            continue
-                        self.events[item["key"]]=item
-                    except (ValueError,KeyError,TypeError):
-                        continue
-        except OSError as error:
-            print("Warning: cannot read provider performance history:",error)
+            self.events=read_jsonl_snapshot(self.path,dict,consume,label="PREFLIGHT PROVIDER HISTORY",
+                progress=lambda msg:print(msg,flush=True))
+        except (OSError,StartupBudgetExceeded) as error:
+            self.events={}
+            print("Provider statistics unavailable this run; original file preserved:",error,flush=True)
 
     @staticmethod
     def kind_from_result(result):

@@ -6,22 +6,44 @@ Never use stale metadata after the file's size/mtime change.
 from __future__ import annotations
 from contextlib import closing
 from pathlib import Path
+import os
 import sqlite3
 from stop_control import check_stop
+from startup_io import observed_read, SCAN_SECONDS
 
 AUDIO_EXTENSIONS=frozenset({".mp3",".flac",".m4a",".mp4",".ogg",".opus",".wav"})
 
-def audio_files(folder,recursive=True):
-    path=Path(folder)
-    iterator=path.rglob("*") if recursive else path.iterdir()
-    return sorted((p for p in iterator if p.is_file() and p.suffix.casefold() in AUDIO_EXTENSIONS),
-                  key=lambda p:str(p).casefold())
+def audio_files(folder,recursive=True,*,progress=None,timeout_seconds=SCAN_SECONDS):
+    def scan(update,check):
+        pending=[Path(folder)]
+        found=[]
+        entries=directories=0
+        while pending:
+            check()
+            current=pending.pop()
+            with os.scandir(current) as files:
+                for entry in files:
+                    check()
+                    entries+=1
+                    if entry.is_dir(follow_symlinks=False):
+                        if recursive:pending.append(Path(entry.path))
+                    elif Path(entry.name).suffix.casefold() in AUDIO_EXTENSIONS and entry.is_file():
+                        found.append(Path(entry.path))
+                    if entries%250==0:update(entries=entries,directories=directories,audio=len(found))
+            directories+=1
+        check()
+        update(entries=entries,directories=directories,audio=len(found))
+        found.sort(key=lambda p:str(p).casefold())
+        check()
+        return found
+    return observed_read("PREFLIGHT ENUMERATION",scan,seconds=timeout_seconds,progress=progress)
 
-def safe_audio_files(folder,recursive=True):
+def safe_audio_files(folder,recursive=True,*,progress=None,timeout_seconds=SCAN_SECONDS):
     """Do not guess which audio file should own a colliding .lrc sidecar."""
-    candidates=audio_files(folder,recursive)
+    candidates=audio_files(folder,recursive,progress=progress,timeout_seconds=timeout_seconds)
     counts={}
     for path in candidates:
+        check_stop()
         key=str(path.with_suffix("")).casefold()
         counts[key]=counts.get(key,0)+1
     safe=[p for p in candidates if counts[str(p.with_suffix("")).casefold()]==1]
