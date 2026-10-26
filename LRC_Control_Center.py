@@ -68,6 +68,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.stop_requested=False
         self._hardstop_pending=False
         self._stop_cleanup_deferred=False
+        self._stop_kill_attempted=False
         self.g2g_setup_process=None
         self.g2g_setup_window=None
         self.active_profile=None
@@ -1160,6 +1161,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._dialog("showerror","Delete profile",str(error))
 
     def _run_profile(self):
+        if self._hardstop_pending:
+            self._dialog("showwarning","Search stopping",
+                         "Worker tree shutdown is still being verified; do not start another worker yet.")
+            return
         if self.review_bulk_running:
             self._dialog("showwarning","Candidate promotion running",
                          "Finish or stop the candidate batch before starting a search.")
@@ -1266,6 +1271,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.stop_requested=False
         self._hardstop_pending=False
         self._stop_cleanup_deferred=False
+        self._stop_kill_attempted=False
         self.stop_button.configure(text="STOP SEARCH — keep app open")
         for value in self.counter_vars.values():value.set("0")
         self.notebook.select(self.run_tab)
@@ -1315,6 +1321,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             "Completed tracks are retained; unfinished songs can be retried.")
         self.stop_button.configure(state="disabled")
         self.process=None
+        self._stop_kill_attempted=False
         if self._hardstop_pending:
             # Keep the stop marker while descendant termination is checked.
             self._stop_cleanup_deferred=True
@@ -1457,7 +1464,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         except queue.Empty:pass
         # Independent stop completion: a child may have inherited stdout, so
         # reader EOF is NOT required to finish a stopped search.
-        if self.stop_requested and self.process is not None:
+        if (self.stop_requested or self._stop_kill_attempted) and self.process is not None:
             done=self.process.poll()
             if done is not None:
                 self._finish_search_worker(self.process,done)
@@ -1516,6 +1523,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.stop_requested=True
         self._hardstop_pending=True
         self._stop_cleanup_deferred=False
+        self._stop_kill_attempted=True
         # First request cooperative cancellation. Hard-stop still follows
         # immediately so a network request cannot delay the user's STOP.
         if self.stop_path:
