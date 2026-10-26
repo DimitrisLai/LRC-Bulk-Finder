@@ -16,6 +16,8 @@ class ProviderHealth:
               'ERROR': 'Error', 'UNEXPECTED_ERROR': 'Error',
               'SKIPPED': 'Skipped / recovering', 'UNAVAILABLE': 'Unavailable',
               'HTTP_429_DISABLED': 'Blocked / rate limited',
+              'UNRESPONSIVE_DISABLED': 'Online stalled / disabled',
+              'BUDGET_EXHAUSTED_DISABLED': 'Online budget exhausted / disabled',
               'CACHED_NO_MATCH': 'Cached (not contacted)',
               'ONLINE_BLOCKED_OFFLINE_CHECKED': 'Blocked (offline checked)',
               'LRC_FOUND_OFFLINE': 'Working (offline match)'}

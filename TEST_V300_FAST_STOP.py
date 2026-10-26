@@ -113,7 +113,8 @@ class FastStopGuiTests(unittest.TestCase):
         self.app.stop_path=marker
         self.app.process=proc
         observed=[]
-        def fake_stop(target):
+        def fake_stop(target, *, context, request_stop):
+            request_stop()
             observed.append((target,marker.exists()))
             return True,"simulated termination"
         with mock.patch.object(self.app,"_dialog",return_value=True), \

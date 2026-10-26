@@ -17,6 +17,85 @@ import subprocess
 import time
 
 
+class StopContext:
+    """Retain the original observed tree across STOP retries.
+
+    Windows handles refer to process objects, so a reused numeric PID can
+    never cause a retry to terminate somebody else's process.
+    """
+    def __init__(self):
+        self.captured = False
+        self.owned = None
+        self.handles = {}
+        self.table = None
+        self.safe_owned = set()
+
+    def close(self):
+        if self.handles:
+            import ctypes
+            from ctypes import wintypes
+            kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+            kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+            for handle in self.handles.values():
+                kernel.CloseHandle(handle)
+            self.handles.clear()
+
+
+def _pin_windows_children(pids, table):
+    """Open observed descendants before cancellation, while the tree exists."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.GetProcessTimes.argtypes = (wintypes.HANDLE,) + (ctypes.POINTER(wintypes.FILETIME),) * 4
+        kernel.GetProcessTimes.restype = wintypes.BOOL
+        kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+        handles = {}
+        for pid in pids:
+            # A numeric PID may have been reused since the snapshot. Only
+            # retain a handle whose creation time matches that observation.
+            expected = getattr(table, 'birth_times', {}).get(pid)
+            if expected is None:
+                continue
+            handle = kernel.OpenProcess(0x1000 | 0x100000 | 0x0001, False, pid)
+            if not handle:
+                continue
+            created, exited, cpu, user = (wintypes.FILETIME() for _ in range(4))
+            if (kernel.GetProcessTimes(handle, ctypes.byref(created), ctypes.byref(exited),
+                                       ctypes.byref(cpu), ctypes.byref(user)) and
+                    ((created.dwHighDateTime << 32) | created.dwLowDateTime) == expected):
+                handles[pid] = handle
+            else:
+                kernel.CloseHandle(handle)
+        return handles
+    except (OSError, AttributeError):
+        return {}
+
+
+def _pinned_windows_children_running(handles, terminate=False):
+    import ctypes
+    from ctypes import wintypes
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+    kernel.WaitForSingleObject.restype = wintypes.DWORD
+    kernel.TerminateProcess.argtypes = (wintypes.HANDLE, wintypes.UINT)
+    kernel.TerminateProcess.restype = wintypes.BOOL
+    if terminate:
+        for handle in handles.values():
+            if kernel.WaitForSingleObject(handle, 0) != 0:
+                kernel.TerminateProcess(handle, 1)
+    # One shared wait budget, never one second per child on a large tree.
+    deadline = time.monotonic() + (3 if terminate else 0)
+    while True:
+        running = {pid for pid, handle in handles.items()
+                   if kernel.WaitForSingleObject(handle, 0) != 0}
+        if not running or time.monotonic() >= deadline:
+            return running
+        time.sleep(.03)
+
+
 def _confirm_exit(process, seconds=5):
     try:
         process.wait(timeout=seconds)
@@ -126,7 +205,11 @@ def _windows_process_table_toolhelp():
                         born[pid]=(created.dwHighDateTime<<32)|created.dwLowDateTime
                 finally:
                     kernel32.CloseHandle(ph)
-            return _prune_reused_windows_parents(pairs,born)
+            class ProcessTable(dict):
+                pass
+            table = ProcessTable(_prune_reused_windows_parents(pairs,born))
+            table.birth_times = born
+            return table
         finally:
             kernel32.CloseHandle(handle)
     except (OSError, ValueError, TypeError, AttributeError):
@@ -139,7 +222,7 @@ def _windows_process_table_cim():
          'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId | ConvertTo-Json -Compress']
     try:
         r=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
-                         text=True,timeout=9,
+                         text=True,timeout=3,
                          creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
         if r.returncode:return None
         rows=json.loads(r.stdout.strip().lstrip('\ufeff'))
@@ -201,7 +284,7 @@ def _posix_child_still_running(pid):
         except PermissionError:return True
 
 
-def kill_search_process(process, platform=None):
+def kill_search_process(process, platform=None, *, context=None, request_stop=None):
     """Return (all observed children verified stopped, explanation).
 
     The actual stop is always attempted even if process enumeration fails.
@@ -211,12 +294,59 @@ def kill_search_process(process, platform=None):
     future descendants are known.
     """
     if process is None:return False,'No worker process.'
-    if process.poll() is not None:
-        return True,'Worker already exited; no new termination performed.'
     platform=platform or os.name
+    # Capture BEFORE writing the cooperative marker: the worker can exit as
+    # soon as it sees it, leaving stdout-holding descendants behind.
+    if context is not None and not context.captured:
+        if process.poll() is None:
+            table = (_windows_snapshot_with_retry() if platform == 'nt'
+                     else _posix_process_table())
+            context.owned = _descendants(table, process.pid) if table is not None and process.pid in table else None
+            context.table = table
+            if platform == 'nt' and context.owned:
+                born = getattr(table, 'birth_times', {})
+                # Every edge, including the original root, needs known
+                # chronological identity before a child may be terminated.
+                safe_pairs = {pid:ppid for pid,ppid in table.items()
+                              if pid in born and ppid in born and born[pid] >= born[ppid]}
+                context.safe_owned = _descendants(safe_pairs, process.pid)
+                context.handles = _pin_windows_children(context.safe_owned, table)
+        context.captured = True
+    elif platform == 'nt' and context is not None and context.table is not None:
+        context.handles.update(_pin_windows_children(context.safe_owned - set(context.handles), context.table))
+    if request_stop is not None:
+        request_stop()
+    if platform == 'nt' and context is not None and process.poll() is None:
+        # Popen.kill uses its original Windows process handle. Do not use
+        # taskkill /T's numeric-PPID traversal for a captured GUI STOP: stale
+        # orphan PPIDs can name an unrelated process after PID reuse.
+        try:
+            process.kill()
+        except (OSError, ValueError) as error:
+            if process.poll() is None:
+                return False,'Direct worker termination failed: '+str(error)
+        if not _confirm_exit(process, 3):
+            return False,'Direct worker exit could not be verified. Retry STOP.'
+    if process.poll() is not None:
+        if context is None or context.owned is None:
+            return False,'Worker already exited; original child tree could not be verified.'
+        if platform == 'nt':
+            # Termination is independent of the post-stop snapshot. A failed
+            # verification service must not leave already pinned children alive.
+            pinned = _pinned_windows_children_running(context.handles, terminate=True) if context.handles else set()
+            after = _windows_snapshot_with_retry()
+            if after is None:
+                return False,'Worker exited; child verification unavailable. Retry STOP.'
+            lingering = (context.owned - set(context.handles)).intersection(after) | pinned
+        else:
+            # Never signal a recycled POSIX PID/group after its leader exited.
+            lingering = {pid for pid in context.owned if _posix_child_still_running(pid)}
+        if lingering:
+            return False,'Worker exited but observed child PID(s) remain: '+', '.join(map(str,sorted(lingering)))
+        return True,f'Worker exited; {len(context.owned)} original observed child process(es) confirmed stopped.'
     if platform=='nt':
-        before=_windows_snapshot_with_retry()
-        owned=_descendants(before,process.pid) if before is not None else None
+        before=_windows_snapshot_with_retry() if context is None else None
+        owned=(_descendants(before,process.pid) if before is not None else None) if context is None else context.owned
         try:
             result=subprocess.run(['taskkill','/PID',str(process.pid),'/T','/F'],
                 stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=15,
@@ -231,6 +361,8 @@ def kill_search_process(process, platform=None):
             after=_windows_snapshot_with_retry()
             if root_gone and owned is not None and after is not None:
                 lingering=owned.intersection(after)
+                if context is not None and context.handles:
+                    lingering = (owned - set(context.handles)).intersection(after) | _pinned_windows_children_running(context.handles)
                 if not lingering:
                     return True,f'Worker exited; {len(owned)} observed child process(es) confirmed absent.'
                 return False,'Worker exited but child PID(s) remain: '+', '.join(map(str,sorted(lingering)))
@@ -244,8 +376,8 @@ def kill_search_process(process, platform=None):
             return False,'Taskkill failed and direct worker could not be killed: '+str(ex)
         return False,'Direct worker killed after taskkill failed; CHILD PROCESSES MAY REMAIN: '+detail
 
-    before=_posix_process_table()
-    owned=_descendants(before,process.pid) if before is not None else None
+    before=_posix_process_table() if context is None else None
+    owned=(_descendants(before,process.pid) if before is not None else None) if context is None else context.owned
     try:
         os.killpg(process.pid,signal.SIGKILL)
     except (OSError,ProcessLookupError) as ex:
