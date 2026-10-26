@@ -390,7 +390,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             return
         # Unlike a real search, this does not save a profile, open a creation
         # journal or install any lyrics. It only creates a CSV of aggregate data.
-        if self.process is not None and self.process.poll() is None:
+        if self._search_is_active_or_stopping():
             self._dialog("showwarning","Search running",
                          "Finish the current search before benchmarking providers.")
             return
@@ -502,7 +502,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             "it is not permission to install lyrics automatically.")
 
     def _approve_alias(self):
-        if self.process is not None and self.process.poll() is None:
+        if self._search_is_active_or_stopping():
             self._dialog("showwarning","Search running","Finish the current search before editing aliases.")
             return
         kind=self._askstring("Approve Greek alias","Type artist or title:",parent=self)
@@ -522,7 +522,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         except (OSError,ValueError) as error:self._dialog("showerror","Alias error",str(error))
 
     def _resume_previous(self):
-        if self.process is not None and self.process.poll() is None:
+        if self._search_is_active_or_stopping():
             self._dialog("showwarning","Search running","Stop the current search first.");return
         record=last_run()
         if not record or record["status"]=="finished":
@@ -937,7 +937,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._dialog("showwarning","Benchmark running",
                          "Stop the provider benchmark before installing Greek AI.")
             return
-        if self.process is not None and self.process.poll() is None:
+        if self._search_is_active_or_stopping():
             self._dialog("showwarning","Search running","Finish the search before installing AI.")
             return
         if self.g2g_setup_process is not None and self.g2g_setup_process.poll() is None:
@@ -1050,7 +1050,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             return
         path=program_folder()/script
         if sys.platform=="win32" and path.is_file() and not getattr(sys,"frozen",False):
-            if self.process is not None and self.process.poll() is None:
+            if self._search_is_active_or_stopping():
                 self._dialog("showwarning","Search running","Finish your music scan before changing the setup.")
                 return
             if not self._dialog("askyesno","Run setup",f"Open {script} in a separate terminal?\n\nRead the installer prompts before confirming downloads."):
@@ -1165,6 +1165,10 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         except (OSError,ValueError) as error:
             self._dialog("showerror","Delete profile",str(error))
 
+    def _search_is_active_or_stopping(self):
+        return (self._hardstop_pending or self._stop_verification_failed or
+                (self.process is not None and self.process.poll() is None))
+
     def _run_profile(self):
         if self._hardstop_pending or self._stop_verification_failed:
             self._dialog("showwarning","Search stopping",
@@ -1178,7 +1182,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._dialog("showwarning","Greek AI setup in progress",
                          "Finish optional Greek AI setup before starting a search.")
             return
-        if self.process is not None and self.process.poll() is None:
+        if self._search_is_active_or_stopping():
             self._dialog("showwarning","Search running","Stop the current search before starting another.")
             return
         if self.benchmark_process is not None and self.benchmark_process.poll() is None:
@@ -1736,7 +1740,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
 
     def _promote_review_items(self,items,scope):
         if self.review_bulk_running:return
-        if self.process is not None and self.process.poll() is None:
+        if self._search_is_active_or_stopping():
             self._dialog("showwarning","Search running",
                          "Finish the search before promoting candidates.");return
         if self.benchmark_process is not None and self.benchmark_process.poll() is None:
@@ -1797,7 +1801,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
 
     def _recycle_selected_alternatives(self):
         if self.review_bulk_running:return
-        if self.process is not None and self.process.poll() is None:
+        if self._search_is_active_or_stopping():
             self._dialog("showwarning","Search running",
                          "Finish the music search before deleting alternatives.");return
         if self.benchmark_process is not None and self.benchmark_process.poll() is None:
@@ -1965,7 +1969,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         return stamp(value)
 
     def _sync_save(self):
-        if self.process is not None and self.process.poll() is None:
+        if self._search_is_active_or_stopping():
             self._dialog("showwarning","Search running","Finish your search before writing candidate files.")
             return
         if not self.sync_lines or len(self.sync_times)!=len(self.sync_lines):
@@ -2006,7 +2010,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             self._dialog("showwarning","Provider benchmark running",
                          "Stop the benchmark before closing the Control Center.")
             return
-        if self.process is not None and self.process.poll() is None:
+        if self._search_is_active_or_stopping():
             self._dialog("showwarning","Search running",
                 "Stop the current search before closing the Control Center.")
             return

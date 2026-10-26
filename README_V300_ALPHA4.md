@@ -11,6 +11,8 @@ Stable main and every previous release are unchanged.
   tree is independently verified, the GUI shows verification in progress.
   Failed verification shows **STOP NOT VERIFIED**, retains the cancellation
   marker, offers **RETRY STOP**, and blocks another search or normal app close.
+  Existing search-busy guards also keep benchmarks, setup and candidate
+  promotion/recycling blocked until shutdown is verified.
 - RETRY STOP works after the parent has exited. The original observed child
   identities are retained. Windows retries use pinned process handles with
   matching creation times; they never target a reused child PID by number.

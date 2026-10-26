@@ -49,6 +49,7 @@ class StopStateTests(unittest.TestCase):
         a._refresh_review_background = mock.Mock()
         a._manager_cleanup_selection = mock.Mock()
         a._dialog = mock.Mock(return_value=True)
+        a.review_bulk_running = False
         a.stop_directory = Path(self.tmp.name) / "stop"
         a.stop_directory.mkdir()
         a.stop_path = a.stop_directory / "stop.request"
@@ -102,6 +103,17 @@ class StopStateTests(unittest.TestCase):
         self.assertIs(proc, self.proc)
         self.assertFalse(success)
         self.assertIn("synthetic failure", detail)
+
+    def test_unverified_stop_blocks_benchmark_and_candidate_mutation_too(self):
+        a=self.app
+        a._hardstop_pending=False
+        a._stop_verification_failed=True
+        a.process=None
+        self.assertTrue(a._search_is_active_or_stopping())
+        a._start_provider_benchmark()
+        a._promote_review_items([],"synthetic")
+        a._recycle_selected_alternatives()
+        self.assertEqual(a._dialog.call_count,3)
 
 
 class NetworkBudgetGaps(unittest.TestCase):
@@ -166,6 +178,19 @@ class NetworkBudgetGaps(unittest.TestCase):
 
 
 class StopContextTests(unittest.TestCase):
+    def test_known_children_are_stopped_even_if_post_stop_snapshot_is_unavailable(self):
+        worker=mock.Mock()
+        worker.poll.return_value=0
+        context=worker_stop.StopContext()
+        context.captured=True
+        context.owned={4101}
+        context.handles={4101:"original-process-handle"}
+        with mock.patch.object(worker_stop,"_windows_snapshot_with_retry",return_value=None), \
+             mock.patch.object(worker_stop,"_pinned_windows_children_running",return_value=set()) as stop:
+            ok,_=worker_stop.kill_search_process(worker,"nt",context=context)
+        self.assertFalse(ok,"Snapshot failure must still be reported honestly")
+        stop.assert_called_once_with(context.handles,terminate=True)
+
     def test_cooperative_parent_exit_still_terminates_pinned_children(self):
         worker = mock.Mock(pid=4100)
         alive = [True]

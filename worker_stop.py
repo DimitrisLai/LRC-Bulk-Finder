@@ -331,10 +331,12 @@ def kill_search_process(process, platform=None, *, context=None, request_stop=No
         if context is None or context.owned is None:
             return False,'Worker already exited; original child tree could not be verified.'
         if platform == 'nt':
+            # Termination is independent of the post-stop snapshot. A failed
+            # verification service must not leave already pinned children alive.
+            pinned = _pinned_windows_children_running(context.handles, terminate=True) if context.handles else set()
             after = _windows_snapshot_with_retry()
             if after is None:
                 return False,'Worker exited; child verification unavailable. Retry STOP.'
-            pinned = _pinned_windows_children_running(context.handles, terminate=True) if context.handles else set()
             lingering = (context.owned - set(context.handles)).intersection(after) | pinned
         else:
             # Never signal a recycled POSIX PID/group after its leader exited.
