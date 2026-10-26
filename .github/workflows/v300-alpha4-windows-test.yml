@@ -105,14 +105,15 @@ jobs:
       - name: Real frozen Control Center STOP with inherited stdout and 5000 candidates
         shell: pwsh
         run: |
-          python -c "import subprocess,pathlib,json; p=pathlib.Path('dist/alpha4-frozen-stop.json').resolve(); subprocess.run([str(pathlib.Path('dist/LRC_Control_Center.exe').resolve()),'--qa-stop-smoke',str(p)],check=True,timeout=240); d=json.loads(p.read_text(encoding='utf-8')); assert d['passed']; print(json.dumps(d,indent=2))"
+          python -c "import subprocess,pathlib,json; p=pathlib.Path('dist/alpha4-frozen-stop.json').resolve(); r=subprocess.run([str(pathlib.Path('dist/LRC_Control_Center.exe').resolve()),'--qa-stop-smoke',str(p)],check=False,timeout=240); d=json.loads(p.read_text(encoding='utf-8')); print(json.dumps(d,indent=2)); assert r.returncode==0 and d['passed']"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Preserve frozen STOP evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Alpha4-frozen-STOP-evidence
           path: dist/alpha4-frozen-stop.json
-          if-no-files-found: error
+          if-no-files-found: warn
       - name: Create preview-only standalone ZIP + checksum
         shell: pwsh
         run: |

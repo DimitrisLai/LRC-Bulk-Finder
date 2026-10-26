@@ -2026,7 +2026,7 @@ def main():
 
 if __name__=="__main__":
     if len(sys.argv)==3 and sys.argv[1]=="--qa-stop-smoke":
-        from QA_V300_FROZEN_STOP import smoke
-        sys.exit(smoke(sys.argv[2]))
+        from QA_V300_FROZEN_STOP import smoke_entry
+        sys.exit(smoke_entry(sys.argv[2],ControlCenter))
     else:
         main()

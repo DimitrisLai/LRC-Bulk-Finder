@@ -32,12 +32,19 @@ def fixture(root, stage, depth):
     return 0
 
 
-def smoke(report):
+def smoke_entry(report, center_class):
+    """Windowed EXEs must report QA errors without opening a modal dialog."""
+    try:
+        return smoke(report, center_class)
+    except Exception:
+        import traceback
+        Path(report).write_text(json.dumps({"passed":False,"error":traceback.format_exc()},indent=2),encoding="utf-8")
+        return 1
+
+
+def smoke(report, center_class):
     if os.name != "nt" or not getattr(sys, "frozen", False):
         raise RuntimeError("Run this QA through the frozen Windows Control Center")
-    # The worker's QA fixture does not need to bundle the entire GUI stack.
-    from importlib import import_module
-    ControlCenter = import_module("LRC_Control_Center").ControlCenter
     from worker_stop import _windows_process_table_toolhelp
     from runtime_paths import program_folder
     results = []
@@ -54,7 +61,9 @@ def smoke(report):
         lrc = original.with_suffix(".lrc")
         lrc.write_text("[00:01.00] original preserved\n", encoding="utf-8")
         before = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in music.iterdir()}
-        app = ControlCenter()
+        # PyInstaller's entry module is __main__, not necessarily importable
+        # again as LRC_Control_Center. Use the already loaded production class.
+        app = center_class()
         app.withdraw()
         app.folder.set(str(music))
         app._dialog = lambda *args, **kwargs: True

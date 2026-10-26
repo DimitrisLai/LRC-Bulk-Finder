@@ -233,5 +233,21 @@ class StopContextTests(unittest.TestCase):
         self.assertIn("could not be verified",detail)
 
 
+class FrozenHarnessTests(unittest.TestCase):
+    def test_windowed_qa_failure_produces_report_and_nonzero_exit_without_dialog(self):
+        import json
+        import QA_V300_FROZEN_STOP as qa
+        with tempfile.TemporaryDirectory() as td:
+            report=Path(td)/"qa.json"
+            cls=object()
+            with mock.patch.object(qa,"smoke",side_effect=RuntimeError("synthetic QA failure")) as run:
+                code=qa.smoke_entry(report,cls)
+            self.assertEqual(code,1)
+            run.assert_called_once_with(report,cls)
+            data=json.loads(report.read_text(encoding="utf-8"))
+            self.assertFalse(data["passed"])
+            self.assertIn("synthetic QA failure",data["error"])
+
+
 if __name__ == "__main__":
     unittest.main()
