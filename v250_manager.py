@@ -26,7 +26,7 @@ MAX_JOURNAL_BYTES = 1_000_000
 MAX_REPORT_BYTES = 30_000_000
 MAX_REASON_LENGTH = 1200
 AUDIO_EXTS = frozenset({'.mp3','.flac','.m4a','.mp4','.ogg','.opus','.wav'})
-CANDIDATE_RE = re.compile(r'^.+\.candidate(?:\.[2-9]\d*)?\.lrc$', re.I)
+CANDIDATE_RE = re.compile(r'^.+\.candidate(?:\.(?:[2-9]|[1-9]\d+))?\.lrc$', re.I)
 SESSION_RE = re.compile(r'^[a-f0-9]{32}$')
 
 

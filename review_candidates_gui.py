@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from incremental_library import AUDIO_EXTENSIONS
 
-_CANDIDATE_PATTERN=re.compile(r"^(?P<stem>.+)\.candidate(?:\.(?P<index>[2-9]\d*))?\.lrc$",re.IGNORECASE)
+_CANDIDATE_PATTERN=re.compile(r"^(?P<stem>.+)\.candidate(?:\.(?P<index>(?:[2-9]|[1-9]\d+)))?\.lrc$",re.IGNORECASE)
 
 
 def candidate_index(path):

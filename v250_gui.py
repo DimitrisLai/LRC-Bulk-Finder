@@ -60,7 +60,7 @@ class V250Mixin:
         threading.Thread(target=run,daemon=True).start()
 
     def _manager_retry_selected(self):
-        if self.process is not None and self.process.poll() is None:
+        if self._search_is_active_or_stopping():
             self._dialog('showwarning','Search running','Stop the current search before starting another.')
             return
         rows=self._manager_selection()
@@ -108,7 +108,7 @@ class V250Mixin:
             except OSError:pass
 
     def _manager_undo(self):
-        if self.process is not None and self.process.poll() is None:
+        if self._search_is_active_or_stopping():
             self._dialog('showwarning','Search running',
                 'Finish or stop the current search before undoing a previous session.')
             return

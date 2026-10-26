@@ -107,9 +107,14 @@ def main(argv=None):
     parser.add_argument("--allow-python-install",action="store_true",help="Also install official Python 3.11 using Windows winget if missing")
     parser.add_argument("--profiles-path",help="Optional alternate profiles.json for portable/test runs")
     parser.add_argument("--qa-stop-fixture",help=argparse.SUPPRESS)
+    parser.add_argument("--qa-startup-fixture",help=argparse.SUPPRESS)
+    parser.add_argument("--qa-startup-mode",choices=("history","history-budget","enumeration","normal-enumeration"),default="history",help=argparse.SUPPRESS)
     parser.add_argument("--qa-stage",default="preflight",choices=("preflight","slow-network-read","provider-cooldown"),help=argparse.SUPPRESS)
     parser.add_argument("--qa-depth",type=int,default=0,choices=(0,1,2),help=argparse.SUPPRESS)
     args=parser.parse_args(argv)
+    if args.qa_startup_fixture:
+        from QA_V300_FROZEN_STARTUP import worker_fixture
+        return worker_fixture(args.qa_startup_fixture,args.qa_startup_mode)
     if args.qa_stop_fixture:
         from QA_V300_FROZEN_STOP import fixture
         return fixture(args.qa_stop_fixture,args.qa_stage,args.qa_depth)

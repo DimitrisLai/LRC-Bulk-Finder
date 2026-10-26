@@ -10,6 +10,7 @@ import json
 import os
 import uuid
 from pathlib import Path
+from startup_io import read_jsonl_snapshot, StartupBudgetExceeded
 
 
 def checkpoint_signature(version, settings, config_files=(), snapshot=None):
@@ -42,27 +43,24 @@ class SearchCheckpoint:
         self.entries={}
         self.loaded=0
         self.invalid_lines=0
-        if self.path.is_file():
-            try:
-                with self.path.open(encoding='utf-8') as source:
-                    for line in source:
-                        try:
-                            record=json.loads(line)
-                            if (record.get('signature')!=signature or
-                                    record.get('schema')!=1):
-                                continue
-                            path=str(record['path'])
-                            stage=int(record['round'])
-                            if stage not in (1,2,3):continue
-                            self.entries[(path,stage)]=record
-                            if isinstance(record.get('run_id'),str):
-                                self.run_id=record['run_id']
-                        except (ValueError,KeyError,TypeError,AttributeError):
-                            self.invalid_lines+=1
-                            continue  # tolerate truncated/interrupted JSONL lines
-                self.loaded=len(self.entries)
-            except OSError as error:
-                print('Warning: cannot load search checkpoint:',error)
+        def consume(data,record):
+            if record.get('signature')!=signature or record.get('schema')!=1:
+                return
+            path=str(record['path'])
+            stage=int(record['round'])
+            if stage not in (1,2,3):return
+            data['entries'][(path,stage)]=record
+            if isinstance(record.get('run_id'),str):data['run_id']=record['run_id']
+        try:
+            data=read_jsonl_snapshot(self.path,lambda:{'entries':{},'run_id':self.run_id,'invalid':0},consume,
+                label='PREFLIGHT CHECKPOINT',progress=lambda msg:print(msg,flush=True),
+                max_record_bytes=4*1024*1024,on_invalid=lambda data:data.update(invalid=data['invalid']+1))
+            self.entries=data['entries']
+            self.run_id=data['run_id']
+            self.loaded=len(self.entries)
+            self.invalid_lines=data['invalid']
+        except (OSError,StartupBudgetExceeded) as error:
+            print('Resume cache unavailable this run; original checkpoint preserved:',error,flush=True)
 
     def get(self, song, stage):
         path=Path(song)

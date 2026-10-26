@@ -1245,6 +1245,13 @@ for _en,_el in _REVIEW_RECYCLE_EL.items():
     UI_EL.setdefault(_en,_el)
 
 UI_EL.update({
+    "Loading candidate inventory...":"Φόρτωση λίστας υποψήφιων αρχείων...",
+    "Candidate inventory ready":"Η λίστα υποψήφιων αρχείων είναι έτοιμη",
+    "Alpha 5 — Startup and STOP test":"Alpha 5 — δοκιμή εκκίνησης και διακοπής",
+    "Preflight: enumerating audio files":"Προέλεγχος: καταγραφή αρχείων ήχου",
+    "Preflight: loading search history":"Προέλεγχος: φόρτωση ιστορικού αναζήτησης",
+    "Preflight: loading local metadata caches":"Προέλεγχος: φόρτωση τοπικών δεδομένων",
+    "Blocked / HTTP 503 circuit open":"Αποκλεισμός / ενεργοποιήθηκε η προστασία HTTP 503",
     "Online stalled / disabled":"Η σύνδεση κόλλησε / απενεργοποιήθηκε",
     "Online budget exhausted / disabled":"Εξαντλήθηκε το χρονικό όριο σύνδεσης / απενεργοποιήθηκε",
     "Alpha 4 — STOP reliability test":"Alpha 4 — δοκιμή αξιόπιστης διακοπής",
