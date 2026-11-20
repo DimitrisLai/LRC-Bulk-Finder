@@ -7,10 +7,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+from os.path import normcase
 from pathlib import Path
 from typing import Optional
 
-from v260_studio import read_lyric_file, LyricLine
+from v260_studio import LyricLine, decode_lyric_bytes, parse_lrc, read_lyric_bytes
 from v270_precision import validate_timing
 
 MAX_PREVIEW_BYTES = 160_000
@@ -60,13 +61,13 @@ def group_candidates(items):
     for item in items:
         stem, _ = _name_and_index(item)
         path = Path(item["path"])
-        key = str(path.parent.absolute()).casefold() + "\0" + stem.casefold()
+        key = str(path.parent.absolute()) + "\0" + normcase(stem)
         mapping.setdefault(key, []).append(item)
     groups = []
     for key, rows in mapping.items():
         rows = sorted(rows, key=lambda r: (int(r["index"]), str(r["path"]).casefold()))
         unique = not any(r["ambiguous"] or not r["has_mp3"] for r in rows)
-        audio_paths = {str(Path(r["mp3"]).absolute()).casefold() for r in rows}
+        audio_paths = {Path(r["mp3"]).absolute() for r in rows}
         audio = Path(rows[0]["mp3"]) if unique and len(audio_paths) == 1 else None
         if audio is not None and (not audio.is_file() or audio.is_symlink()):
             audio = None
@@ -83,15 +84,8 @@ def read_snapshot(item, duration=0.0):
     path = Path(item["path"])
     try:
         _name_and_index(item)
-        if path.is_symlink() or not path.is_file():
-            raise ValueError("Missing or unsafe candidate file")
-        st = path.stat()
-        if st.st_size > MAX_PREVIEW_BYTES:
-            raise ValueError("Candidate exceeds 160 KB preview limit")
-        raw = path.read_bytes()
-        if len(raw) > MAX_PREVIEW_BYTES:
-            raise ValueError("Candidate changed or exceeds preview limit")
-        lines = tuple(read_lyric_file(path))
+        raw = read_lyric_bytes(path, MAX_PREVIEW_BYTES)
+        lines = tuple(parse_lrc(decode_lyric_bytes(raw)))
         warnings = tuple(f"Line {w.line}: {w.message}" for w in
                          validate_timing(lines, float(duration) if duration and duration > 0 else 0))
         return CandidateSnapshot(path, int(item["index"]), lines,

@@ -1,39 +1,23 @@
-name: Alpha 5 startup and STOP verification
+name: Windows preview, startup and STOP verification
 
 on:
   push:
-    branches: [fix/v300-startup-audit-alpha5]
+    branches: [fix/v300-startup-audit-alpha5, fix/v300-candidate-review-alpha6]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  PREVIEW: ${{ github.ref_name == 'fix/v300-candidate-review-alpha6' && '6' || '5' }}
+  ZIP_STEM: ${{ github.ref_name == 'fix/v300-candidate-review-alpha6' && 'LRC_Bulk_Finder_v3_Alpha6_Candidate_Review_Windows_Test' || 'LRC_Bulk_Finder_v3_Alpha5_Startup_STOP_Windows_Test' }}
 
 concurrency:
-  group: alpha5-${{ github.ref }}
+  group: windows-preview-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  supersede-obsolete-runs:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      contents: read
-    steps:
-      - name: Cancel earlier Alpha 5 builds before an obsolete preview can publish
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const {owner, repo} = context.repo;
-            const runs = await github.rest.actions.listWorkflowRuns({owner, repo,
-              workflow_id: 'v300-alpha5-windows-test.yml', branch: context.ref.replace('refs/heads/', ''), per_page: 30});
-            for (const run of runs.data.workflow_runs) {
-              if (run.head_sha !== context.sha && ['queued','in_progress'].includes(run.status)) {
-                await github.rest.actions.cancelWorkflowRun({owner, repo, run_id: run.id});
-              }
-            }
-
   regression:
-    needs: supersede-obsolete-runs
     timeout-minutes: 15
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
@@ -106,44 +90,46 @@ jobs:
       - name: Real frozen Control Center STOP with inherited stdout and 5000 candidates
         shell: pwsh
         run: |
-          python -c "import subprocess,pathlib,json; p=pathlib.Path('dist/alpha5-frozen-stop.json').resolve(); r=subprocess.run([str(pathlib.Path('dist/LRC_Control_Center.exe').resolve()),'--qa-stop-smoke',str(p)],check=False,timeout=240); d=json.loads(p.read_text(encoding='utf-8')); print(json.dumps(d,indent=2)); assert r.returncode==0 and d['passed']"
+          python -c "import subprocess,pathlib,json; p=pathlib.Path('dist/alpha${{ env.PREVIEW }}-frozen-stop.json').resolve(); r=subprocess.run([str(pathlib.Path('dist/LRC_Control_Center.exe').resolve()),'--qa-stop-smoke',str(p)],check=False,timeout=240); d=json.loads(p.read_text(encoding='utf-8')); print(json.dumps(d,indent=2)); assert r.returncode==0 and d['passed']"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Preserve frozen STOP evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Alpha5-frozen-STOP-evidence
-          path: dist/alpha5-frozen-stop.json
+          name: Alpha${{ env.PREVIEW }}-frozen-STOP-evidence
+          path: dist/alpha${{ env.PREVIEW }}-frozen-stop.json
           if-no-files-found: warn
       - name: Real frozen startup readers, discovery and GUI STOP
         shell: pwsh
         run: |
-          python -c "import subprocess,pathlib,json; p=pathlib.Path('dist/alpha5-startup.json').resolve(); r=subprocess.run([str(pathlib.Path('dist/LRC_Control_Center.exe').resolve()),'--qa-startup-smoke',str(p)],check=False,timeout=240); d=json.loads(p.read_text(encoding='utf-8')); print(json.dumps(d,indent=2)); assert r.returncode==0 and d['passed']"
+          python -c "import subprocess,pathlib,json; p=pathlib.Path('dist/alpha${{ env.PREVIEW }}-startup.json').resolve(); r=subprocess.run([str(pathlib.Path('dist/LRC_Control_Center.exe').resolve()),'--qa-startup-smoke',str(p)],check=False,timeout=240); d=json.loads(p.read_text(encoding='utf-8')); print(json.dumps(d,indent=2)); assert r.returncode==0 and d['passed']"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Preserve frozen startup evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Alpha5-frozen-startup-evidence
-          path: dist/alpha5-startup.json
+          name: Alpha${{ env.PREVIEW }}-frozen-startup-evidence
+          path: dist/alpha${{ env.PREVIEW }}-startup.json
           if-no-files-found: warn
       - name: Create preview-only standalone ZIP + checksum
         shell: pwsh
         run: |
-          python BUILD_V300_ALPHA5.py
+          python BUILD_V300_ALPHA${{ env.PREVIEW }}.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Retain standalone Windows stage 1 test download
         uses: actions/upload-artifact@v4
         with:
-          name: LRC-Bulk-Finder-v3-Alpha5-Startup-STOP-Windows-Test
+          name: ${{ env.ZIP_STEM }}
           path: |
-            dist/LRC_Bulk_Finder_v3_Alpha5_Startup_STOP_Windows_Test.zip
-            dist/LRC_Bulk_Finder_v3_Alpha5_Startup_STOP_Windows_Test.zip.sha256
+            dist/${{ env.ZIP_STEM }}.zip
+            dist/${{ env.ZIP_STEM }}.zip.sha256
           if-no-files-found: error
           retention-days: 30
 
   publish-preview:
-    if: github.repository == 'DimitrisLai/LRC-Bulk-Finder'
+    if: github.repository == 'DimitrisLai/LRC-Bulk-Finder' && (github.ref_name == 'fix/v300-candidate-review-alpha6' || github.ref_name == 'fix/v300-startup-audit-alpha5')
+    permissions:
+      contents: write
     needs: windows-preview
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -151,13 +137,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: LRC-Bulk-Finder-v3-Alpha5-Startup-STOP-Windows-Test
+          name: ${{ env.ZIP_STEM }}
           path: publish-assets
       - name: Verify downloaded standalone ZIP hash
         run: |
           set -euo pipefail
           cd publish-assets
-          sha256sum -c LRC_Bulk_Finder_v3_Alpha5_Startup_STOP_Windows_Test.zip.sha256
+          sha256sum -c "$ZIP_STEM.zip.sha256"
       - name: Publish a distinct, clearly labeled alpha release only
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -168,14 +154,14 @@ jobs:
             echo 'Source changed after this build; do not publish an obsolete preview.'
             exit 0
           fi
-          if gh release view v3.0.0-alpha.5 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if gh release view "v3.0.0-alpha.$PREVIEW" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo 'Alpha release already exists; leaving all published assets intact.'
             exit 0
           fi
-          gh release create v3.0.0-alpha.5 \
-            publish-assets/LRC_Bulk_Finder_v3_Alpha5_Startup_STOP_Windows_Test.zip \
-            publish-assets/LRC_Bulk_Finder_v3_Alpha5_Startup_STOP_Windows_Test.zip.sha256 \
+          gh release create "v3.0.0-alpha.$PREVIEW" \
+            "publish-assets/$ZIP_STEM.zip" \
+            "publish-assets/$ZIP_STEM.zip.sha256" \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title 'LRC Bulk Finder — Startup and STOP recheck (ALPHA 5)' \
-            --notes-file README_V300_ALPHA5.md --prerelease --latest=false
-          gh release view v3.0.0-alpha.5 --repo "$GITHUB_REPOSITORY" --json tagName,url
+            --title "LRC Bulk Finder — Windows test (Alpha $PREVIEW)" \
+            --notes-file "README_V300_ALPHA$PREVIEW.md" --prerelease --latest=false
+          gh release view "v3.0.0-alpha.$PREVIEW" --repo "$GITHUB_REPOSITORY" --json tagName,url

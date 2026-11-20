@@ -1248,6 +1248,7 @@ UI_EL.update({
     "Loading candidate inventory...":"Φόρτωση λίστας υποψήφιων αρχείων...",
     "Candidate inventory ready":"Η λίστα υποψήφιων αρχείων είναι έτοιμη",
     "Alpha 5 — Startup and STOP test":"Alpha 5 — δοκιμή εκκίνησης και διακοπής",
+    "Alpha 6 — Candidate Review":"Alpha 6 — Έλεγχος υποψήφιων στίχων",
     "Preflight: enumerating audio files":"Προέλεγχος: καταγραφή αρχείων ήχου",
     "Preflight: loading search history":"Προέλεγχος: φόρτωση ιστορικού αναζήτησης",
     "Preflight: loading local metadata caches":"Προέλεγχος: φόρτωση τοπικών δεδομένων",

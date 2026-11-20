@@ -9,7 +9,7 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext
 from pathlib import Path
 
-from candidate_review_v3 import group_candidates, page_groups, read_snapshot, comparison
+from candidate_review_v3 import PAGE_SIZE, group_candidates, page_groups, read_snapshot, comparison
 from v260_player import duration_seconds
 from v260_studio import format_time
 
@@ -29,6 +29,9 @@ EL = {
     "Existing .lrc preserved":"Το υπάρχον .lrc προστατεύεται",
     "No unambiguous audio":"Δεν υπάρχει μοναδικό αρχείο ήχου",
     "Close":"Κλείσιμο",
+    "songs":"τραγούδια",
+    "page":"σελίδα",
+    "candidates":"υποψήφιοι στίχοι",
 }
 
 
@@ -80,8 +83,10 @@ class CandidateCompareWindow(tk.Toplevel):
         self.song_list.bind("<<ListboxSelect>>", self._select_song)
         paging = ttk.Frame(songs)
         paging.pack(fill="x", pady=5)
-        ttk.Button(paging, text=self._tr("Previous page"), command=lambda: self._move(-1)).pack(side="left")
-        ttk.Button(paging, text=self._tr("Next page"), command=lambda: self._move(1)).pack(side="right")
+        self.previous_page = ttk.Button(paging, text=self._tr("Previous page"), command=lambda: self._move(-1))
+        self.next_page = ttk.Button(paging, text=self._tr("Next page"), command=lambda: self._move(1))
+        self.previous_page.pack(side="left")
+        self.next_page.pack(side="right")
 
         right = ttk.Frame(main, padding=(8, 0))
         main.add(right, weight=3)
@@ -124,18 +129,21 @@ class CandidateCompareWindow(tk.Toplevel):
         target = self.page + direction
         if target < 0:
             return
-        available, total = page_groups(self.groups, target, self.query.get())
-        if available or target == 0 or total == 0:
+        available, _ = page_groups(self.groups, target, self.query.get())
+        if available or target == 0:
             self.page = target
             self._refresh()
 
     def _refresh(self):
         self.visible, total = page_groups(self.groups, self.page, self.query.get())
-        pages = max(1, (total + 199) // 200)
-        self.total_label.set(f"{total} songs  ·  page {self.page+1}/{pages}")
+        pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+        self.previous_page.configure(state="normal" if self.page > 0 else "disabled")
+        self.next_page.configure(state="normal" if self.page + 1 < pages else "disabled")
+        self.total_label.set(f"{total} {self._tr('songs')}  ·  {self._tr('page')} {self.page+1}/{pages}")
         self.song_list.delete(0, "end")
         for group in self.visible:
-            self.song_list.insert("end", f"{group.title}   [{len(group.candidates)}]")
+            album = group.candidates[0]["path"].parent
+            self.song_list.insert("end", f"{group.title}   [{len(group.candidates)}]   {album.name}")
         if self.visible:
             self.song_list.selection_set(0)
             self._select_song()
@@ -160,8 +168,10 @@ class CandidateCompareWindow(tk.Toplevel):
             flags.append(self._tr("No unambiguous audio"))
         if self.group.has_lrc:
             flags.append(self._tr("Existing .lrc preserved"))
-        self.summary.set(f"{self.group.title}  ·  {len(self.group.candidates)} candidates  ·  " +
-                         self._tr("NOT VERIFIED") + ("  ·  " + "; ".join(flags) if flags else ""))
+        album = self.group.candidates[0]["path"].parent
+        self.summary.set(f"{self.group.title}  ·  {len(self.group.candidates)} {self._tr('candidates')}  ·  " +
+                         self._tr("NOT VERIFIED") + ("  ·  " + "; ".join(flags) if flags else "") +
+                         f"\n{album}")
         self._options = [f"#{row['index']} — {Path(row['path']).name}" for row in self.group.candidates]
         self.select_a.configure(values=self._options)
         self.select_b.configure(values=self._options)

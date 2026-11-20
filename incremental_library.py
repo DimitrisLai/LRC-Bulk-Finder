@@ -42,12 +42,17 @@ def safe_audio_files(folder,recursive=True,*,progress=None,timeout_seconds=SCAN_
     """Do not guess which audio file should own a colliding .lrc sidecar."""
     candidates=audio_files(folder,recursive,progress=progress,timeout_seconds=timeout_seconds)
     counts={}
+    def sidecar_key(path):
+        # scandir gives the on-disk spelling of each parent. Two distinct album
+        # folders may fold to the same text (for example, Strasse and Straße).
+        return str(path.parent), path.stem.casefold()
+
     for path in candidates:
         check_stop()
-        key=str(path.with_suffix("")).casefold()
+        key=sidecar_key(path)
         counts[key]=counts.get(key,0)+1
-    safe=[p for p in candidates if counts[str(p.with_suffix("")).casefold()]==1]
-    collisions=[p for p in candidates if counts[str(p.with_suffix("")).casefold()]>1]
+    safe=[p for p in candidates if counts[sidecar_key(p)]==1]
+    collisions=[p for p in candidates if counts[sidecar_key(p)]>1]
     return safe,collisions
 
 class IncrementalLibrary:

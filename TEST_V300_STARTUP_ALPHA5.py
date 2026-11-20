@@ -274,7 +274,7 @@ class GuiOwnershipTests(unittest.TestCase):
         app=ControlCenter.__new__(ControlCenter);app.tk=None
         app._hardstop_pending=False;app._stop_verification_failed=False;app.process=None
         app.review_bulk_running=False;app._review_refresh_generation=0
-        app._review_snapshot_folder=None;app._review_open_pending=None
+        app._review_snapshot_scope=None;app._review_open_pending=None
         app.folder=mock.Mock();app.folder.get.return_value="fixture"
         app.boolvars={"recursive":mock.Mock()};app.boolvars["recursive"].get.return_value=True
         app.review_batch_status=mock.Mock();app._dialog=mock.Mock()
