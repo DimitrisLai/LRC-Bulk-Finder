@@ -17,15 +17,16 @@ FILES = (
     "README_STANDALONE_EXE_V2_9_9.txt",
     "README_V300_STAGE1_TEST.md", "README_V300_FAST_HOTFIX.md", "README_V300_FAST_STOP.md",
 )
-def main():
+def main(*, name=None, files=None):
     import LRC_Bulk_Finder
+    files = FILES if files is None else files
     assert LRC_Bulk_Finder.VERSION == "2.9.9", "Do not silently change stable engine version"
     assert (BASE / "candidate_review_v3.py").is_file()
     assert (BASE / "v300_candidate_compare_gui.py").is_file()
     DIST.mkdir(exist_ok=True)
-    destination = DIST / NAME
+    destination = DIST / (NAME if name is None else name)
     with ZipFile(destination, "w", ZIP_DEFLATED, compresslevel=7) as archive:
-        for filename in FILES:
+        for filename in files:
             origin = (DIST if filename.endswith(".exe") else BASE) / filename
             if not origin.is_file() or origin.stat().st_size == 0:
                 raise RuntimeError("Missing required Stage 1 test asset: " + str(origin))
@@ -34,13 +35,14 @@ def main():
         assert archive.testzip() is None, "ZIP integrity failed"
         names = archive.namelist()
         assert len(names) == len(set(names))
-        assert set(names) == set(FILES)
+        assert set(names) == set(files)
         assert all(".." not in Path(name).parts and not name.startswith("/") for name in names)
         assert not any(n.lower().endswith((".mp3",".wav",".flac",".ogg",".mp4",".m4a"))
                        for n in names)
         assert b"Stage 1" in archive.read("README_V300_STAGE1_TEST.md")
     digest = sha256(destination.read_bytes()).hexdigest()
-    (DIST / (NAME + ".sha256")).write_text(f"{digest}  {NAME}\n", encoding="ascii")
+    destination.with_name(destination.name + ".sha256").write_text(
+        f"{digest}  {destination.name}\n", encoding="ascii")
     print("PASS", destination, "SHA256", digest, "bytes", destination.stat().st_size)
 
 if __name__ == "__main__":

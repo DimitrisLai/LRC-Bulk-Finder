@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from incremental_library import AUDIO_EXTENSIONS
+from v260_studio import decode_lyric_bytes, read_lyric_bytes
 
 _CANDIDATE_PATTERN=re.compile(r"^(?P<stem>.+)\.candidate(?:\.(?P<index>(?:[2-9]|[1-9]\d+)))?\.lrc$",re.IGNORECASE)
 
@@ -49,9 +50,8 @@ def preview_candidate(path,max_bytes=160_000):
     candidate=Path(path)
     if candidate_index(candidate) is None:
         raise ValueError("Not a review-candidate .lrc file")
-    if candidate.stat().st_size>max_bytes:
-        raise ValueError("Candidate too large to preview safely")
-    return candidate.read_text(encoding="utf-8-sig",errors="replace")
+    text = decode_lyric_bytes(read_lyric_bytes(candidate, max_bytes))
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def explicitly_promote(candidate,approved=False):

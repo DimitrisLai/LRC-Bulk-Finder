@@ -95,19 +95,30 @@ def parse_lrc(text: str) -> list[LyricLine]:
     return results
 
 
-def read_lyric_file(path: str | Path) -> list[LyricLine]:
+def read_lyric_bytes(path: str | Path, max_bytes: int) -> bytes:
     file = Path(path)
     if not file.is_file() or file.is_symlink():
-        raise ValueError("Choose a regular local lyric file")
-    if file.stat().st_size > MAX_LRC_BYTES:
-        raise ValueError("Lyrics exceed the 512 KB limit")
-    data = file.read_bytes()
+        raise ValueError("Missing or unsafe lyric file")
+    if max_bytes < 0:
+        raise ValueError("Invalid lyric size limit")
+    if file.stat().st_size <= max_bytes:
+        with file.open("rb") as stream:
+            data = stream.read(max_bytes + 1)
+        if len(data) <= max_bytes:
+            return data
+    raise ValueError(f"Lyric file exceeds the {max_bytes:,} byte limit")
+
+
+def decode_lyric_bytes(data: bytes) -> str:
     try:
-        text = data.decode("utf-8-sig")
+        return data.decode("utf-8-sig")
     except UnicodeDecodeError:
         # Legacy Greek sidecars are sometimes saved in Windows-1253.
-        text = data.decode("cp1253")
-    return parse_lrc(text)
+        return data.decode("cp1253")
+
+
+def read_lyric_file(path: str | Path) -> list[LyricLine]:
+    return parse_lrc(decode_lyric_bytes(read_lyric_bytes(path, MAX_LRC_BYTES)))
 
 
 def render_candidate(lines: list[LyricLine]) -> str:

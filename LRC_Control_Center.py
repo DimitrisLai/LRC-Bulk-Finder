@@ -83,7 +83,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         self.review_rows={}
         self.review_all_rows=[]
         self._review_refresh_generation=0
-        self._review_snapshot_folder=None
+        self._review_snapshot_scope=None
         self._review_open_pending=None
         self.review_sort_column="track"
         self.review_sort_descending=False
@@ -287,7 +287,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                   style="HeroSubtitle.TLabel").grid(row=1,column=1,sticky="nw",pady=(1,0))
         ttk.Label(header,text=f"v{APP_VERSION}",style="HeroMeta.TLabel").grid(
             row=0,column=2,sticky="e",padx=(6,24))
-        ttk.Label(header,text="Alpha 5 — Startup and STOP test",style="HeroMeta.TLabel").grid(
+        ttk.Label(header,text="Alpha 6 — Candidate Review",style="HeroMeta.TLabel").grid(
             row=1,column=2,sticky="e",padx=(6,24))
         self.appearance_choice=tk.StringVar(
             value=("Σκοτεινό" if self.gui_locale.language=="el" else "Dark")
@@ -1361,7 +1361,7 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         generation=self._review_refresh_generation
         if not folder:
             self.review_all_rows=[]
-            self._review_snapshot_folder=folder
+            self._review_snapshot_scope=(folder,recursive)
             self._render_review()
             return
         self.review_batch_status.set("Loading candidate inventory...")
@@ -1402,14 +1402,14 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
                     generation,folder,recursive,rows,error=data
                     if (generation==self._review_refresh_generation and self.process is None and not self.review_bulk_running and
                         folder==self.folder.get() and recursive==self.boolvars["recursive"].get()):
-                        pending=self._review_open_pending==folder
+                        pending=self._review_open_pending==(folder,recursive)
                         self._review_open_pending=None
                         if error:
                             self._line("Candidate refresh unavailable: "+error)
                             self.review_batch_status.set("Candidate refresh unavailable: "+error)
                         else:
                             self.review_all_rows=rows
-                            self._review_snapshot_folder=folder
+                            self._review_snapshot_scope=(folder,recursive)
                             self._render_review()
                             self.review_batch_status.set("Candidate inventory ready")
                             if pending:
@@ -1637,20 +1637,25 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
         if self.review_bulk_running:
             self._dialog("showwarning","Candidate Review","Finish or stop the current batch first.")
             return
+        scope = (self.folder.get(), self.boolvars["recursive"].get())
         existing = getattr(self, "_candidate_compare_window", None)
         if existing is not None and existing.winfo_exists():
-            existing.lift()
-            existing.focus_set()
-            return
-        if not self.folder.get():
+            if existing.review_scope == scope:
+                existing.lift()
+                existing.focus_set()
+                return
+            existing.destroy()
+            self._candidate_compare_window = None
+        if not scope[0]:
             self._dialog("showinfo","Candidate Review","Choose an audio folder first.")
             return
-        if not self.review_all_rows or self._review_snapshot_folder!=self.folder.get():
-            self._review_open_pending=self.folder.get()
+        if not self.review_all_rows or self._review_snapshot_scope != scope:
+            self._review_open_pending=scope
             self._refresh_review_background()
             return
         from v300_candidate_compare_gui import CandidateCompareWindow
         self._candidate_compare_window = CandidateCompareWindow(self, list(self.review_all_rows))
+        self._candidate_compare_window.review_scope = scope
 
     def _review_filter_key(self):
         value=self.review_filter.get()
@@ -1663,11 +1668,12 @@ class ControlCenter(V290Mixin,V245Mixin,tk.Tk):
             return
         folder=self.folder.get()
         self._review_refresh_generation+=1
-        self._review_snapshot_folder=folder
+        recursive=self.boolvars["recursive"].get()
+        self._review_snapshot_scope=(folder,recursive)
         self.review_all_rows=[]
         self.review_rows={}
         if folder and Path(folder).is_dir():
-            try:self.review_all_rows=list_review_candidates(folder,self.boolvars["recursive"].get())
+            try:self.review_all_rows=list_review_candidates(folder,recursive)
             except (OSError,ValueError) as error:
                 self._dialog("showerror","Candidate scan",str(error))
         self._render_review()
